@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Colors -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Material You Theme Colors -->
+    <color name="md_theme_light_primary">#005FAE</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#D1E4FF</color>
+    <color name="md_theme_light_onPrimaryContainer">#001D36</color>
+
+    <color name="md_theme_light_secondary">#50606F</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#D4E4F9</color>
+    <color name="md_theme_light_onSecondaryContainer">#0D1D2A</color>
+
+    <color name="md_theme_light_background">#FFFFFF</color>
+    <color name="md_theme_light_surface">#91F2FF</color>
+    <color name="md_theme_light_onSurface">#1A1C1E</color>
+    <color name="blue">#0000FF</color>
+    <color name="light_sky_blue">#87CEFA</color>
+
+    <!-- Custom Colors -->
+    <color name="good_status">#3A86FF</color> <!-- Blue for "GOOD" status -->
+    <color name="warning_status">#FFBC42</color> <!-- Amber for warnings -->
+    <color name="danger_status">#FF595E</color> <!-- Red for high danger -->
+
+    <!-- Chart Colors -->
+    <color name="chart_primary">#FF6361</color>
+    <color name="chart_secondary">#58508D</color>
+    <color name="chart_tertiary">#FFA600</color>
+
+    <!-- Pollutant Bar Colors -->
+    <color name="pollutant_bar_fill">#E0E4FF</color>
+    <color name="pollutant_bar_bg">#DCE2F1</color>
+
+    <!-- Pie Chart Segment Colors -->
+    <color name="segment_no2">#FF4C3B</color>
+    <color name="segment_pm2_5">#3B82FF</color>
+    <color name="segment_voc">#C77DFF</color>
+    <color name="segment_co">#FFB400</color>
+    <color name="segment_pm10">#2BC480</color>
+    <color name="blue_light" />
+</resources>

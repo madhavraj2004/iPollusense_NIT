@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+
+        <!-- Settings -->
+        <item
+            android:id="@+id/nav_settings"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+
+        <!-- Advanced View -->
+        <item
+            android:id="@+id/nav_advanced_view"
+            android:icon="@drawable/ic_advanced_view"
+            android:title="Advanced View"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+
+        <!-- Logout -->
+        <item
+            android:id="@+id/nav_logout"
+            android:icon="@drawable/ic_logout"
+            android:title="Logout"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+    </group>
+
+    <!-- Static Footer Section -->
+
+
+
+    <item
+        android:id="@+id/nav_footer_ipollusense"
+        android:title="iPolluSense v0.0"
+        android:enabled="false" />
+
+    <item
+        android:id="@+id/nav_footer_developed_by"
+        android:title="Developed by NITDGP"
+        android:enabled="false" />
+
+    <!-- Additional Links -->
+    <item
+        android:id="@+id/nav_about_us"
+        android:title="About Us"
+        android:enabled="true" />
+
+    <item
+        android:id="@+id/nav_privacy_policy"
+        android:title="Privacy Policy"
+        android:enabled="true" />
+</menu>

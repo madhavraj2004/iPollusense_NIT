@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+        <!-- Base Application Theme -->
+        <style name="Theme.iPolluSen" parent="Theme.Material3.Light.NoActionBar">
+                <item name="colorPrimary">@color/md_theme_light_primary</item>
+                <item name="colorPrimaryContainer">@color/md_theme_light_primaryContainer</item>
+                <item name="colorSecondary">@color/md_theme_light_secondary</item>
+                <item name="colorSecondaryContainer">@color/md_theme_light_secondaryContainer</item>
+                <item name="android:statusBarColor">@color/md_theme_light_primary</item>
+                <item name="android:navigationBarColor">@color/md_theme_light_background</item>
+        </style>
+
+        <!-- Text Style for Titles -->
+
+
+        <!-- Style for Status Indicators -->
+        <style name="StatusText">
+                <item name="android:layout_gravity">center</item>
+                <item name="android:textSize">18sp</item>
+                <item name="android:textColor">@color/md_theme_light_primary</item>
+                <item name="android:fontFamily">sans-serif</item>
+        </style>
+
+        <!-- Button Styles -->
+        <style name="Widget.Material3.Button" parent="Widget.MaterialComponents.Button">
+                <item name="backgroundTint">@color/md_theme_light_primary</item>
+                <item name="android:textColor">@color/md_theme_light_onPrimary</item>
+                <item name="android:fontFamily">sans-serif-medium</item>
+        </style>
+
+
+
+        <!-- Add any other necessary styles here -->
+</resources>

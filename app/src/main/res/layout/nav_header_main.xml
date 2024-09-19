@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="30dp"
+    android:gravity="center_vertical">
+
+    <!-- Profile Image -->
+    <ImageView
+        android:id="@+id/avatarImageView"
+        android:layout_width="64dp"
+        android:layout_height="123dp"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="Profile Picture"
+        android:src="@drawable/ic_person" />
+
+    <!-- Vertical layout for text -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Username -->
+        <TextView
+            android:id="@+id/greetingTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hi, Madhav"
+            android:textColor="@color/blue"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="start" />
+
+
+        <!-- Admin/User Badge with light sky blue background -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp"
+            android:background="@color/light_sky_blue"
+            android:padding="4dp">
+
+            <!-- Admin/User Text -->
+            <TextView
+                android:id="@+id/adminBadgeTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Admin"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_gravity="center_vertical" />
+
+            <!-- Admin Icon beside Admin Text -->
+            <ImageView
+                android:id="@+id/adminBadgeIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_admin_badge"
+                android:layout_marginStart="8dp"
+                android:layout_gravity="center_vertical" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

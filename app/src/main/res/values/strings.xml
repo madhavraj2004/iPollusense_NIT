@@ -1,0 +1,47 @@
+<resources>
+    <!-- App Name -->
+    <string name="app_name">iPolluSense</string>
+
+    <!-- Navigation Drawer -->
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <!-- Navigation Drawer Header -->
+    <string name="nav_header_title">Android Studio</string>
+    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+
+    <!-- Settings -->
+    <string name="action_settings">Settings</string>
+
+    <!-- Section Titles -->
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="exposure_title">Exposure at a Glance</string>
+    <string name="insights_title">Insights</string>
+
+    <!-- Button Texts -->
+
+    <string name="annotate_button">Annotate</string>
+    <string name="check_sensor_health_button">Check Sensor Health</string>
+
+    <!-- Status Texts -->
+    <string name="good_status">GOOD</string>
+    <string name="warning_status">Warning: Check Levels!</string>
+    <string name="danger_status">Dangerous Levels!</string>
+    <string name="user_button_desc">User Button</string>
+    <string name="notification_button_desc">Notification Button</string>
+    <string name="battery_icon_desc">Battery Icon</string>
+    <string name="fab_desc">Add</string>
+    <!-- Accessibility Descriptions -->
+    <string name="notification_icon_desc">Notifications</string>
+    <string name="sensor_health_icon_desc">Sensor Health Status</string>
+
+
+    <!-- Menu Items -->
+    <string name="menu_home">Home</string>
+    <string name="menu_gallery">Gallery</string>
+    <string name="menu_slideshow">Slideshow</string>
+    <string name="options" />
+</resources>
