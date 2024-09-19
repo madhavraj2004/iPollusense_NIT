@@ -14,7 +14,7 @@
     <item
         android:id="@+id/navigation_assistant"
         android:icon="@drawable/ic_assistant"
-        android:title="@string/title_notifications" />
+        android:title="Assistant" />
 
     <item
         android:id="@+id/navigation_map"

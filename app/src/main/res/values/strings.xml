@@ -44,4 +44,6 @@
     <string name="menu_gallery">Gallery</string>
     <string name="menu_slideshow">Slideshow</string>
     <string name="options" />
+    <string name="fab" />
+    <string name="title_assistant" />
 </resources>

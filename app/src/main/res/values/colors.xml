@@ -47,4 +47,7 @@
     <color name="segment_co">#FFB400</color>
     <color name="segment_pm10">#2BC480</color>
     <color name="blue_light" />
+    <color name="progress_color" />
+    <color name="your_progress_color" />
+    <color name="your_progress_background_color" />
 </resources>

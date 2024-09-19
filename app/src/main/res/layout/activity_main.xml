@@ -38,8 +38,8 @@
 
                 <ImageButton
                     android:id="@+id/user_button"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
                     android:layout_gravity="start"
                     android:src="@drawable/ic_baseline_account_circle_24"
                     android:contentDescription="@string/user_button_desc"
@@ -104,18 +104,40 @@
             app:layout_constraintRight_toRightOf="parent"
             app:menu="@menu/bottom_nav_menu" />
 
-        <!-- Floating Action Button -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab"
+        <!-- FrameLayout to wrap FAB and Circular Progress Indicator -->
+        <FrameLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="25dp"
             android:layout_marginBottom="80dp"
-            android:contentDescription="@string/fab_desc"
-            app:srcCompat="@drawable/ic_add"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Circular Progress Bar -->
+            <ProgressBar
+                android:id="@+id/fab_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:indeterminate="false"
+                android:progress="10"
+                android:max="100"
+                android:visibility="visible"
+                android:layout_gravity="center"
+                android:progressTint="@color/progress_color"
+                android:rotation="270"
+                android:progressDrawable="@drawable/circular_progress" />
+
+            <!-- Floating Action Button -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_add"
+                android:contentDescription="@string/fab"
+                app:tint="@color/white" />
+        </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Navigation View for drawer content -->

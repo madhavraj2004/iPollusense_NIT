@@ -2,7 +2,9 @@ package com.example.ipollusen;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.android.material.navigation.NavigationView;
@@ -23,6 +25,9 @@ public class MainActivity extends AppCompatActivity {
 
     private AppBarConfiguration mAppBarConfiguration;
     private ActivityMainBinding binding;
+    private ProgressBar fabProgressBar;
+    private Handler progressHandler = new Handler();
+    private int progressStatus = 5; // Start progress at 5%
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,12 +95,40 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Initialize the circular progress bar around the FAB
+        fabProgressBar = findViewById(R.id.fab_progress);
+        fabProgressBar.setProgress(10); // Set progress to 10%
+
+
+
         // FloatingActionButton click action
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Snackbar.make(view, "FAB clicked", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
+
+                // Start a simple progress bar increment when the FAB is clicked
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (progressStatus < 100) {
+                            progressStatus += 1;
+                            progressHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    fabProgressBar.setProgress(progressStatus);
+                                }
+                            });
+                            try {
+                                // Simulate some work being done with a delay
+                                Thread.sleep(50);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }).start();
             }
         });
 
