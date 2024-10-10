@@ -1,6 +1,19 @@
-plugins {
-    alias(libs.plugins.android.application)
+buildscript {
+    repositories {
+        google() // Ensure Google's Maven repository is included
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.gms:google-services:4.4.2") // Use the latest version
+    }
 }
+
+plugins {
+    id 'com.android.application'
+    // other plugins can be added here
+}
+
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace 'com.example.ipollusen'
@@ -12,7 +25,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -22,29 +34,51 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
     buildFeatures {
-        viewBinding true
+        viewBinding = true
+        dataBinding = true
     }
 }
 
 dependencies {
-
     implementation libs.appcompat
-    implementation libs.material
+    implementation libs.material // Assuming this is defined in your libs catalog
     implementation libs.constraintlayout
     implementation libs.lifecycle.livedata.ktx
     implementation libs.lifecycle.viewmodel.ktx
     implementation libs.navigation.fragment
     implementation libs.navigation.ui
+    implementation libs.preference
+    implementation libs.play.services.maps
+    implementation libs.play.services.location
+    implementation libs.navigation.runtime
+    implementation libs.databinding.runtime
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
-    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
+    // Firebase and Google Services
+    implementation platform("com.google.firebase:firebase-bom:33.4.0")
+    implementation("com.google.firebase:firebase-auth:23.0.0")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.firebaseui:firebase-ui-auth:8.0.0") // Updated version
+    implementation("com.google.firebase:firebase-database:21.0.0")
 
+    // RxJava and RxAndroid
+    implementation("com.polidea.rxandroidble3:rxandroidble:1.18.1")
+    implementation("io.reactivex.rxjava3:rxandroid:3.0.1")
 
+    // AndroidX Lifecycle
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2") // Updated version
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2") // Updated version
+
+    // Chart Libraries
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation("com.github.AnyChart:AnyChart-Android:1.1.5")
 }

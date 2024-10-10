@@ -1,6 +1,6 @@
 <resources>
     <!-- App Name -->
-    <string name="app_name">iPolluSense</string>
+    <string name="app_name">iPolluSen</string>
 
     <!-- Navigation Drawer -->
     <string name="navigation_drawer_open">Open navigation drawer</string>
@@ -16,10 +16,13 @@
 
     <!-- Section Titles -->
     <string name="title_home">Home</string>
+
+    <string name="title_map">Map</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>
     <string name="exposure_title">Exposure at a Glance</string>
     <string name="insights_title">Insights</string>
+    <string name="title_assistant">Assistant</string>
 
     <!-- Button Texts -->
 
@@ -45,5 +48,8 @@
     <string name="menu_slideshow">Slideshow</string>
     <string name="options" />
     <string name="fab" />
-    <string name="title_assistant" />
+    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+
+    <string name="title_Map" />
+    <string name="ipollusen" />
 </resources>
