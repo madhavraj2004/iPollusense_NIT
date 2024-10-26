@@ -2,4 +2,12 @@
 <resources>
     <item name="deviceMacTextView" type="id" />
     <item name="deviceNameTextView" type="id" />
+    <item name="text_subscribed_messages" type="id" />
+    <item name="btn_subscribe" type="id" />
+    <item name="edit_subscribe_topic" type="id" />
+    <item name="btn_publish" type="id" />
+    <item name="edit_publish_message" type="id" />
+    <item name="edit_publish_topic" type="id" />
+    <item name="text_title" type="id" />
+    <item name="webview" type="id" />
 </resources>

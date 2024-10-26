@@ -33,7 +33,6 @@
                 android:gravity="center"
                 android:layout_marginTop="16dp">
 
-                <!-- Status Icon -->
                 <ImageView
                     android:id="@+id/statusIcon"
                     android:layout_width="100dp"
@@ -41,7 +40,6 @@
                     android:src="@drawable/ic_smiley_good"
                     android:layout_gravity="center"/>
 
-                <!-- Status Text -->
                 <TextView
                     android:id="@+id/statusText"
                     android:layout_width="wrap_content"
@@ -54,7 +52,6 @@
                     android:layout_marginTop="8dp"/>
             </LinearLayout>
 
-            <!-- Exposure at a Glance -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/exposureCard"
                 android:layout_width="match_parent"
@@ -83,26 +80,92 @@
                         android:layout_alignParentTop="true"
                         android:layout_marginBottom="8dp"/>
 
-                    <!-- Rounded Corner Bar Chart for pollutants -->
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/barChart"
+                    <!-- Horizontal ScrollView for Pollutant Charts -->
+                    <HorizontalScrollView
                         android:layout_width="match_parent"
-                        android:layout_height="250dp"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginBottom="16dp"/>
-
-                    <!-- 3-dot button for options -->
-                    <ImageButton
-                        android:id="@+id/optionsButton"
-                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_alignParentTop="true"
-                        android:layout_alignParentEnd="true"
-                        android:layout_margin="8dp"
-                        android:background="?attr/selectableItemBackground"
-                        android:contentDescription="@string/action_settings"
-                        android:src="@drawable/ic_baseline_more_vert_24"
-                        tools:ignore="TouchTargetSizeCheck" />
+                        android:layout_marginTop="16dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="8dp">
+
+                            <!-- Custom Bar Charts for Each Pollutant -->
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartPM1"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_pm1"
+                                android:contentDescription="PM1 Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartPM2_5"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_pm2_5"
+                                android:contentDescription="PM2.5 Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartPM10"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_pm10"
+                                android:contentDescription="PM10 Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartCO"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_co"
+                                android:contentDescription="CO Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartNO2"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_no2"
+                                android:contentDescription="NO2 Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartVOC"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_voc"
+                                android:contentDescription="VOC Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartC2H5OH"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_c2h5oh"
+                                android:contentDescription="C2H5OH Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartTemperature"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:layout_marginEnd="16dp"
+                                android:background="@drawable/custom_barchart_temperature"
+                                android:contentDescription="Temperature Chart"/>
+
+                            <com.github.mikephil.charting.charts.BarChart
+                                android:id="@+id/barChartHumidity"
+                                android:layout_width="100dp"
+                                android:layout_height="250dp"
+                                android:background="@drawable/custom_barchart_humidity"
+                                android:contentDescription="Humidity Chart"/>
+                        </LinearLayout>
+                    </HorizontalScrollView>
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
 
@@ -134,7 +197,7 @@
 
                     <!-- PieChart for pollutants distribution -->
                     <com.github.mikephil.charting.charts.PieChart
-                        android:id="@+id/pieChart"
+                        android:id="@+id/PieChart"
                         android:layout_width="match_parent"
                         android:layout_height="250dp"
                         android:layout_marginBottom="16dp"/>

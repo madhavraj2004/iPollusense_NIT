@@ -1,22 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".ui.assistant.AssistantFragment">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/text_notifications"
+    <!-- WebView Background -->
+    <WebView
+        android:id="@+id/webview_chatbot"
         android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" /> <!-- Set visibility to 'gone' if you don't want it visible initially -->
+
+    <!-- Main LinearLayout for Vertical Stacking -->
+
+    <!-- Floating Action Button -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="634dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="91dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Smart Assistant Toggle -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="157dp"
+                android:layout_height="60dp"
+                android:paddingEnd="25dp"
+                android:text="Smart Assistant"
+                android:textColor="#0000FF"
+                android:textSize="25sp" />
+
+            <Switch
+                android:id="@+id/switch_smart_assistant"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- Microphone Icon -->
+        <ImageView
+            android:id="@+id/microphone_icon"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginTop="16dp"
+            android:contentDescription="Microphone Icon"
+            android:src="@drawable/ic_microphone" />
+
+        <!-- Tap to Speak Button -->
+        <Button
+            android:id="@+id/button_tap_to_speak"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="#2196F3"
+            android:text="Tap to Speak"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
+        <!-- Speech to Text Input -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/edittext_speech_to_text"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:hint="Speech to Text"
+                android:padding="18dp" />
+
+            <ImageButton
+                android:id="@+id/button_speech_to_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="Speech to Text Button"
+                android:padding="18dp"
+                android:src="@drawable/ic_send" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_assistant"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:textAlignment="center"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="27dp"
+        android:layout_marginBottom="199dp"
+        android:contentDescription="Assistant FAB"
+        android:src="@drawable/ic_assistant" />
+
+</RelativeLayout>

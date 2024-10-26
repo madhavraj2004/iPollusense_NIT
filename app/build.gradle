@@ -71,7 +71,8 @@ dependencies {
     implementation("com.google.firebase:firebase-database:21.0.0")
 
     // RxJava and RxAndroid
-    implementation("com.polidea.rxandroidble3:rxandroidble:1.18.1")
+    implementation("com.polidea.rxandroidble3:rxandroidble:1.19.0")
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.0'
     implementation("io.reactivex.rxjava3:rxandroid:3.0.1")
 
     // AndroidX Lifecycle
@@ -83,4 +84,7 @@ dependencies {
     implementation("com.github.AnyChart:AnyChart-Android:1.1.5")
     implementation 'org.osmdroid:osmdroid-android:6.1.20'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.20'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.4'
+    implementation 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
 }
