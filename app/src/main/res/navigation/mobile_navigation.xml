@@ -30,4 +30,19 @@
         android:label="@string/title_map"
         tools:layout="@layout/fragment_maps" />
 
+
+
+
+    <fragment
+        android:id="@+id/nav_logout"
+        android:name="com.example.ipollusen.LogoutFragment"
+        android:label="@string/menu_slideshow"
+        tools:layout="@layout/fragment_logout" />
+    <fragment
+        android:id="@+id/navigation_bluetooth"
+        android:name="com.example.ipollusen.BluetoothFragment"
+        android:label="Bluetooth"
+        tools:layout="@layout/fragment_bluetooth" />
+
+
 </navigation>

@@ -6,6 +6,8 @@
     <!-- Required permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -25,7 +27,11 @@
         android:theme="@style/Theme.MyApp"
         tools:ignore="ExtraText"
         android:name=".MyApplication"> <!-- Set the custom Application class -->
-
+        <!-- OSMdroid configuration for map tile cache location -->
+        <meta-data android:name="osmdroid.basePath"
+            android:value="osmdroid" />
+        <meta-data android:name="osmdroid.cachePath"
+            android:value="osmdroid" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDcZZGpOPfDWbhg4JiJ0CeQQfVNmKC45zM"/>
@@ -40,10 +46,13 @@
 
         <!-- LoginActivity -->
         <activity android:name=".LoginActivity" android:exported="false"/>
-
+        <activity android:name="LogoutActivity" />
         <!-- MainActivity with fragments -->
-        <activity android:name=".MainActivity"
-            android:exported="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.iPolluSen">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

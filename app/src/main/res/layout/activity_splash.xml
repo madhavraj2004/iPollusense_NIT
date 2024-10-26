@@ -18,8 +18,11 @@
         android:layout_width="252dp"
         android:layout_height="34dp"
         android:layout_below="@id/splash_image"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="16dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="113dp"
+        android:layout_marginTop="46dp"
+        android:layout_marginEnd="44dp"
         android:text="Welcome to iPolluSense"
         android:textColor="@color/md_theme_light_onBackground"
         android:textSize="18sp" />
