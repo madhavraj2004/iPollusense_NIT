@@ -1,11 +1,16 @@
 package com.example.ipollusen;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.polidea.rxandroidble3.RxBleClient;
@@ -22,6 +27,7 @@ public class BluetoothService extends Service {
 
     public static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TAG = "BluetoothService";
+    private static final String CHANNEL_ID = "BluetoothServiceChannel";
 
     private RxBleClient rxBleClient;
     private RxBleDevice selectedDevice;
@@ -31,6 +37,8 @@ public class BluetoothService extends Service {
     public void onCreate() {
         super.onCreate();
         rxBleClient = RxBleClient.create(this);
+        createNotificationChannel();
+        startForegroundService();
     }
 
     @Override
@@ -41,6 +49,30 @@ public class BluetoothService extends Service {
             connectToDevice();
         }
         return START_STICKY;
+    }
+
+    private void startForegroundService() {
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Bluetooth Service")
+                .setContentText("Monitoring Bluetooth device connection")
+                .setSmallIcon(R.drawable.ic_add)
+                .build();
+
+        startForeground(1, notification);  // ID 1 for the notification
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Bluetooth Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(serviceChannel);
+            }
+        }
     }
 
     private void connectToDevice() {
@@ -61,12 +93,19 @@ public class BluetoothService extends Service {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::onCharacteristicRead, this::onReadFailed);
         compositeDisposable.add(readDisposable);
+
+        // Subscribe to characteristic updates if notifications are needed
+        Disposable notificationDisposable = rxBleConnection.setupNotification(UUID.fromString(CHARACTERISTIC_UUID))
+                .flatMap(notificationObservable -> notificationObservable)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onCharacteristicRead, this::onReadFailed);
+        compositeDisposable.add(notificationDisposable);
     }
 
     private void onCharacteristicRead(byte[] data) {
         // Broadcast data to the fragment
         Intent intent = new Intent("BLE_DATA_RECEIVED");
-        intent.putExtra("data", data);
+        intent.putExtra("data", new String(data));
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
@@ -88,5 +127,6 @@ public class BluetoothService extends Service {
     public void onDestroy() {
         super.onDestroy();
         compositeDisposable.clear(); // Clear all disposables to prevent memory leaks
+        stopForeground(true);  // Stop foreground when the service is destroyed
     }
 }

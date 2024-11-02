@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.ipollusen"
-        minSdk 24
+        minSdk 28
         targetSdk 34
         versionCode 1
         versionName "1.0"
@@ -74,7 +74,7 @@ dependencies {
     implementation("com.polidea.rxandroidble3:rxandroidble:1.19.0")
     implementation 'io.reactivex.rxjava3:rxjava:3.1.0'
     implementation("io.reactivex.rxjava3:rxandroid:3.0.1")
-
+    implementation 'com.google.code.gson:gson:2.8.8'
     // AndroidX Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2") // Updated version
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2") // Updated version
@@ -82,7 +82,7 @@ dependencies {
     // Chart Libraries
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation("com.github.AnyChart:AnyChart-Android:1.1.5")
-    implementation 'org.osmdroid:osmdroid-android:6.1.20'
+    implementation'org.osmdroid:osmdroid-android:6.1.10'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.20'
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'

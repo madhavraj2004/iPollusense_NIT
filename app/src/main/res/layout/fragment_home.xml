@@ -24,7 +24,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Air Quality Indicator -->
+            <!-- Existing Air Quality Indicator Section -->
             <LinearLayout
                 android:id="@+id/airQualityStatus"
                 android:layout_width="match_parent"
@@ -52,6 +52,7 @@
                     android:layout_marginTop="8dp"/>
             </LinearLayout>
 
+            <!-- Exposure Card Section with Charts -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/exposureCard"
                 android:layout_width="match_parent"
@@ -67,7 +68,6 @@
                     android:layout_height="wrap_content"
                     android:padding="16dp">
 
-                    <!-- Title for Exposure at a Glance -->
                     <TextView
                         android:id="@+id/exposureTitle"
                         android:layout_width="wrap_content"
@@ -80,7 +80,6 @@
                         android:layout_alignParentTop="true"
                         android:layout_marginBottom="8dp"/>
 
-                    <!-- Horizontal ScrollView for Pollutant Charts -->
                     <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -92,8 +91,7 @@
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
                             android:padding="8dp">
-
-                            <!-- Custom Bar Charts for Each Pollutant -->
+                            <!-- Existing Bar Charts for Pollutants -->
                             <com.github.mikephil.charting.charts.BarChart
                                 android:id="@+id/barChartPM1"
                                 android:layout_width="100dp"
@@ -169,7 +167,7 @@
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Insights Section -->
+            <!-- Insights Section with Pie and Line Charts -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/insightsCard"
                 android:layout_width="match_parent"
@@ -195,14 +193,12 @@
                         android:fontFamily="sans-serif-medium"
                         android:layout_marginBottom="16dp"/>
 
-                    <!-- PieChart for pollutants distribution -->
                     <com.github.mikephil.charting.charts.PieChart
                         android:id="@+id/PieChart"
                         android:layout_width="match_parent"
                         android:layout_height="250dp"
                         android:layout_marginBottom="16dp"/>
 
-                    <!-- LineChart for pollutant data -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/lineChart"
                         android:layout_width="match_parent"
@@ -211,7 +207,164 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Bluetooth Fragment Layout -->
+
+            <!-- Advanced View (MQTT) Fragment Layout -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="632dp"
+                android:layout_marginTop="16dp"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/statusTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Status"
+                    android:textSize="18sp"
+                    android:textColor="@android:color/holo_red_light"
+                    android:layout_marginBottom="16dp" />
+
+                <Button
+                    android:id="@+id/scanButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Scan"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/connectButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Connect"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/readButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Read"
+                    android:layout_marginBottom="16dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/label1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Text for Label1"
+                    android:layout_marginTop="8dp" />
+
+                <TableLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stretchColumns="1"
+                    android:layout_marginTop="8dp">
+
+                    <TableRow>
+                        <TextView android:text="Temperature" android:padding="4dp"/>
+                        <TextView android:id="@+id/temp_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="Humidity" android:padding="4dp"/>
+                        <TextView android:id="@+id/hum_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="NO2" android:padding="4dp"/>
+                        <TextView android:id="@+id/no2_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="C2H5OH" android:padding="4dp"/>
+                        <TextView android:id="@+id/c2h5oh_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="VOC" android:padding="4dp"/>
+                        <TextView android:id="@+id/voc_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="CO" android:padding="4dp"/>
+                        <TextView android:id="@+id/co_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="PM1" android:padding="4dp"/>
+                        <TextView android:id="@+id/pm1_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="PM2.5" android:padding="4dp"/>
+                        <TextView android:id="@+id/pm2_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="PM10" android:padding="4dp"/>
+                        <TextView android:id="@+id/pm10_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+
+                    <TableRow>
+                        <TextView android:text="TEST" android:padding="4dp"/>
+                        <TextView android:id="@+id/test_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+                    </TableRow>
+                </TableLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:id="@+id/textViewStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MQTT Status"
+                    android:textSize="18sp"
+                    android:layout_gravity="center"/>
+
+                <TextView
+                    android:id="@+id/editTextTopic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="Enter Topic"
+                    android:minHeight="48dp"/>
+
+                <TextView
+                    android:id="@+id/editTextMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Enter Message"
+                    android:minHeight="48dp"/>
+
+                <Button
+                    android:id="@+id/buttonPublish"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Publish"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="8dp"/>
+
+                <TextView
+                    android:id="@+id/textViewReceivedMessages"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Received Messages"
+                    android:textSize="16sp"/>
+            </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>
