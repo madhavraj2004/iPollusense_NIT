@@ -2,6 +2,7 @@ package com.example.ipollusen.ui.home;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -18,6 +19,10 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.ipollusen.R;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.google.android.material.textview.MaterialTextView;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
@@ -35,6 +40,7 @@ import io.reactivex.rxjava3.disposables.Disposable;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Collections;
 import java.util.UUID;
 
 import info.mqtt.android.service.MqttAndroidClient;
@@ -73,6 +79,16 @@ public class HomeFragment extends Fragment {
     private MqttAndroidClient mqttClient;
     private Handler handler;
     private Runnable updateTask;
+
+    private BarChart barChartPM1;
+    private BarChart barChartPM2_5;
+    private BarChart barChartPM10;
+    private BarChart barChartCO;
+    private BarChart barChartNO2;
+    private BarChart barChartVOC;
+    private BarChart barChartC2H5OH;
+    private BarChart barChartTemperature;
+    private BarChart barChartHumidity;
 
     @Nullable
     @Override
@@ -125,6 +141,15 @@ public class HomeFragment extends Fragment {
                 handler.postDelayed(this, 5000); // Schedule next execution in 5 seconds
             }
         };
+        barChartPM1 = view.findViewById(R.id.barChartPM1);
+        barChartPM2_5 = view.findViewById(R.id.barChartPM2_5);
+        barChartPM10 = view.findViewById(R.id.barChartPM10);
+        barChartCO = view.findViewById(R.id.barChartCO);
+        barChartNO2 = view.findViewById(R.id.barChartNO2);
+        barChartVOC = view.findViewById(R.id.barChartVOC);
+        barChartC2H5OH = view.findViewById(R.id.barChartC2H5OH);
+        barChartTemperature = view.findViewById(R.id.barChartTemperature);
+        barChartHumidity = view.findViewById(R.id.barChartHumidity);
 
         return view;
     }
@@ -286,18 +311,46 @@ public class HomeFragment extends Fragment {
     private void updateUIWithData(String jsonString) {
         try {
             JSONObject jsonObject = new JSONObject(jsonString);
-            label1.setText(jsonObject.getString("label1"));
-            tempValue.setText(jsonObject.getString("temp"));
-            humValue.setText(jsonObject.getString("hum"));
+
+            // Update TextViews
+            tempValue.setText(jsonObject.getString("temperature"));
+            humValue.setText(jsonObject.getString("humidity"));
             no2Value.setText(jsonObject.getString("no2"));
             c2h5ohValue.setText(jsonObject.getString("c2h5oh"));
             vocValue.setText(jsonObject.getString("voc"));
             coValue.setText(jsonObject.getString("co"));
             pm1Value.setText(jsonObject.getString("pm1"));
-            pm2Value.setText(jsonObject.getString("pm2"));
+            pm2Value.setText(jsonObject.getString("pm2_5")); // Adjusted to match key from JSON
             pm10Value.setText(jsonObject.getString("pm10"));
+
+            // Update BarCharts
+            updateBarChart(barChartPM1, jsonObject.getDouble("pm1"));
+            updateBarChart(barChartPM2_5, jsonObject.getDouble("pm2_5"));
+            updateBarChart(barChartPM10, jsonObject.getDouble("pm10"));
+            updateBarChart(barChartCO, jsonObject.getDouble("co"));
+            updateBarChart(barChartNO2, jsonObject.getDouble("no2"));
+            updateBarChart(barChartVOC, jsonObject.getDouble("voc"));
+            updateBarChart(barChartC2H5OH, jsonObject.getDouble("c2h5oh"));
+            updateBarChart(barChartTemperature, jsonObject.getDouble("temperature"));
+            updateBarChart(barChartHumidity, jsonObject.getDouble("humidity"));
+
         } catch (JSONException e) {
             Log.e("JSON", "Error parsing JSON: " + e.toString());
         }
+    }
+
+
+    private void updateBarChart(BarChart barChart, double value) {
+        // Create data entry
+        BarEntry barEntry = new BarEntry(0, (float) value);
+        BarDataSet barDataSet = new BarDataSet(Collections.singletonList(barEntry), "Value");
+
+        // Customize the BarDataSet (e.g., color)
+        barDataSet.setColor(Color.BLUE); // Set your preferred color
+
+        // Create BarData
+        BarData barData = new BarData(barDataSet);
+        barChart.setData(barData);
+        barChart.invalidate(); // Refresh the chart
     }
 }

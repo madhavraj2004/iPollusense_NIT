@@ -78,7 +78,7 @@ dependencies {
     // AndroidX Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2") // Updated version
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2") // Updated version
-
+    implementation 'com.google.android.material:material:1.6.1'
     // Chart Libraries
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation("com.github.AnyChart:AnyChart-Android:1.1.5")
