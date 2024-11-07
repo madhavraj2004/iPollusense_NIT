@@ -1,132 +1,105 @@
 package com.example.ipollusen;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
-import android.os.Build;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.util.Log;
+import androidx.core.content.ContextCompat;
 
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-
-import com.polidea.rxandroidble3.RxBleClient;
-import com.polidea.rxandroidble3.RxBleConnection;
-import com.polidea.rxandroidble3.RxBleDevice;
-
+import java.io.IOException;
 import java.util.UUID;
 
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.disposables.Disposable;
-
 public class BluetoothService extends Service {
-
-    public static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TAG = "BluetoothService";
-    private static final String CHANNEL_ID = "BluetoothServiceChannel";
-
-    private RxBleClient rxBleClient;
-    private RxBleDevice selectedDevice;
-    private CompositeDisposable compositeDisposable = new CompositeDisposable();
+    private BluetoothAdapter bluetoothAdapter;
+    private BluetoothSocket bluetoothSocket;
+    private BluetoothDevice connectedDevice;
+    private final UUID MY_UUID = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb"); // Replace with your UUID
+    private final BroadcastReceiver broadcastReceiver = new BluetoothBroadcastReceiver();
+    private boolean isReceiverRegistered = false; // Flag to track receiver registration
 
     @Override
     public void onCreate() {
         super.onCreate();
-        rxBleClient = RxBleClient.create(this);
-        createNotificationChannel();
-        startForegroundService();
-    }
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        String deviceAddress = intent.getStringExtra("device_address");
-        if (deviceAddress != null) {
-            selectedDevice = rxBleClient.getBleDevice(deviceAddress);
-            connectToDevice();
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            registerReceiver(broadcastReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
+            registerReceiver(broadcastReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+            isReceiverRegistered = true; // Set the flag to true
+            startDiscovery();
+        } else {
+            Log.e(TAG, "Bluetooth permissions not granted");
+            stopSelf(); // Stop the service if permissions are not granted
         }
-        return START_STICKY;
     }
 
-    private void startForegroundService() {
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Bluetooth Service")
-                .setContentText("Monitoring Bluetooth device connection")
-                .setSmallIcon(R.drawable.ic_add)
-                .build();
-
-        startForeground(1, notification);  // ID 1 for the notification
+    private void startDiscovery() {
+        if (bluetoothAdapter != null && bluetoothAdapter.isEnabled()) {
+            bluetoothAdapter.startDiscovery();
+        }
     }
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel serviceChannel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Bluetooth Service Channel",
-                    NotificationManager.IMPORTANCE_DEFAULT
-            );
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(serviceChannel);
+    private class BluetoothBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (device != null && device.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    connectToDevice(device);
+                }
+            } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+                // Handle bonding state changes if needed
             }
         }
     }
 
-    private void connectToDevice() {
-        if (selectedDevice == null) return;
-
-        // Subscribe to the connection observable
-        Disposable connectionDisposable = selectedDevice.establishConnection(false)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::onConnectionEstablished, this::onConnectionFailed);
-        compositeDisposable.add(connectionDisposable);
+    private void connectToDevice(BluetoothDevice device) {
+        try {
+            bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+            bluetoothSocket.connect();
+            connectedDevice = device;
+            Log.d(TAG, "Connected to device: " + device.getName());
+            // You can start a thread to manage the connection and data exchange here
+        } catch (IOException e) {
+            Log.e(TAG, "Could not connect to device", e);
+            closeConnection();
+        }
     }
 
-    private void onConnectionEstablished(RxBleConnection rxBleConnection) {
-        Log.d(TAG, "Connected to device.");
-
-        // Read characteristic and subscribe to the observable
-        Disposable readDisposable = rxBleConnection.readCharacteristic(UUID.fromString(CHARACTERISTIC_UUID))
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::onCharacteristicRead, this::onReadFailed);
-        compositeDisposable.add(readDisposable);
-
-        // Subscribe to characteristic updates if notifications are needed
-        Disposable notificationDisposable = rxBleConnection.setupNotification(UUID.fromString(CHARACTERISTIC_UUID))
-                .flatMap(notificationObservable -> notificationObservable)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::onCharacteristicRead, this::onReadFailed);
-        compositeDisposable.add(notificationDisposable);
-    }
-
-    private void onCharacteristicRead(byte[] data) {
-        // Broadcast data to the fragment
-        Intent intent = new Intent("BLE_DATA_RECEIVED");
-        intent.putExtra("data", new String(data));
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
-    }
-
-    private void onReadFailed(Throwable throwable) {
-        Log.e(TAG, "Read failed: " + throwable.toString());
-    }
-
-    private void onConnectionFailed(Throwable throwable) {
-        Log.e(TAG, "Connection failed: " + throwable.toString());
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+    private void closeConnection() {
+        if (bluetoothSocket != null) {
+            try {
+                bluetoothSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Could not close connection", e);
+            }
+        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        compositeDisposable.clear(); // Clear all disposables to prevent memory leaks
-        stopForeground(true);  // Stop foreground when the service is destroyed
+        if (isReceiverRegistered) {
+            unregisterReceiver(broadcastReceiver);
+            isReceiverRegistered = false; // Reset the flag
+        }
+        closeConnection();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null; // We are not binding the service to an activity
     }
 }

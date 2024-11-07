@@ -43,11 +43,7 @@
         android:name="com.example.ipollusen.AdvancedViewFragment"
         android:label="@string/menu_slideshow"
         tools:layout="@layout/fragment_advanced_view" />
-    <fragment
-        android:id="@+id/navigation_bluetooth"
-        android:name="com.example.ipollusen.BluetoothFragment"
-        android:label="Bluetooth"
-        tools:layout="@layout/fragment_bluetooth" />
+
 
 
 </navigation>

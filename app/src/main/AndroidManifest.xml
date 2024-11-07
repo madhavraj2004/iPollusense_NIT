@@ -7,7 +7,6 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -16,12 +15,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
-
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
@@ -31,52 +30,43 @@
         android:theme="@style/Theme.MyApp"
         tools:ignore="ExtraText"
         android:name=".MyApplication"> <!-- Set the custom Application class -->
+
         <!-- OSMdroid configuration for map tile cache location -->
-        <meta-data android:name="osmdroid.basePath"
-            android:value="osmdroid" />
-        <meta-data android:name="osmdroid.cachePath"
-            android:value="osmdroid" />
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDcZZGpOPfDWbhg4JiJ0CeQQfVNmKC45zM"/>
+        <meta-data android:name="osmdroid.basePath" android:value="osmdroid" />
+        <meta-data android:name="osmdroid.cachePath" android:value="osmdroid" />
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDcZZGpOPfDWbhg4JiJ0CeQQfVNmKC45zM"/>
+
         <!-- SplashActivity as the launcher activity -->
-        <activity android:name=".SplashActivity"
-            android:exported="true">
+        <activity android:name=".SplashActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- LoginActivity -->
+        <!-- Other Activities -->
         <activity android:name=".LoginActivity" android:exported="false"/>
         <activity android:name=".RegisterActivity" android:exported="false"/>
         <activity android:name="LogoutFragment" />
+
+        <!-- Bluetooth Service -->
         <service
-            android:name="BluetoothService"
+            android:name=".BluetoothService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice">
-        </service>
-
+            android:foregroundServiceType="connectedDevice" />
 
         <service android:name="info.mqtt.android.service.MqttService"/>
-
-
-
 
         <!-- MainActivity with fragments -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.iPolluSen">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
     </application>
-
 </manifest>

@@ -95,10 +95,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         NavigationUI.setupWithNavController(bottomNavigationView, navController);
 
         // Setup FAB to open BluetoothFragment
-        FloatingActionButton fab = findViewById(R.id.fab); // Ensure you have a FAB in your layout
-        fab.setOnClickListener(v -> {
-            navController.navigate(R.id.navigation_bluetooth); // Navigate to Bluetooth fragment
-        });
+
 
         // Close the drawer by default
         drawerLayout.closeDrawer(GravityCompat.START);
@@ -152,9 +149,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navController.navigate(R.id.navigation_assistant);
         } else if (itemId == R.id.navigation_map) {
             navController.navigate(R.id.navigation_map);
-        } else if (itemId == R.id.navigation_bluetooth) {  // Add this line
-            navController.navigate(R.id.navigation_bluetooth); // Navigate to Bluetooth fragment
-        } else if (itemId == R.id.nav_logout) {
+        }else if (itemId == R.id.nav_logout) {
             handleLogout();
         } else {
             return false;
