@@ -79,11 +79,30 @@
     <color name="magenta">#FF00FF</color>
 
 
-    <color name="colorSecondary">#FF03DAC5</color> <!-- Add colorSecondary -->
-    <color name="colorTertiary">#FF018786</color>  <!-- Add colorTertiary -->
-    <color name="colorQuaternary">#FF0000FF</color> <!-- Add colorQuaternary -->
-    <color name="colorFifth">#FF9C27B0</color>      <!-- Add colorFifth -->
-    <color name="colorSixth">#FF2196F3</color>      <!-- Add colorSixth -->
-    <color name="colorSeventh">#FF4CAF50</color>    <!-- Add colorSeventh -->
-    <color name="colorEighth">#FF009688</color>
+
+
+
+    <color name="colorPrimaryLight">#BB86FC</color>
+
+    <color name="colorAccentLight">#4000CC14</color>
+    <color name="colorSecondary">#FF0266</color>
+    <color name="colorSecondaryLight">#FF80AB</color>
+    <color name="colorTertiary">#3700B3</color>
+    <color name="colorTertiaryLight">#C3BDF6</color>
+    <color name="colorQuaternary">#018786</color>
+    <color name="colorQuaternaryLight">#9CE6DF</color>
+    <color name="colorFifth">#FFB300</color>
+    <color name="colorFifthLight">#FFD54F</color>
+    <color name="colorSixth">#000000</color>
+    <color name="colorSixthLight">#A5D6A7</color>
+    <color name="colorSeventh">#D81B60</color>
+    <color name="colorSeventhLight">#F8BBD0</color>
+    <color name="colorEighth">#9C27B0</color>
+    <color name="colorEighthLight">#CE93D8</color>
+
+    <color name="colorLiveDust">#FF9800</color>
+    <color name="colorLiveCO">#03A9F4</color>
+    <color name="colorPredictedDust">#8BC34A</color>
+    <color name="colorPredictedCO">#FF5722</color>
+
 </resources>

@@ -1,6 +1,10 @@
 package com.example.ipollusen.ui.home;
 
 
+import static android.content.ContentValues.TAG;
+
+import static com.example.ipollusen.ui.home.SensorDataUtil.getAverage;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -31,8 +35,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.ipollusen.DeviceAdapter;
 import com.example.ipollusen.R;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
+import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.google.android.material.textview.MaterialTextView;
 import com.polidea.rxandroidble3.RxBleClient;
@@ -106,6 +114,7 @@ public class HomeFragment extends Fragment {
     private LineData lineData;
     private List<LineDataSet> dataSetList;
 
+
     private RxBleClient rxBleClient;
     private RxBleDevice selectedDevice;
     private RxBleConnection connection;
@@ -131,6 +140,9 @@ public class HomeFragment extends Fragment {
     };
     private CompositeDisposable disposables = new CompositeDisposable();
     private File csvFile;
+
+    private List<Float> liveDustData = new ArrayList<>();
+    private List<Float> liveCOData = new ArrayList<>();
 
     @Nullable
     @Override
@@ -230,7 +242,12 @@ public class HomeFragment extends Fragment {
         pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
         pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
 
+        float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
 
+        Log.d(TAG, "Live Dust Average: " + liveDustAverage);
+
+        float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
+        Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
 
         return view;
     }
@@ -238,7 +255,19 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         // Safe to interact with views here
+
+        CheckBox checkboxLive = view.findViewById(R.id.checkboxLive);
+        CheckBox checkboxPredicted = view.findViewById(R.id.checkboxPredicted);
+        CheckBox checkboxDust = view.findViewById(R.id.checkboxpredictionDust);
+        CheckBox checkboxCO = view.findViewById(R.id.checkboxpredictionCO);
+
+        // Set listeners for checkboxes
+        checkboxLive.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
+        checkboxPredicted.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
+        checkboxDust.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
+        checkboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
         updateChart();
+        updatePredictionChart();
     }
     private void setupChart() {
         if (lineChart != null) {
@@ -287,71 +316,44 @@ public class HomeFragment extends Fragment {
             CheckBox checkboxPM2_5 = getView().findViewById(R.id.checkboxPM2_5);
             CheckBox checkboxPM10 = getView().findViewById(R.id.checkboxPM10);
 
-            // Set the limit for data points (e.g., limit to 100 data points)
+            // Data limit for smoother graphs (e.g., limit to 100 points)
             int dataLimit = 100;
 
-            // Fetch data for each selected checkbox and limit it
+            // Helper method to create and customize datasets
             if (checkboxTemperature.isChecked()) {
-                ArrayList<Entry> tempEntries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 1, dataLimit);
-                LineDataSet tempDataSet = new LineDataSet(tempEntries, "Temperature");
-                tempDataSet.setColor(getResources().getColor(R.color.colorPrimary));
-                dataSets.add(tempDataSet);
+                createAndAddDataSet(dataSets, "Temperature", 1, dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
             }
 
             if (checkboxHumidity.isChecked()) {
-                ArrayList<Entry> humEntries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 2, dataLimit);
-                LineDataSet humDataSet = new LineDataSet(humEntries, "Humidity");
-                humDataSet.setColor(getResources().getColor(R.color.colorAccent));
-                dataSets.add(humDataSet);
+                createAndAddDataSet(dataSets, "Humidity", 2, dataLimit, R.color.colorAccent, R.color.colorAccentLight);
             }
 
             if (checkboxCO2.isChecked()) {
-                ArrayList<Entry> co2Entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 3, dataLimit);
-                LineDataSet co2DataSet = new LineDataSet(co2Entries, "CO2");
-                co2DataSet.setColor(getResources().getColor(R.color.colorSecondary));
-                dataSets.add(co2DataSet);
+                createAndAddDataSet(dataSets, "CO2", 3, dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
             }
 
             if (checkboxPressure.isChecked()) {
-                ArrayList<Entry> pressEntries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 4, dataLimit);
-                LineDataSet pressDataSet = new LineDataSet(pressEntries, "Pressure");
-                pressDataSet.setColor(getResources().getColor(R.color.colorTertiary));
-                dataSets.add(pressDataSet);
+                createAndAddDataSet(dataSets, "Pressure", 4, dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
             }
 
             if (checkboxVOC.isChecked()) {
-                ArrayList<Entry> vocEntries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 5, dataLimit);
-                LineDataSet vocDataSet = new LineDataSet(vocEntries, "VOC");
-                vocDataSet.setColor(getResources().getColor(R.color.colorQuaternary));
-                dataSets.add(vocDataSet);
+                createAndAddDataSet(dataSets, "VOC", 5, dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
             }
 
             if (checkboxCO.isChecked()) {
-                ArrayList<Entry> coEntries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 6, dataLimit);
-                LineDataSet coDataSet = new LineDataSet(coEntries, "CO");
-                coDataSet.setColor(getResources().getColor(R.color.colorFifth));
-                dataSets.add(coDataSet);
+                createAndAddDataSet(dataSets, "CO", 6, dataLimit, R.color.colorFifth, R.color.colorFifthLight);
             }
 
             if (checkboxPM1.isChecked()) {
-                ArrayList<Entry> pm1Entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 7, dataLimit);
-                LineDataSet pm1DataSet = new LineDataSet(pm1Entries, "PM1");
-                pm1DataSet.setColor(getResources().getColor(R.color.colorSixth));
-                dataSets.add(pm1DataSet);
+                createAndAddDataSet(dataSets, "PM1", 7, dataLimit, R.color.colorSixth, R.color.colorSixthLight);
             }
 
             if (checkboxPM2_5.isChecked()) {
-                ArrayList<Entry> pm2Entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 8, dataLimit);
-                LineDataSet pm2DataSet = new LineDataSet(pm2Entries, "PM2.5");
-                pm2DataSet.setColor(getResources().getColor(R.color.colorSeventh));
-                dataSets.add(pm2DataSet);
+                createAndAddDataSet(dataSets, "PM2.5", 8, dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
             }
 
             if (checkboxPM10.isChecked()) {
-                ArrayList<Entry> pm10Entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", 9, dataLimit);
-                LineDataSet pm10DataSet = new LineDataSet(pm10Entries, "PM10");
-                pm10DataSet.setColor(getResources().getColor(R.color.colorEighth));
-                dataSets.add(pm10DataSet);
+                createAndAddDataSet(dataSets, "PM10", 9, dataLimit, R.color.colorEighth, R.color.colorEighthLight);
             }
 
             // Update chart with the new data
@@ -360,6 +362,104 @@ public class HomeFragment extends Fragment {
             lineChart.invalidate(); // Refresh the chart
         }
     }
+    private void updatePredictionChart() {
+        BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
+        CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
+        CheckBox checkboxPredicted = getView().findViewById(R.id.checkboxPredicted);
+        CheckBox checkboxDust = getView().findViewById(R.id.checkboxpredictionDust);
+        CheckBox checkboxCO = getView().findViewById(R.id.checkboxpredictionCO);
+
+        if (predictionBarChart != null) {
+            Log.d("PredictionChart", "Updating prediction chart...");
+            List<BarEntry> entries = new ArrayList<>();
+            List<Integer> colors = new ArrayList<>();
+
+            boolean showLive = checkboxLive.isChecked();
+            boolean showPredicted = checkboxPredicted.isChecked();
+            boolean showDust = checkboxDust.isChecked();
+            boolean showCO = checkboxCO.isChecked();
+
+            Log.d("PredictionChart", "CheckBox States - Live: " + showLive + ", Predicted: " + showPredicted +
+                    ", Dust: " + showDust + ", CO: " + showCO);
+
+            if (!showDust && !showCO) {
+                Log.w("PredictionChart", "No data selected to display (Dust and CO unchecked).");
+                predictionBarChart.clear();
+                return;
+            }
+
+            // Handle Live Data
+            if (showLive) {
+                if (showDust) {
+                    float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
+                    Log.d("PredictionChart", "Live Dust Average: " + liveDustAverage);
+                    entries.add(new BarEntry(entries.size() + 1, liveDustAverage));
+                    colors.add(getResources().getColor(R.color.colorLiveDust));
+                }
+                if (showCO) {
+                    float liveCOAverage = getAverage(getContext(), "sensor_data.csv", "aqi_co", true);
+                    Log.d("PredictionChart", "Live CO Average: " + liveCOAverage);
+                    entries.add(new BarEntry(entries.size() + 1, liveCOAverage));
+                    colors.add(getResources().getColor(R.color.colorLiveCO));
+                }
+            }
+
+            // Handle Predicted Data
+            if (showPredicted) {
+                if (showDust) {
+                    float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
+                    Log.d("PredictionChart", "Predicted Dust Average: " + predictedDustAverage);
+                    entries.add(new BarEntry(entries.size() + 1, predictedDustAverage));
+                    colors.add(getResources().getColor(R.color.colorPredictedDust));
+                }
+                if (showCO) {
+                    float predictedCOAverage = getAverage(getContext(), "sensor_data.csv", "aqi_co_predicted", false);
+                    Log.d("PredictionChart", "Predicted CO Average: " + predictedCOAverage);
+                    entries.add(new BarEntry(entries.size() + 1, predictedCOAverage));
+                    colors.add(getResources().getColor(R.color.colorPredictedCO));
+                }
+            }
+
+            // Log Entries
+            for (int i = 0; i < entries.size(); i++) {
+                Log.d("PredictionChart", "BarEntry " + i + ": x = " + entries.get(i).getX() + ", y = " + entries.get(i).getY());
+            }
+
+            // Configure BarDataSet
+            BarDataSet dataSet = new BarDataSet(entries, "AQI Data");
+            dataSet.setColors(colors);
+            dataSet.setValueTextSize(12f);
+
+            // Update BarChart
+            BarData data = new BarData(dataSet);
+            predictionBarChart.setData(data);
+            predictionBarChart.invalidate();
+            Log.d("PredictionChart", "Chart updated successfully.");
+        }
+    }
+
+
+
+
+    // Helper method to create and add a LineDataSet with smooth lines
+    private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
+        ArrayList<Entry> entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", columnIndex, dataLimit);
+        LineDataSet dataSet = new LineDataSet(entries, label);
+
+        // Set chart properties for smoothness and style
+        dataSet.setColor(getResources().getColor(color));
+        dataSet.setLineWidth(2f);
+        dataSet.setDrawCircles(false); // Remove point markers for cleaner look
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Enable smooth cubic lines
+        dataSet.setCubicIntensity(0.2f); // Smoothness intensity (adjust as needed)
+        dataSet.setDrawFilled(true); // Enable gradient fill
+        dataSet.setFillColor(getResources().getColor(fillColor)); // Gradient fill color
+        dataSet.setDrawValues(false); // Remove value labels from data points
+
+        dataSets.add(dataSet);
+    }
+
+
 
     // Helper function to calculate average for limited data
     private List<Entry> getAverageEntries(ArrayList<Float> values, int limit, String label) {
@@ -490,7 +590,6 @@ public class HomeFragment extends Fragment {
         try {
             if (csvFile == null) {
                 csvFile = new File(requireContext().getExternalFilesDir(null), "sensor_data.csv");
-
             }
 
             boolean isNewFile = !csvFile.exists() || csvFile.length() == 0;
@@ -505,8 +604,6 @@ public class HomeFragment extends Fragment {
                 JSONObject calculated = jsonObject.getJSONObject("calculated");
                 JSONObject predicted = jsonObject.getJSONObject("predicted");
                 JSONObject status = jsonObject.getJSONObject("status");
-
-
 
                 // Build the row with values from all parts
                 String row = timestamp + "," +
@@ -529,13 +626,17 @@ public class HomeFragment extends Fragment {
                         status.getInt("co") + "\n";
 
                 writer.append(row);
-            }
 
+                // Log or return the file path where the data is written
+                Log.d("CSV", "Data written to: " + csvFile.getAbsolutePath());
+
+            }
 
         } catch (IOException | JSONException e) {
             Log.e("CSV", "Error writing to CSV: " + e.toString());
         }
     }
+
 
 
     private void exportDataToCSV() {

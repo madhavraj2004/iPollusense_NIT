@@ -361,13 +361,7 @@
                         android:layout_alignParentTop="true"
                         android:layout_marginTop="16dp">
 
-                        <!-- Model checkbox -->
-                        <CheckBox
-                            android:id="@+id/checkboxModel"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Model"
-                            android:checked="true"/>
+
 
                         <!-- Predicted checkbox -->
                         <CheckBox
@@ -379,10 +373,10 @@
 
                         <!-- Calculated checkbox -->
                         <CheckBox
-                            android:id="@+id/checkboxCalculated"
+                            android:id="@+id/checkboxLive"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Calculated"
+                            android:text="Live"
                             android:checked="true"/>
                     </LinearLayout>
 
