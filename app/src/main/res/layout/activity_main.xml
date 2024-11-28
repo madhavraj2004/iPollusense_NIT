@@ -132,10 +132,13 @@
                 android:id="@+id/fab"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
+                android:layout_gravity="end|bottom"
+                android:layout_margin="16dp"
                 android:src="@drawable/ic_add"
-                android:contentDescription="@string/fab"
-                app:tint="@color/white" />
+                android:contentDescription="@string/add"
+                app:backgroundTint="@color/colorPrimary"
+                app:rippleColor="@color/colorAccent" />
+
         </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 

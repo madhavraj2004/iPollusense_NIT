@@ -47,11 +47,6 @@
         <activity android:name=".RegisterActivity" android:exported="false"/>
 
         <!-- Bluetooth Service -->
-        <service
-            android:name=".BluetoothService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
 
         <!-- MQTT Service -->
         <service android:name="info.mqtt.android.service.MqttService"/>

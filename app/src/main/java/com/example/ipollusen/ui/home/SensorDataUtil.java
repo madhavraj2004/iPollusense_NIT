@@ -16,7 +16,9 @@ import java.util.List;
 public class SensorDataUtil {
     public static List<Float> liveDustData = new ArrayList<>();
     public static List<Float> liveCOData = new ArrayList<>();
-    // Fetch sensor data, optionally limit the data or calculate averages
+    public static List<Float> CalculatedDustData = new ArrayList<>(); // Added declaration
+    public static List<Float> CalculatedCOData = new ArrayList<>();   // Added declaration
+
     public static ArrayList<Entry> getSensorData(Context context, String fileName, int columnIndex, int dataLimit) {
         ArrayList<Entry> entries = new ArrayList<>();
         File csvFile = new File(context.getExternalFilesDir(null), fileName);
@@ -33,14 +35,9 @@ public class SensorDataUtil {
                 String[] columns = line.split(",");
                 if (columns.length > columnIndex) {
                     try {
-                        // Parse the sensor value from the selected column
                         float value = Float.parseFloat(columns[columnIndex]);
                         runningSum += value;
-
-                        // Calculate running average
                         float average = runningSum / (count + 1);
-
-                        // Add smoothed average entry
                         entries.add(new Entry(count, average));
                         count++;
                     } catch (NumberFormatException e) {
@@ -55,11 +52,12 @@ public class SensorDataUtil {
 
         return entries;
     }
-    public static float getAverage(Context context, String fileName, String columnName, boolean isLiveData) {
+
+    public static float getAverage(Context context, String fileName, String columnName, boolean isCalculatedData) {
         float sum = 0;
         int count = 0;
 
-        if (!isLiveData) {
+        if (!isCalculatedData) {
             // Read data from CSV file
             String filePath = context.getExternalFilesDir(null) + "/" + fileName;
             Log.d("SensorDataUtil", "Reading data from CSV file: " + filePath);
@@ -78,31 +76,35 @@ public class SensorDataUtil {
 
                 while ((line = br.readLine()) != null) {
                     String[] values = line.split(",");
-                    if (!values[columnIndex].isEmpty()) {
-                        try {
-                            float value = Float.parseFloat(values[columnIndex]);
-                            sum += value;
-                            count++;
-                        } catch (NumberFormatException e) {
-                            Log.e("SensorDataUtil", "Invalid number format in column " + columnName + ": " + values[columnIndex]);
+                    if (values.length > columnIndex) { // Check if the current line has enough columns
+                        if (!values[columnIndex].isEmpty()) {
+                            try {
+                                float value = Float.parseFloat(values[columnIndex]);
+                                sum += value;
+                                count++;
+                            } catch (NumberFormatException e) {
+                                Log.e("SensorDataUtil", "Invalid number format in column " + columnName + ": " + values[columnIndex]);
+                            }
                         }
+                    } else {
+                        Log.w("SensorDataUtil", "Skipping line due to insufficient columns: " + Arrays.toString(values));
                     }
                 }
             } catch (IOException e) {
                 Log.e("SensorDataUtil", "Error reading file " + filePath, e);
             }
         } else {
-            // Handle live data
-            List<Float> liveDataList = columnName.equals("aqi_dust") ? liveDustData : liveCOData;
-            Log.d("SensorDataUtil", "Live Data List (" + columnName + "): " + liveDataList);
+            // Handle Calculated data
+            List<Float> calculatedDataList = columnName.equals("aqi_dust_calculated") ? CalculatedDustData : CalculatedCOData;
+            Log.d("SensorDataUtil", "Calculated Data List (" + columnName + "): " + calculatedDataList);
 
-            if (liveDataList.isEmpty()) {
+            if (calculatedDataList.isEmpty()) {
                 Log.w("SensorDataUtil", "No live data found for " + columnName);
                 return 0;
             }
 
-            // Iterate through live data and calculate sum
-            for (Float value : liveDataList) {
+            // Iterate through Calculated data and calculate sum
+            for (Float value : calculatedDataList) {
                 sum += value;
                 count++;
                 Log.d("SensorDataUtil", "Adding live value: " + value); // Log each value added to the sum
@@ -115,7 +117,4 @@ public class SensorDataUtil {
         Log.d("SensorDataUtil", "Average for " + columnName + ": " + average);
         return average;
     }
-
-
-
 }
