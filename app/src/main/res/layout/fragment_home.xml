@@ -22,46 +22,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingBottom="16dp">
 
-            <!-- Existing Air Quality Indicator Section -->
-            <LinearLayout
-                android:id="@+id/airQualityStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:layout_marginTop="16dp">
-
-                <ImageView
-                    android:id="@+id/statusIcon"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:src="@drawable/ic_smiley_good"
-                    android:layout_gravity="center"/>
-
-                <TextView
-                    android:id="@+id/statusText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="GOOD"
-                    android:textSize="20sp"
-                    android:textColor="@color/md_theme_light_primary"
-                    android:fontFamily="sans-serif-medium"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
-
-            <!-- Exposure Card Section with Charts -->
+            <!-- Device Card Section -->
             <androidx.cardview.widget.CardView
-                android:id="@+id/exposureCard"
+                android:id="@+id/DeviceCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/md_theme_light_secondaryContainer">
+                app:cardCornerRadius="8dp"
+                android:layout_margin="8dp">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -69,150 +39,415 @@
                     android:padding="16dp">
 
                     <TextView
-                        android:id="@+id/exposureTitle"
+                        android:id="@+id/deviceName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Exposure at a Glance"
-                        android:textSize="18sp"
-                        android:textColor="@color/md_theme_light_onSecondaryContainer"
-                        android:fontFamily="sans-serif-medium"
-                        android:layout_alignParentStart="true"
-                        android:layout_alignParentTop="true"
-                        android:layout_marginBottom="8dp"/>
+                        android:text="Device Name"
+                        android:textSize="16sp"
+                        android:textColor="@android:color/black" />
 
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
+                    <ImageView
+                        android:id="@+id/dropdownIcon"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:scrollbars="none">
+                        android:src="@drawable/ic_dropdown_arrow"
+                        android:layout_alignParentEnd="true"
+                        android:contentDescription="Dropdown Icon" />
 
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:padding="8dp">
-                            <!-- Existing Bar Charts for Pollutants -->
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartPM1"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_pm1"
-                                android:contentDescription="PM1 Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartPM2_5"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_pm2_5"
-                                android:contentDescription="PM2.5 Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartPM10"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_pm10"
-                                android:contentDescription="PM10 Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartCO"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_co"
-                                android:contentDescription="CO Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartNO2"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_no2"
-                                android:contentDescription="NO2 Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartVOC"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_voc"
-                                android:contentDescription="VOC Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartC2H5OH"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_c2h5oh"
-                                android:contentDescription="C2H5OH Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartTemperature"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:layout_marginEnd="16dp"
-                                android:background="@drawable/custom_barchart_temperature"
-                                android:contentDescription="Temperature Chart"/>
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChartHumidity"
-                                android:layout_width="100dp"
-                                android:layout_height="250dp"
-                                android:background="@drawable/custom_barchart_humidity"
-                                android:contentDescription="Humidity Chart"/>
-                        </LinearLayout>
-                    </HorizontalScrollView>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/deviceRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Insights Section with Pie and Line Charts -->
+
+
+
+            <!-- Data Type Card Section -->
             <androidx.cardview.widget.CardView
-                android:id="@+id/insightsCard"
+                android:id="@+id/DataTypeCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
                 android:backgroundTint="@color/md_theme_light_secondaryContainer">
 
-                <LinearLayout
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:layout_height="match_parent"
                     android:padding="16dp">
 
-                    <TextView
-                        android:id="@+id/exposureTitle1"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Insights"
-                        android:textSize="18sp"
-                        android:textColor="@color/md_theme_light_onSecondaryContainer"
-                        android:fontFamily="sans-serif-medium"
-                        android:layout_marginBottom="16dp"/>
+                        android:layout_marginTop="16dp"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
 
-                    <com.github.mikephil.charting.charts.PieChart
-                        android:id="@+id/PieChart"
-                        android:layout_width="match_parent"
-                        android:layout_height="250dp"
-                        android:layout_marginBottom="16dp"/>
+                        <!-- LIVE Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/liveButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:backgroundTint="#0078D7"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="LIVE"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:padding="12dp"
+                            app:cornerRadius="12dp"
+                            app:elevation="4dp"
+                            android:stateListAnimator="@null" />
 
-                    <com.github.mikephil.charting.charts.LineChart
-                        android:id="@+id/lineChart"
-                        android:layout_width="match_parent"
-                        android:layout_height="250dp"
-                        android:layout_marginBottom="16dp"/>
-                </LinearLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/historicalButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:backgroundTint="#005BBB"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="HISTORICAL"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:padding="12dp"
+                            app:cornerRadius="12dp"
+                            app:elevation="4dp"
+                            android:stateListAnimator="@null" /> <!-- Remove ripple effect for cleaner appearance -->
+
+
+                    </LinearLayout>
+                </RelativeLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Bluetooth Fragment Layout -->
 
-            <!-- Advanced View (MQTT) Fragment Layout -->
+
+
+            <!-- Existing Air Quality Indicator Section -->
+            <LinearLayout
+                android:id="@+id/airQualityStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/statusIcon"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_smiley_good" />
+
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="GOOD"
+                    android:textColor="@color/md_theme_light_primary"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+
+            <!-- Exposure at a Glance Section -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/exposureCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="@color/md_theme_light_secondaryContainer"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <!-- Title -->
+                    <TextView
+                        android:id="@+id/exposureTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginBottom="8dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Exposure at a Glance"
+                        android:textColor="@color/md_theme_light_onSecondaryContainer"
+                        android:textSize="18sp" />
+
+                    <!-- Line Plot Graph (replace with actual chart view) -->
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/exposureLineChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_below="@id/exposureTitle"
+                        android:layout_marginTop="16dp"/>
+
+                    <!-- Horizontal ScrollView for checkboxes -->
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/exposureLineChart"
+                        android:layout_marginTop="8dp">
+
+                        <!-- Horizontal LinearLayout for checkboxes -->
+                        <LinearLayout
+                            android:id="@+id/sensorCheckboxLayout"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <!-- Temperature checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxTemperature"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Temperature"
+                                android:checked="true" />
+
+                            <!-- Humidity checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxHumidity"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Humidity"
+                                android:checked="true" />
+
+                            <!-- Pressure checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxPressure"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Pressure"
+                                android:checked="true" />
+
+                            <!-- PM1 checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxPM1"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="PM1"
+                                android:checked="false" />
+
+                            <!-- PM2.5 checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxPM2_5"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="PM2.5"
+                                android:checked="false" />
+
+                            <!-- PM10 checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxPM10"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="PM10"
+                                android:checked="false" />
+
+                            <!-- CO checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxCO"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="CO"
+                                android:checked="false" />
+
+                            <!-- VOC checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxVOC"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="VOC"
+                                android:checked="false" />
+
+                            <!-- CO2 checkbox -->
+                            <CheckBox
+                                android:id="@+id/checkboxCO2"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="CO2"
+                                android:checked="false" />
+
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                </RelativeLayout>
+            </androidx.cardview.widget.CardView>
+
+
+
+
+            <!-- Predictions Section -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/PredictionCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="@color/md_theme_light_secondaryContainer"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <!-- Title TextView -->
+                    <TextView
+                        android:id="@+id/PredictionTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginBottom="8dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Predictions"
+                        android:textColor="@color/md_theme_light_onSecondaryContainer"
+                        android:textSize="18sp" />
+
+                    <!-- BarPlot (Placeholder for actual chart view) -->
+                    <com.github.mikephil.charting.charts.BarChart
+                        android:id="@+id/predictionBarChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_below="@id/PredictionTitle"
+                        android:layout_marginTop="16dp"/>
+
+                    <!-- Checkboxes for Dust and CO below the BarPlot -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_below="@id/predictionBarChart"
+                        android:layout_marginTop="8dp">
+
+                        <!-- Dust checkbox -->
+                        <CheckBox
+                            android:id="@+id/checkboxpredictionDust"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Dust"
+                            android:checked="false"/>
+
+                        <!-- CO checkbox -->
+                        <CheckBox
+                            android:id="@+id/checkboxpredictionCO"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CO"
+                            android:checked="false"/>
+                    </LinearLayout>
+
+                    <!-- Checkboxes for Model, Predicted, Calculated to the right of BarPlot -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_alignParentEnd="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginTop="16dp">
+
+                        <!-- Model checkbox -->
+                        <CheckBox
+                            android:id="@+id/checkboxModel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Model"
+                            android:checked="true"/>
+
+                        <!-- Predicted checkbox -->
+                        <CheckBox
+                            android:id="@+id/checkboxPredicted"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Predicted"
+                            android:checked="true"/>
+
+                        <!-- Calculated checkbox -->
+                        <CheckBox
+                            android:id="@+id/checkboxCalculated"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Calculated"
+                            android:checked="true"/>
+                    </LinearLayout>
+
+                </RelativeLayout>
+            </androidx.cardview.widget.CardView>
+
+
+            <!-- Map Section -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/MapCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="@color/md_theme_light_secondaryContainer"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <RelativeLayout
+                    android:layout_width="392dp"
+                    android:layout_height="400dp"
+                    android:padding="16dp">
+
+                    <!-- Map Title -->
+                    <TextView
+                        android:id="@+id/MapTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginBottom="8dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Map"
+                        android:textColor="@color/md_theme_light_onSecondaryContainer"
+                        android:textSize="18sp" />
+
+                    <!-- MapView (Google Maps or other map services) -->
+
+                    <!-- Enlarge Button (Overlayed on top of MapView) -->
+                    <com.google.android.gms.maps.MapView
+                        android:id="@+id/mapView"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_below="@id/MapTitle"
+                        android:layout_marginTop="3dp"
+                        android:contentDescription="Map displaying location and surrounding area" />
+
+
+                    <ImageButton
+                        android:id="@+id/enlargeButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_alignParentEnd="true"
+                        android:background="@android:color/transparent"
+                        android:contentDescription="Enlarge Map"
+                        android:scaleType="centerInside"
+                        android:src="@drawable/ic_zoom_in" />
+
+                </RelativeLayout>
+            </androidx.cardview.widget.CardView>
+
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="632dp"
+                android:layout_height="686dp"
                 android:layout_marginTop="16dp"
                 android:orientation="vertical"
                 android:padding="16dp">
@@ -221,30 +456,30 @@
                     android:id="@+id/statusTextView"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
                     android:text="Status"
-                    android:textSize="18sp"
                     android:textColor="@android:color/holo_red_light"
-                    android:layout_marginBottom="16dp" />
+                    android:textSize="18sp" />
 
                 <Button
                     android:id="@+id/scanButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Scan"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="8dp"
+                    android:text="Scan" />
 
                 <Button
                     android:id="@+id/connectButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Connect"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="8dp"
+                    android:text="Connect" />
 
                 <Button
-                    android:id="@+id/readButton"
+                    android:id="@+id/exportButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Read"
+                    android:text="Export CSV"
                     android:layout_marginBottom="16dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
@@ -257,81 +492,161 @@
                     android:id="@+id/label1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Text for Label1"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:text="Text for Label1" />
 
                 <TableLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:stretchColumns="1"
-                    android:layout_marginTop="8dp">
+                    android:layout_height="322dp"
+                    android:layout_marginTop="8dp"
+                    android:stretchColumns="1">
 
                     <TableRow>
-                        <TextView android:text="Temperature" android:padding="4dp"/>
-                        <TextView android:id="@+id/temp_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="Temperature" />
+
+                        <TextView
+                            android:id="@+id/temp_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="Humidity" android:padding="4dp"/>
-                        <TextView android:id="@+id/hum_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="Humidity" />
+
+                        <TextView
+                            android:id="@+id/hum_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
+                    </TableRow>
+
+
+                    <TableRow>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="PRESS." />
+
+                        <TextView
+                            android:id="@+id/press_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
+                    </TableRow>
+
+
+                    <TableRow>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="PM1" />
+
+                        <TextView
+                            android:id="@+id/pm1_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="NO2" android:padding="4dp"/>
-                        <TextView android:id="@+id/no2_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="PM2.5" />
+
+                        <TextView
+                            android:id="@+id/pm2_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="C2H5OH" android:padding="4dp"/>
-                        <TextView android:id="@+id/c2h5oh_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="PM10" />
+
+                        <TextView
+                            android:id="@+id/pm10_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="VOC" android:padding="4dp"/>
-                        <TextView android:id="@+id/voc_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="CO" />
+
+                        <TextView
+                            android:id="@+id/co_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="CO" android:padding="4dp"/>
-                        <TextView android:id="@+id/co_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="CO2" />
+
+                        <TextView
+                            android:id="@+id/co2_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
                     <TableRow>
-                        <TextView android:text="PM1" android:padding="4dp"/>
-                        <TextView android:id="@+id/pm1_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
+
+                        <TextView
+                            android:padding="4dp"
+                            android:text="VOC" />
+
+                        <TextView
+                            android:id="@+id/voc_value"
+                            android:background="@android:color/black"
+                            android:padding="4dp"
+                            android:text="000"
+                            android:textColor="@android:color/holo_green_light" />
                     </TableRow>
 
-                    <TableRow>
-                        <TextView android:text="PM2.5" android:padding="4dp"/>
-                        <TextView android:id="@+id/pm2_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
-                    </TableRow>
 
-                    <TableRow>
-                        <TextView android:text="PM10" android:padding="4dp"/>
-                        <TextView android:id="@+id/pm10_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
-                    </TableRow>
-
-                    <TableRow>
-                        <TextView android:text="TEST" android:padding="4dp"/>
-                        <TextView android:id="@+id/test_value" android:text="000" android:padding="4dp" android:background="@android:color/black" android:textColor="@android:color/holo_green_light"/>
-                    </TableRow>
                 </TableLayout>
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="346dp"
+                android:layout_marginTop="16dp"
                 android:orientation="vertical"
-                android:padding="16dp"
-                android:layout_marginTop="16dp">
+                android:padding="16dp">
 
                 <TextView
                     android:id="@+id/textViewStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center"
                     android:text="MQTT Status"
-                    android:textSize="18sp"
-                    android:layout_gravity="center"/>
+                    android:textSize="18sp" />
 
                 <TextView
                     android:id="@+id/editTextTopic"
@@ -339,7 +654,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:hint="Enter Topic"
-                    android:minHeight="48dp"/>
+                    android:minHeight="48dp" />
 
                 <TextView
                     android:id="@+id/editTextMessage"
@@ -347,15 +662,15 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:hint="Enter Message"
-                    android:minHeight="48dp"/>
+                    android:minHeight="48dp" />
 
                 <Button
                     android:id="@+id/buttonPublish"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Publish"
                     android:layout_gravity="center"
-                    android:layout_marginTop="8dp"/>
+                    android:layout_marginTop="8dp"
+                    android:text="Publish" />
 
                 <TextView
                     android:id="@+id/textViewReceivedMessages"
@@ -363,8 +678,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:text="Received Messages"
-                    android:textSize="16sp"/>
+                    android:textSize="16sp" />
             </LinearLayout>
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

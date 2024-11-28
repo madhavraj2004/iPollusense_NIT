@@ -53,4 +53,10 @@
     <string name="title_Map" />
     <string name="ipollusen" />
     <string name="ipollusense" />
+
+    <string-array name="device_options">
+        <item>Select a device</item>
+        <item>Add New Device</item>
+    </string-array>
+
 </resources>

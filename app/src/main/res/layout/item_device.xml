@@ -1,22 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- res/layout/item_device.xml -->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardElevation="4dp"
+    app:cardCornerRadius="8dp"
+    android:layout_margin="8dp">
 
-    <TextView
-        android:id="@+id/deviceNameTextView"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Device Name"
-        android:textSize="16sp"
-        android:textStyle="bold"/>
+        android:padding="16dp">
 
-    <TextView
-        android:id="@+id/deviceMacTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Device MAC Address"
-        android:textSize="14sp"/>
-</LinearLayout>
+        <TextView
+            android:id="@+id/deviceNameTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Device Name"
+            android:textSize="16sp"
+            android:textColor="@android:color/black" />
+
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

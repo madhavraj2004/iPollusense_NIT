@@ -66,7 +66,7 @@
     <color name="md_theme_light_onBackground">#1C1B1F</color>
     <color name="colorPrimary">#6200EE</color>
     <color name="colorPrimaryDark">#3700B3</color>
-    <color name="colorAccent">#03DAC5</color>
+    <color name="colorAccent">#F44336</color>
 
     <color name="red">#FF0000</color>
 
@@ -77,4 +77,13 @@
     <color name="brown">#A52A2A</color>
     <color name="cyan">#00FFFF</color>
     <color name="magenta">#FF00FF</color>
+
+
+    <color name="colorSecondary">#FF03DAC5</color> <!-- Add colorSecondary -->
+    <color name="colorTertiary">#FF018786</color>  <!-- Add colorTertiary -->
+    <color name="colorQuaternary">#FF0000FF</color> <!-- Add colorQuaternary -->
+    <color name="colorFifth">#FF9C27B0</color>      <!-- Add colorFifth -->
+    <color name="colorSixth">#FF2196F3</color>      <!-- Add colorSixth -->
+    <color name="colorSeventh">#FF4CAF50</color>    <!-- Add colorSeventh -->
+    <color name="colorEighth">#FF009688</color>
 </resources>
