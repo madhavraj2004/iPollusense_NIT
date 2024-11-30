@@ -82,7 +82,20 @@ import android.content.Context;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import info.mqtt.android.service.MqttAndroidClient;
 import info.mqtt.android.service.Ack;
-
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.fragment.app.Fragment;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Locale;
 public class HomeFragment extends Fragment {
 
     private static final int PERMISSION_REQUEST_CODE = 1;
@@ -90,7 +103,7 @@ public class HomeFragment extends Fragment {
     private static final String SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
-    private static final String MQTT_TOPIC = "topic/test"; // Default topic
+    private static final String MQTT_TOPIC = "data/2617"; // Default topic
 
     private TextView statusTextView;
     private TextView label1; // For JSON data
@@ -110,6 +123,7 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private LineChart lineChart;
+
     private CheckBox temperatureCheckbox, humidityCheckbox, co2Checkbox, pressureCheckbox, vocCheckbox, coCheckbox, pm1Checkbox, pm2Checkbox, pm10Checkbox;
     private LineData lineData;
     private List<LineDataSet> dataSetList;
@@ -143,6 +157,10 @@ public class HomeFragment extends Fragment {
 
     private List<Float> liveDustData = new ArrayList<>();
     private List<Float> liveCOData = new ArrayList<>();
+
+    private LineChart liveLineChart;
+    private ArrayList<Entry> dataEntries = new ArrayList<>();
+    private final int maxDataPoints = 100;
 
     @Nullable
     @Override
@@ -248,7 +266,8 @@ public class HomeFragment extends Fragment {
 
         float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
         Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
-
+        liveLineChart = view.findViewById(R.id.LiveLineChart);
+        setupliveChart();
         return view;
     }
     @Override
@@ -297,9 +316,24 @@ public class HomeFragment extends Fragment {
             lineChart.getAxisLeft().setAxisMinimum(0f); // Y-axis minimum value
             lineChart.getAxisLeft().setAxisMaximum(100f); // Y-axis maximum value
         }
+
     }
 
+    private void setupliveChart() {
+        liveLineChart.setTouchEnabled(true);
+        liveLineChart.setPinchZoom(true);
+        liveLineChart.getDescription().setEnabled(false);
 
+        LineDataSet dataSet = new LineDataSet(dataEntries, "Live Data");
+        dataSet.setColor(getResources().getColor(R.color.blue, null)); // Set color for the line
+        dataSet.setValueTextColor(getResources().getColor(R.color.black, null)); // Set color for data points
+        dataSet.setDrawFilled(true);
+        dataSet.setDrawValues(false);
+
+        LineData lineData = new LineData(dataSet);
+        liveLineChart.setData(lineData);
+        liveLineChart.invalidate(); // Refresh the chart to display initial data
+    }
 
     public void updateChart() {
         if (lineChart != null && getView() != null) {
@@ -362,6 +396,68 @@ public class HomeFragment extends Fragment {
             lineChart.invalidate(); // Refresh the chart
         }
     }
+    private void updateliveChart(ArrayList<Entry> entries) {
+        if (liveLineChart != null && getView() != null) {
+            List<ILineDataSet> dataSets = new ArrayList<>();
+
+            // Get the checkboxes for each sensor type using updated IDs from the XML layout
+            CheckBox checkboxTemperature = getView().findViewById(R.id.LivecheckboxTemperature);
+            CheckBox checkboxHumidity = getView().findViewById(R.id.LivecheckboxHumidity);
+            CheckBox checkboxCO2 = getView().findViewById(R.id.LivecheckboxCO2);
+            CheckBox checkboxPressure = getView().findViewById(R.id.LivecheckboxPressure);
+            CheckBox checkboxVOC = getView().findViewById(R.id.LivecheckboxVOC);
+            CheckBox checkboxCO = getView().findViewById(R.id.LivecheckboxCO);
+            CheckBox checkboxPM1 = getView().findViewById(R.id.LivecheckboxPM1);
+            CheckBox checkboxPM2_5 = getView().findViewById(R.id.LivecheckboxPM2_5);
+            CheckBox checkboxPM10 = getView().findViewById(R.id.LivecheckboxPM10);
+
+            // Data limit for smoother graphs (e.g., limit to 100 points)
+            int dataLimit = 100;
+
+            // Helper method to create and customize datasets
+            if (checkboxTemperature.isChecked()) {
+                createAndAddDataSet(dataSets, "Temperature", 1, dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
+            }
+
+            if (checkboxHumidity.isChecked()) {
+                createAndAddDataSet(dataSets, "Humidity", 2, dataLimit, R.color.colorAccent, R.color.colorAccentLight);
+            }
+
+            if (checkboxCO2.isChecked()) {
+                createAndAddDataSet(dataSets, "CO2", 3, dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
+            }
+
+            if (checkboxPressure.isChecked()) {
+                createAndAddDataSet(dataSets, "Pressure", 4, dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
+            }
+
+            if (checkboxVOC.isChecked()) {
+                createAndAddDataSet(dataSets, "VOC", 5, dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
+            }
+
+            if (checkboxCO.isChecked()) {
+                createAndAddDataSet(dataSets, "CO", 6, dataLimit, R.color.colorFifth, R.color.colorFifthLight);
+            }
+
+            if (checkboxPM1.isChecked()) {
+                createAndAddDataSet(dataSets, "PM1", 7, dataLimit, R.color.colorSixth, R.color.colorSixthLight);
+            }
+
+            if (checkboxPM2_5.isChecked()) {
+                createAndAddDataSet(dataSets, "PM2.5", 8, dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
+            }
+
+            if (checkboxPM10.isChecked()) {
+                createAndAddDataSet(dataSets, "PM10", 9, dataLimit, R.color.colorEighth, R.color.colorEighthLight);
+            }
+
+            // Update chart with the new data
+            LineData lineData = new LineData(dataSets);
+            liveLineChart.setData(lineData);
+            liveLineChart.invalidate(); // Refresh the chart
+        }
+    }
+
     private void updatePredictionChart() {
         BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
         CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
@@ -459,7 +555,29 @@ public class HomeFragment extends Fragment {
         dataSets.add(dataSet);
     }
 
+    private ArrayList<Entry> parseMessageToEntries(String message) {
+        ArrayList<Entry> entries = new ArrayList<>();
+        String[] dataPoints = message.split(",");
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
+        for (int i = 0; i < dataPoints.length; i++) {
+            try {
+                float value = Float.parseFloat(dataPoints[i]);
+                float timestamp = System.currentTimeMillis(); // Use actual timestamp if available
+                entries.add(new Entry(timestamp, value));
+            } catch (NumberFormatException e) {
+                // Handle potential parsing errors
+                e.printStackTrace();
+            }
+        }
+
+        // Sort by timestamp and keep the last 100 points
+        Collections.sort(entries, (entry1, entry2) -> Float.compare(entry1.getX(), entry2.getX()));
+        if (entries.size() > maxDataPoints) {
+            entries = new ArrayList<>(entries.subList(entries.size() - maxDataPoints, entries.size()));
+        }
+        return entries;
+    }
 
     // Helper function to calculate average for limited data
     private List<Entry> getAverageEntries(ArrayList<Float> values, int limit, String label) {
@@ -686,7 +804,7 @@ public class HomeFragment extends Fragment {
 
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), "tcp://nitdgp2.a.pinggy.link:19919", clientId, Ack.AUTO_ACK);
+        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), "tcp://nitdgp3.a.pinggy.link:17224", clientId, Ack.AUTO_ACK);
 
 
         MqttConnectOptions options = new MqttConnectOptions();
@@ -725,7 +843,9 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     String receivedMessage = new String(message.getPayload());
-                    textViewReceivedMessages.setText(receivedMessage); // Display received message
+                    textViewReceivedMessages.setText(receivedMessage);// Display received message
+                    ArrayList<Entry> newEntries = parseMessageToEntries(receivedMessage);
+                    updateliveChart(newEntries);
                 }
 
                 @Override
@@ -741,7 +861,7 @@ public class HomeFragment extends Fragment {
 
     private void subscribeToTopic(String topic) {
         try {
-            mqttClient.subscribe(topic, 0);
+            mqttClient.subscribe(topic, 2);
             Log.d("MQTT", "Subscribed to topic: " + topic);
         } catch (Exception e) {
             Log.e("MQTT", "Error subscribing to topic: " + e.toString());

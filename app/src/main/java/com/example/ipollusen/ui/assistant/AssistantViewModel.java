@@ -10,7 +10,7 @@ public class AssistantViewModel extends ViewModel {
 
     public AssistantViewModel() {
         mText = new MutableLiveData<>();
-        mText.setValue("This is notifications fragment");
+        mText.setValue("This is ASSISTANT fragment");
     }
 
     public LiveData<String> getText() {
