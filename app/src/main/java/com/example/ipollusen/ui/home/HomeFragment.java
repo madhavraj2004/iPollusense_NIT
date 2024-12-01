@@ -43,6 +43,7 @@ import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.google.android.material.textview.MaterialTextView;
+import com.google.gson.JsonObject;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -50,8 +51,11 @@ import com.polidea.rxandroidble3.RxBleConnection;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import android.widget.CheckBox;
@@ -61,11 +65,14 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
+
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -100,10 +107,10 @@ public class HomeFragment extends Fragment {
 
     private static final int PERMISSION_REQUEST_CODE = 1;
 
-    private static final String SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
-    private static final String MQTT_TOPIC = "data/2617"; // Default topic
+    private static final String MQTT_TOPIC = " "; // Default topic
+
 
     private TextView statusTextView;
     private TextView label1; // For JSON data
@@ -161,6 +168,7 @@ public class HomeFragment extends Fragment {
     private LineChart liveLineChart;
     private ArrayList<Entry> dataEntries = new ArrayList<>();
     private final int maxDataPoints = 100;
+    private String message;
 
     @Nullable
     @Override
@@ -216,7 +224,7 @@ public class HomeFragment extends Fragment {
         buttonPublish.setOnClickListener(v -> {
             String topic = editTextTopic.getText().toString().isEmpty() ? MQTT_TOPIC : editTextTopic.getText().toString();
             String message = editTextMessage.getText().toString();
-            publishMessage(topic, message);
+
         });
 
         checkPermissions();
@@ -268,6 +276,8 @@ public class HomeFragment extends Fragment {
         Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         setupliveChart();
+        setupMqttClient();
+        publishMessage(MQTT_TOPIC, message);
         return view;
     }
     @Override
@@ -696,11 +706,37 @@ public class HomeFragment extends Fragment {
     private void readCharacteristic() {
         Disposable readDisposable = connection.readCharacteristic(UUID.fromString(CHARACTERISTIC_UUID))
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(characteristicValue -> updateUIWithData(new String(characteristicValue)),
-                        throwable -> {
-                            statusTextView.setText("Read failed.");
-                            Log.e("BLE", "Read failed: " + throwable.toString());
-                        });
+                .subscribe(characteristicValue -> {
+                    // Convert the characteristic value to a JSON string
+                    String jsonString = new String(characteristicValue);
+                    updateUIWithData(jsonString);
+
+                    try {
+                        // Parse the JSON string
+                        JSONObject jsonObject = new JSONObject(jsonString);
+
+                        // Extract the device_id value
+                        int deviceId = jsonObject.getInt("device_id");
+
+                        // Construct the MQTT topic
+                        String MQTT_TOPIC = "data/" + deviceId;
+                        Log.d("BLE", "MQTT_TOPIC: " + MQTT_TOPIC);
+
+                        // Publish the message using the constructed topic
+                        publishMessage(MQTT_TOPIC, jsonString);
+
+                        // Optionally, log the message being published
+                        Log.d("BLE", "Published message to topic: " + MQTT_TOPIC + ", message: " + jsonString);
+
+                    } catch (JSONException e) {
+                        Log.e("JSON_ERROR", "Error parsing JSON string or extracting deviceId: " + e.getMessage());
+                        statusTextView.setText("Error parsing data.");
+                    }
+                }, throwable -> {
+                    statusTextView.setText("Read failed.");
+                    Log.e("BLE", "Read failed: " + throwable.toString());
+                });
+
         disposables.add(readDisposable);
     }
 
@@ -774,8 +810,8 @@ public class HomeFragment extends Fragment {
 
     private void updateUIWithData(String jsonString) {
         try {
-
             label1.setText(jsonString);
+
             JSONObject jsonObject = new JSONObject(jsonString);
             JSONObject data = jsonObject.getJSONObject("data");
 
@@ -804,7 +840,7 @@ public class HomeFragment extends Fragment {
 
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), "tcp://nitdgp3.a.pinggy.link:17224", clientId, Ack.AUTO_ACK);
+        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), "tcp://broker.hivemq.com:1883", clientId, Ack.AUTO_ACK);
 
 
         MqttConnectOptions options = new MqttConnectOptions();
@@ -859,24 +895,29 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void subscribeToTopic(String topic) {
+    private void subscribeToTopic(String MQTT_TOPIC) {
         try {
-            mqttClient.subscribe(topic, 2);
-            Log.d("MQTT", "Subscribed to topic: " + topic);
+            mqttClient.subscribe(MQTT_TOPIC, 2);
+            Log.d("MQTT", "Subscribed to topic: " + MQTT_TOPIC);
         } catch (Exception e) {
             Log.e("MQTT", "Error subscribing to topic: " + e.toString());
         }
     }
 
-    private void publishMessage(String topic, String message) {
+    private void publishMessage(String MQTT_TOPIC, String message) {
         try {
             MqttMessage mqttMessage = new MqttMessage(message.getBytes());
-            mqttClient.publish(topic, mqttMessage);
-            Log.d("MQTT", "Message published to topic: " + topic + ", message: " + message);
+            mqttMessage.setQos(1); // Set QoS level if needed
+            mqttMessage.setRetained(false); // Set retained flag if needed
+
+            // Publish the message to the topic
+            mqttClient.publish(MQTT_TOPIC, mqttMessage);
+            Log.d("MQTT", "Message published to topic: " + MQTT_TOPIC + ", message: " + message);
         } catch (Exception e) {
             Log.e("MQTT", "Error publishing message: " + e.toString());
         }
     }
+
 
     @Override
     public void onDestroyView() {
@@ -892,4 +933,5 @@ public class HomeFragment extends Fragment {
             mqttClient.disconnect();
         }
     }
+
 }
