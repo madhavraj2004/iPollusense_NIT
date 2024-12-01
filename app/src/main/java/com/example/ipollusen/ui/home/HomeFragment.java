@@ -277,7 +277,7 @@ public class HomeFragment extends Fragment {
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         setupliveChart();
         setupMqttClient();
-        publishMessage(MQTT_TOPIC, message);
+
         return view;
     }
     @Override
@@ -877,12 +877,13 @@ public class HomeFragment extends Fragment {
 
 
                 @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
+                public void messageArrived(String MQTT_TOPIC , MqttMessage message) throws Exception {
+                    Log.d("MQTT", "Message received from topic: " + MQTT_TOPIC );
                     String receivedMessage = new String(message.getPayload());
-                    textViewReceivedMessages.setText(receivedMessage);// Display received message
-                    ArrayList<Entry> newEntries = parseMessageToEntries(receivedMessage);
-                    updateliveChart(newEntries);
+                    Log.d("MQTT", "Received message: " + receivedMessage);
+                    textViewReceivedMessages.setText(receivedMessage); // Update UI with the message
                 }
+
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
@@ -895,10 +896,10 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void subscribeToTopic(String MQTT_TOPIC) {
+    private void subscribeToTopic(String MQTT_TOPIC ) {
         try {
             mqttClient.subscribe(MQTT_TOPIC, 2);
-            Log.d("MQTT", "Subscribed to topic: " + MQTT_TOPIC);
+            Log.d("MQTT", "Subscribed to topic: " + MQTT_TOPIC );
         } catch (Exception e) {
             Log.e("MQTT", "Error subscribing to topic: " + e.toString());
         }
