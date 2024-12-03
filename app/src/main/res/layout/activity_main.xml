@@ -43,7 +43,7 @@
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:layout_gravity="start"
-                    android:src="@drawable/ic_baseline_account_circle_24"
+
                     android:contentDescription="@string/user_button_desc"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="8dp" />
@@ -53,7 +53,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="@string/app_name"
+                    android:text="@string/ipollusense"
                     android:textAppearance="@style/TextAppearance.AppCompat.Widget.ActionBar.Title"
                     android:textColor="@color/good_status"
                     android:textSize="23sp"

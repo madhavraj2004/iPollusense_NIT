@@ -42,7 +42,7 @@
                         android:id="@+id/deviceName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Device Name"
+                        android:text="Device 2617(Static Indoor)"
                         android:textSize="16sp"
                         android:textColor="@android:color/black" />
 
@@ -396,8 +396,8 @@
                 app:cardElevation="4dp">
 
                 <RelativeLayout
-                    android:layout_width="392dp"
-                    android:layout_height="400dp"
+                    android:layout_width="400dp"
+                    android:layout_height="446dp"
                     android:padding="16dp">
 
                     <!-- Map Title -->
@@ -413,17 +413,27 @@
                         android:textColor="@color/md_theme_light_onSecondaryContainer"
                         android:textSize="18sp" />
 
-                    <!-- MapView (Google Maps or other map services) -->
 
                     <!-- Enlarge Button (Overlayed on top of MapView) -->
-                    <com.google.android.gms.maps.MapView
+                    <org.osmdroid.views.MapView
                         android:id="@+id/mapView"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_width="364dp"
+                        android:layout_height="338dp"
                         android:layout_below="@id/MapTitle"
-                        android:layout_marginTop="3dp"
+                        android:layout_marginTop="53dp"
                         android:contentDescription="Map displaying location and surrounding area" />
 
+                    <TextView
+                        android:id="@+id/tv_coordinates"
+                        android:layout_width="206dp"
+                        android:layout_height="65dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginEnd="43dp"
+                        android:layout_toStartOf="@+id/enlargeButton"
+                        android:padding="8dp"
+                        android:text="Coordinates: "
+                        android:textSize="16sp" />
 
                     <ImageButton
                         android:id="@+id/enlargeButton"
@@ -445,13 +455,11 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/md_theme_light_secondaryContainer"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
+                android:backgroundTint="#D4E4F9">
 
                 <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_width="363dp"
+                    android:layout_height="match_parent"
                     android:padding="16dp">
 
                     <!-- Title -->
@@ -464,7 +472,7 @@
                         android:layout_marginBottom="8dp"
                         android:fontFamily="sans-serif-medium"
                         android:text="Live Feed"
-                        android:textColor="@color/md_theme_light_onSecondaryContainer"
+                        android:textColor="@color/black"
                         android:textSize="18sp" />
                     <!-- Line Plot Graph for Live Data -->
                     <com.github.mikephil.charting.charts.LineChart
@@ -472,8 +480,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="200dp"
                         android:layout_below="@id/LiveTitle"
-                        android:layout_marginTop="16dp"/>
-
+                        android:layout_marginTop="16dp" />
 
 
                     <!-- Horizontal ScrollView for checkboxes -->
@@ -488,314 +495,359 @@
                             android:id="@+id/LiveCheckboxLayout"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            tools:ignore="DuplicateIds">
+                            android:orientation="horizontal">
 
                             <!-- Add checkboxes as needed -->
                             <CheckBox
                                 android:id="@+id/LivecheckboxTemperature"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Temperature"
-                                android:checked="true" />
+                                android:checked="true"
+                                android:text="Temperature" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxHumidity"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Humidity"
-                                android:checked="true" />
+                                android:checked="true"
+                                android:text="Humidity" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxPressure"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Pressure"
-                                android:checked="true" />
+                                android:checked="true"
+                                android:text="Pressure" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxPM1"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="PM1"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="PM1" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxPM2_5"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="PM2.5"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="PM2.5" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxPM10"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="PM10"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="PM10" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxCO"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CO"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="CO" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxVOC"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="VOC"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="VOC" />
 
                             <CheckBox
                                 android:id="@+id/LivecheckboxCO2"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="CO2"
-                                android:checked="false" />
+                                android:checked="false"
+                                android:text="CO2" />
 
                         </LinearLayout>
                     </HorizontalScrollView>
 
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
-
-            <LinearLayout
+            <androidx.cardview.widget.CardView
+                android:id="@+id/mqttCard"
                 android:layout_width="match_parent"
-                android:layout_height="686dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#D4E4F9">
 
-                <TextView
-                    android:id="@+id/statusTextView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:text="Status"
-                    android:textColor="@android:color/holo_red_light"
-                    android:textSize="18sp" />
-
-                <Button
-                    android:id="@+id/scanButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="Scan" />
-
-                <Button
-                    android:id="@+id/connectButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="Connect" />
-
-                <Button
-                    android:id="@+id/exportButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Export CSV"
-                    android:layout_marginBottom="16dp" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerView"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_height="460dp"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/label1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Text for Label1" />
+                    <!-- Status Display -->
+                    <TextView
+                        android:id="@+id/textViewStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:padding="16dp"
+                        android:text="MQTT Status"
+                        android:textSize="18sp" />
 
-                <TableLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="322dp"
-                    android:layout_marginTop="8dp"
-                    android:stretchColumns="1">
+                    <EditText
+                        android:id="@+id/editTextTopic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="Enter Topic"
+                        android:minHeight="48dp" />
 
-                    <TableRow>
+                    <EditText
+                        android:id="@+id/editTextMessage"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="Enter Message"
+                        android:minHeight="48dp" />
 
-                        <TextView
-                            android:padding="4dp"
-                            android:text="Temperature" />
+                    <!-- Publish Button -->
+                    <Button
+                        android:id="@+id/buttonPublish"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="8dp"
+                        android:text="Publish" />
 
-                        <TextView
-                            android:id="@+id/temp_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
+                    <!-- Received Messages Label -->
+                    <TextView
+                        android:id="@+id/textViewReceivedMessagesLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Received Messages"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="Humidity" />
-
-                        <TextView
-                            android:id="@+id/hum_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="PRESS." />
-
-                        <TextView
-                            android:id="@+id/press_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-
-                    <TableRow>
+                    <!-- ScrollView for Received Messages -->
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
 
                         <TextView
-                            android:padding="4dp"
-                            android:text="PM1" />
+                            android:id="@+id/textViewReceivedMessages"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="..."
+                            android:textColor="@android:color/black"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </ScrollView>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/pm1_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="PM2.5" />
-
-                        <TextView
-                            android:id="@+id/pm2_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="PM10" />
-
-                        <TextView
-                            android:id="@+id/pm10_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="CO" />
-
-                        <TextView
-                            android:id="@+id/co_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="CO2" />
-
-                        <TextView
-                            android:id="@+id/co2_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-                    <TableRow>
-
-                        <TextView
-                            android:padding="4dp"
-                            android:text="VOC" />
-
-                        <TextView
-                            android:id="@+id/voc_value"
-                            android:background="@android:color/black"
-                            android:padding="4dp"
-                            android:text="000"
-                            android:textColor="@android:color/holo_green_light" />
-                    </TableRow>
-
-
-                </TableLayout>
-            </LinearLayout>
-
-            <LinearLayout
+            <androidx.cardview.widget.CardView
+                android:id="@+id/bleCard"
                 android:layout_width="match_parent"
-                android:layout_height="346dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#D4E4F9">
 
-                <TextView
-                    android:id="@+id/textViewStatus"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="MQTT Status"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:id="@+id/editTextTopic"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="686dp"
                     android:layout_marginTop="16dp"
-                    android:hint="Enter Topic"
-                    android:minHeight="48dp" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/editTextMessage"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:hint="Enter Message"
-                    android:minHeight="48dp" />
+                    <TextView
+                        android:id="@+id/statusTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:text="Status"
+                        android:textColor="@android:color/holo_red_light"
+                        android:textSize="18sp" />
 
-                <Button
-                    android:id="@+id/buttonPublish"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="8dp"
-                    android:text="Publish" />
+                    <Button
+                        android:id="@+id/scanButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="Scan" />
 
-                <TextView
-                    android:id="@+id/textViewReceivedMessages"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="Received Messages"
-                    android:textSize="16sp" />
-            </LinearLayout>
+                    <Button
+                        android:id="@+id/connectButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="Connect" />
+
+                    <Button
+                        android:id="@+id/exportButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Export CSV"
+                        android:layout_marginBottom="16dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginBottom="16dp" />
+                    <TextView
+                        android:id="@+id/dbmessage"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="for db" />
+                    <TextView
+                        android:id="@+id/label1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Text for Label1" />
+
+                    <TableLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="322dp"
+                        android:layout_marginTop="8dp"
+                        android:stretchColumns="1">
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="Temperature" />
+
+                            <TextView
+                                android:id="@+id/temp_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="Humidity" />
+
+                            <TextView
+                                android:id="@+id/hum_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="PRESS." />
+
+                            <TextView
+                                android:id="@+id/press_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="PM1" />
+
+                            <TextView
+                                android:id="@+id/pm1_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="PM2.5" />
+
+                            <TextView
+                                android:id="@+id/pm2_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="PM10" />
+
+                            <TextView
+                                android:id="@+id/pm10_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="CO" />
+
+                            <TextView
+                                android:id="@+id/co_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="CO2" />
+
+                            <TextView
+                                android:id="@+id/co2_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+                        <TableRow>
+
+                            <TextView
+                                android:padding="4dp"
+                                android:text="VOC" />
+
+                            <TextView
+                                android:id="@+id/voc_value"
+                                android:background="@android:color/black"
+                                android:padding="4dp"
+                                android:text="000"
+                                android:textColor="@android:color/holo_green_light" />
+                        </TableRow>
+
+
+                    </TableLayout>
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

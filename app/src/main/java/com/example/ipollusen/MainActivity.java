@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.ic_person);
 
         // Set up custom buttons in the toolbar
-        ImageButton userButton = findViewById(R.id.user_button);
+
         ImageButton notificationButton = findViewById(R.id.notification_button);
         ImageButton batteryIcon = findViewById(R.id.battery_icon);
 
@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
 
         // Set up click listeners for toolbar icons
-        userButton.setOnClickListener(v -> toggleDrawer());
+
         batteryIcon.setOnClickListener(v -> showErrorDialog("Battery icon clicked!"));
 
         // Set up DrawerLayout and NavigationView

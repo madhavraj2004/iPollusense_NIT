@@ -9,6 +9,9 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,6 +29,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
@@ -42,8 +46,6 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
-import com.google.android.material.textview.MaterialTextView;
-import com.google.gson.JsonObject;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -51,11 +53,8 @@ import com.polidea.rxandroidble3.RxBleConnection;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
-import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import android.widget.CheckBox;
@@ -65,16 +64,22 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
 
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mapsforge.map.android.layers.MyLocationOverlay;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -89,28 +94,28 @@ import android.content.Context;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import info.mqtt.android.service.MqttAndroidClient;
 import info.mqtt.android.service.Ack;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import androidx.fragment.app.Fragment;
-import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.data.Entry;
-import com.github.mikephil.charting.data.LineData;
-import com.github.mikephil.charting.data.LineDataSet;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Locale;
+
+import java.util.concurrent.ArrayBlockingQueue;
+
 public class HomeFragment extends Fragment {
 
+    private double latitude;
+    private double longitude;
+    private JSONObject jsonObject;
+    private String timestamp;
     private static final int PERMISSION_REQUEST_CODE = 1;
-
+    private static final int MAX_RETRIES = 5; // Set a maximum number of retries to prevent infinite attempts
+    private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
+    private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
+    private static final String MQTT_BROKER_URL = "tcp://broker.hivemq.com:1883";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static final String MQTT_TOPIC = " "; // Default topic
+    private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
+    private static final String topic = "data/81029";
 
+    private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
+    private LineChart liveLineChart;
 
     private TextView statusTextView;
     private TextView label1; // For JSON data
@@ -165,10 +170,22 @@ public class HomeFragment extends Fragment {
     private List<Float> liveDustData = new ArrayList<>();
     private List<Float> liveCOData = new ArrayList<>();
 
-    private LineChart liveLineChart;
+
+    private Map<String, List<Entry>> currentData = new HashMap<>();
+    private TextView textViewStatus;
+
+    private EditText editTextTopic;
+    private EditText editTextMessage;
+
+
     private ArrayList<Entry> dataEntries = new ArrayList<>();
     private final int maxDataPoints = 100;
     private String message;
+    private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
+    private MapView mapView;
+    private MyLocationNewOverlay myLocationOverlay;
+    private TextView tvCoordinates;
+    private LocationManager locationManager;
 
     @Nullable
     @Override
@@ -176,6 +193,74 @@ public class HomeFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         setupChart();
+        Configuration.getInstance().setUserAgentValue("com.example.ipollusen");
+
+
+        // Initialize MapView
+        mapView = view.findViewById(R.id.mapView);
+        mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK);
+        mapView.setMultiTouchControls(true);
+        mapView.getController().setZoom(15.0);
+
+        // Set a default location (Eiffel Tower)
+        GeoPoint startPoint = new GeoPoint(48.8583, 2.2944);
+        mapView.getController().setCenter(startPoint);
+
+        // Add a marker at the location
+        Marker startMarker = new Marker(mapView);
+        startMarker.setPosition(startPoint);
+        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+        startMarker.setTitle("Eiffel Tower");
+        mapView.getOverlays().add(startMarker);
+
+        // Initialize MyLocationNewOverlay to show current location
+        GpsMyLocationProvider locationProvider = new GpsMyLocationProvider(requireContext());
+        myLocationOverlay = new MyLocationNewOverlay(locationProvider, mapView);
+        myLocationOverlay.enableMyLocation();
+        myLocationOverlay.enableFollowLocation();  // Optional: centers the map on the user's location
+        mapView.getOverlays().add(myLocationOverlay);
+        locationManager = (LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
+        tvCoordinates = view.findViewById(R.id.tv_coordinates);
+        if (tvCoordinates != null) {
+            tvCoordinates.setText("Coordinates: Waiting for location...");
+        }
+
+        // Request permissions if not already granted
+        requestPermissionsIfNecessary(new String[]{
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+        });
+
+        // Set up the location listener to update the TextView with current coordinates
+        LocationListener locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(@NonNull Location location) {
+                latitude = location.getLatitude();
+                longitude = location.getLongitude();
+                tvCoordinates.setText(String.format("Coordinates: %.6f, %.6f", latitude, longitude));
+                if (jsonObject != null && timestamp != null) {
+                    saveDataToCSV(jsonObject, timestamp, latitude, longitude);
+                } else {
+                    Log.e("LocationError", "JSON object or timestamp is not available.");
+                }
+
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+            @Override
+            public void onProviderEnabled(@NonNull String provider) {}
+
+            @Override
+            public void onProviderDisabled(@NonNull String provider) {}
+        };
+
+        // Request location updates (e.g., every 5 seconds or minimum distance change)
+        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, locationListener);
+        }
         statusTextView = view.findViewById(R.id.statusTextView);
         label1 = view.findViewById(R.id.label1);
         tempValue = view.findViewById(R.id.temp_value);
@@ -188,11 +273,25 @@ public class HomeFragment extends Fragment {
         coValue = view.findViewById(R.id.co_value);
         co2Value = view.findViewById(R.id.co2_value);
         textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
-        MaterialTextView editTextTopic = view.findViewById(R.id.editTextTopic);
-        MaterialTextView editTextMessage = view.findViewById(R.id.editTextMessage);
+
 
         CardView deviceCard = view.findViewById(R.id.DeviceCard);
         deviceCard.setOnClickListener(v -> showAddDeviceDialog());
+
+        dataQueues = new HashMap<>();
+        String[] keys = {
+                "temperature", "humidity", "pressure", "pm1", "pm2_5", "pm10", "co", "voc", "co2"
+        };
+
+        // Initialize queues for each parameter
+        for (String key : keys) {
+            dataQueues.put(key, new ArrayBlockingQueue<>(MAX_RECORDS));
+        }
+        liveLineChart = view.findViewById(R.id.LiveLineChart);
+        label1 = view.findViewById(R.id.label1);
+
+        // Simulate receiving data to test
+        String sampleData = "{\"device_id\":2617,\"timestamp\":\"2024-11-30 21:44:06\",\"data\":{\"temperature\":26.89,\"humidity\":73.33,\"pressure\":1003.87,\"pm1\":72,\"pm2_5\":137,\"pm10\":153,\"co\":88.21,\"voc\":0,\"co2\":1348}}";
 
 
         deviceRecyclerView = view.findViewById(R.id.deviceRecyclerView);
@@ -221,11 +320,7 @@ public class HomeFragment extends Fragment {
         exportButton.setOnClickListener(v -> exportDataToCSV());
         scanButton.setOnClickListener(v -> startScan());
         connectButton.setOnClickListener(v -> connectToDevice());
-        buttonPublish.setOnClickListener(v -> {
-            String topic = editTextTopic.getText().toString().isEmpty() ? MQTT_TOPIC : editTextTopic.getText().toString();
-            String message = editTextMessage.getText().toString();
 
-        });
 
         checkPermissions();
         rxBleClient = RxBleClient.create(requireContext());
@@ -237,10 +332,11 @@ public class HomeFragment extends Fragment {
         updateTask = new Runnable() {
             @Override
             public void run() {
+//
                 readCharacteristic(); // Read characteristic periodically
                 handler.postDelayed(this, 5000); // Schedule next execution in 5 seconds
             }
-        };
+                };
 
         lineChart = view.findViewById(R.id.exposureLineChart);
 
@@ -276,7 +372,20 @@ public class HomeFragment extends Fragment {
         Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         setupliveChart();
+        if (liveLineChart == null) {
+            Log.e("MqttProcessing", "Live chart initialization failed.");
+        }
+        textViewStatus = view.findViewById(R.id.textViewStatus);
+        textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
+        editTextTopic = view.findViewById(R.id.editTextTopic);
+        editTextMessage = view.findViewById(R.id.editTextMessage);
+
+
+
+
+        handler = new Handler();
         setupMqttClient();
+
 
         return view;
     }
@@ -284,7 +393,10 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         // Safe to interact with views here
-
+        tvCoordinates = view.findViewById(R.id.tv_coordinates);
+        if (tvCoordinates != null) {
+            tvCoordinates.setText("Coordinates: Waiting for location...");
+        }
         CheckBox checkboxLive = view.findViewById(R.id.checkboxLive);
         CheckBox checkboxPredicted = view.findViewById(R.id.checkboxPredicted);
         CheckBox checkboxDust = view.findViewById(R.id.checkboxpredictionDust);
@@ -297,6 +409,135 @@ public class HomeFragment extends Fragment {
         checkboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
         updateChart();
         updatePredictionChart();
+    }
+    private void processMqttMessage(String message) {
+        try {
+            Log.d("MqttProcessing", "Raw message received: " + message);
+
+            // Validate JSON format
+            if (message.trim().startsWith("{") && message.trim().endsWith("}")) {
+                JSONObject jsonObject = new JSONObject(message);
+                JSONObject data = jsonObject.getJSONObject("data");
+
+
+
+
+                // Iterate through each key in the "data" section
+                for (Iterator<String> keysIterator = data.keys(); keysIterator.hasNext();) {
+                    String key = keysIterator.next();
+
+                    // Check if the key exists in the initialized dataQueues
+                    if (dataQueues.containsKey(key)) {
+                        double value = data.getDouble(key);
+                        Entry entry = new Entry(System.currentTimeMillis(), (float) value);
+
+                        // Get the corresponding queue for the key
+                        ArrayBlockingQueue<Entry> queue = dataQueues.get(key);
+                        if (queue != null) {
+                            if (queue.size() == MAX_RECORDS) {
+                                queue.poll(); // Remove the oldest record if the queue is full
+                            }
+                            queue.offer(entry); // Add the new entry to the queue
+                        }
+
+                        Log.d("MqttProcessing", "Added value to queue: " + key + " - " + value);
+                    } else {
+                        Log.w("MqttProcessing", "Key " + key + " not found in initialized queues.");
+                    }
+                }
+
+                // Update the chart with the new data
+                updateLiveChart();
+            } else {
+                Log.e("MqttProcessing", "Received message is not a valid JSON object: " + message);
+            }
+        } catch (JSONException e) {
+            Log.e("MqttProcessing", "Error parsing MQTT message: " + message, e);
+        } catch (Exception e) {
+            Log.e("MqttProcessing", "Unexpected error: " + e.toString(), e);
+        }
+    }
+    private void updateLiveChart() {
+        if (liveLineChart != null && getView() != null) {
+            List<ILineDataSet> dataSets = new ArrayList<>();
+
+            // Get the checkboxes for each sensor type using updated IDs from the XML layout
+            CheckBox checkboxTemperature = getView().findViewById(R.id.LivecheckboxTemperature);
+            CheckBox checkboxHumidity = getView().findViewById(R.id.LivecheckboxHumidity);
+            CheckBox checkboxCO2 = getView().findViewById(R.id.LivecheckboxCO2);
+            CheckBox checkboxPressure = getView().findViewById(R.id.LivecheckboxPressure);
+            CheckBox checkboxVOC = getView().findViewById(R.id.LivecheckboxVOC);
+            CheckBox checkboxCO = getView().findViewById(R.id.LivecheckboxCO);
+            CheckBox checkboxPM1 = getView().findViewById(R.id.LivecheckboxPM1);
+            CheckBox checkboxPM2_5 = getView().findViewById(R.id.LivecheckboxPM2_5);
+            CheckBox checkboxPM10 = getView().findViewById(R.id.LivecheckboxPM10);
+
+            // Data limit for smoother graphs (e.g., limit to 100 points)
+            int dataLimit = 100;
+
+            // Add data sets for each selected sensor type
+            if (checkboxTemperature.isChecked() && dataQueues.containsKey("temperature")) {
+                createAddDataSet(dataSets, "Temperature", "temperature", dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
+            }
+
+            if (checkboxHumidity.isChecked() && dataQueues.containsKey("humidity")) {
+                createAddDataSet(dataSets, "Humidity", "humidity", dataLimit, R.color.colorAccent, R.color.colorAccentLight);
+            }
+
+            if (checkboxCO2.isChecked() && dataQueues.containsKey("co2")) {
+                createAddDataSet(dataSets, "CO2", "co2", dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
+            }
+
+            if (checkboxPressure.isChecked() && dataQueues.containsKey("pressure")) {
+                createAddDataSet(dataSets, "Pressure", "pressure", dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
+            }
+
+            if (checkboxVOC.isChecked() && dataQueues.containsKey("voc")) {
+                createAddDataSet(dataSets, "VOC", "voc", dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
+            }
+
+            if (checkboxCO.isChecked() && dataQueues.containsKey("co")) {
+                createAddDataSet(dataSets, "CO", "co", dataLimit, R.color.colorFifth, R.color.colorFifthLight);
+            }
+
+            if (checkboxPM1.isChecked() && dataQueues.containsKey("pm1")) {
+                createAddDataSet(dataSets, "PM1", "pm1", dataLimit, R.color.colorSixth, R.color.colorSixthLight);
+            }
+
+            if (checkboxPM2_5.isChecked() && dataQueues.containsKey("pm2_5")) {
+                createAddDataSet(dataSets, "PM2.5", "pm2_5", dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
+            }
+
+            if (checkboxPM10.isChecked() && dataQueues.containsKey("pm10")) {
+                createAddDataSet(dataSets, "PM10", "pm10", dataLimit, R.color.colorEighth, R.color.colorEighthLight);
+            }
+
+            // Update chart with the new data
+            LineData lineData = new LineData(dataSets);
+            liveLineChart.setData(lineData);
+            liveLineChart.invalidate(); // Refresh the chart
+        }
+    }
+    // Helper method to create and add data sets to the chart
+    private void createAddDataSet(List<ILineDataSet> dataSets, String label, String key, int dataLimit, int color, int colorLight) {
+        ArrayBlockingQueue<Entry> queue = dataQueues.get(key);
+        if (queue != null) {
+            List<Entry> entryList = new ArrayList<>(queue);
+            if (entryList.size() > dataLimit) {
+                entryList = entryList.subList(entryList.size() - dataLimit, entryList.size()); // Keep only the latest `dataLimit` entries
+            }
+
+            LineDataSet dataSet = new LineDataSet(entryList, label);
+            dataSet.setColor(getResources().getColor(color, null));
+            dataSet.setValueTextColor(getResources().getColor(colorLight, null));
+            dataSet.setDrawFilled(true); // Enable gradient fill
+
+            dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+            dataSet.setDrawCircles(false);
+            dataSet.setLineWidth(2.5f);
+            dataSets.add(dataSet);
+
+        }
     }
     private void setupChart() {
         if (lineChart != null) {
@@ -328,7 +569,6 @@ public class HomeFragment extends Fragment {
         }
 
     }
-
     private void setupliveChart() {
         liveLineChart.setTouchEnabled(true);
         liveLineChart.setPinchZoom(true);
@@ -344,7 +584,6 @@ public class HomeFragment extends Fragment {
         liveLineChart.setData(lineData);
         liveLineChart.invalidate(); // Refresh the chart to display initial data
     }
-
     public void updateChart() {
         if (lineChart != null && getView() != null) {
             List<ILineDataSet> dataSets = new ArrayList<>();
@@ -406,68 +645,6 @@ public class HomeFragment extends Fragment {
             lineChart.invalidate(); // Refresh the chart
         }
     }
-    private void updateliveChart(ArrayList<Entry> entries) {
-        if (liveLineChart != null && getView() != null) {
-            List<ILineDataSet> dataSets = new ArrayList<>();
-
-            // Get the checkboxes for each sensor type using updated IDs from the XML layout
-            CheckBox checkboxTemperature = getView().findViewById(R.id.LivecheckboxTemperature);
-            CheckBox checkboxHumidity = getView().findViewById(R.id.LivecheckboxHumidity);
-            CheckBox checkboxCO2 = getView().findViewById(R.id.LivecheckboxCO2);
-            CheckBox checkboxPressure = getView().findViewById(R.id.LivecheckboxPressure);
-            CheckBox checkboxVOC = getView().findViewById(R.id.LivecheckboxVOC);
-            CheckBox checkboxCO = getView().findViewById(R.id.LivecheckboxCO);
-            CheckBox checkboxPM1 = getView().findViewById(R.id.LivecheckboxPM1);
-            CheckBox checkboxPM2_5 = getView().findViewById(R.id.LivecheckboxPM2_5);
-            CheckBox checkboxPM10 = getView().findViewById(R.id.LivecheckboxPM10);
-
-            // Data limit for smoother graphs (e.g., limit to 100 points)
-            int dataLimit = 100;
-
-            // Helper method to create and customize datasets
-            if (checkboxTemperature.isChecked()) {
-                createAndAddDataSet(dataSets, "Temperature", 1, dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
-            }
-
-            if (checkboxHumidity.isChecked()) {
-                createAndAddDataSet(dataSets, "Humidity", 2, dataLimit, R.color.colorAccent, R.color.colorAccentLight);
-            }
-
-            if (checkboxCO2.isChecked()) {
-                createAndAddDataSet(dataSets, "CO2", 3, dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
-            }
-
-            if (checkboxPressure.isChecked()) {
-                createAndAddDataSet(dataSets, "Pressure", 4, dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
-            }
-
-            if (checkboxVOC.isChecked()) {
-                createAndAddDataSet(dataSets, "VOC", 5, dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
-            }
-
-            if (checkboxCO.isChecked()) {
-                createAndAddDataSet(dataSets, "CO", 6, dataLimit, R.color.colorFifth, R.color.colorFifthLight);
-            }
-
-            if (checkboxPM1.isChecked()) {
-                createAndAddDataSet(dataSets, "PM1", 7, dataLimit, R.color.colorSixth, R.color.colorSixthLight);
-            }
-
-            if (checkboxPM2_5.isChecked()) {
-                createAndAddDataSet(dataSets, "PM2.5", 8, dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
-            }
-
-            if (checkboxPM10.isChecked()) {
-                createAndAddDataSet(dataSets, "PM10", 9, dataLimit, R.color.colorEighth, R.color.colorEighthLight);
-            }
-
-            // Update chart with the new data
-            LineData lineData = new LineData(dataSets);
-            liveLineChart.setData(lineData);
-            liveLineChart.invalidate(); // Refresh the chart
-        }
-    }
-
     private void updatePredictionChart() {
         BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
         CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
@@ -543,10 +720,6 @@ public class HomeFragment extends Fragment {
             Log.d("PredictionChart", "Chart updated successfully.");
         }
     }
-
-
-
-
     // Helper method to create and add a LineDataSet with smooth lines
     private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
         ArrayList<Entry> entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", columnIndex, dataLimit);
@@ -556,60 +729,15 @@ public class HomeFragment extends Fragment {
         dataSet.setColor(getResources().getColor(color));
         dataSet.setLineWidth(2f);
         dataSet.setDrawCircles(false); // Remove point markers for cleaner look
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Enable smooth cubic lines
+
         dataSet.setCubicIntensity(0.2f); // Smoothness intensity (adjust as needed)
         dataSet.setDrawFilled(true); // Enable gradient fill
-        dataSet.setFillColor(getResources().getColor(fillColor)); // Gradient fill color
+        dataSet.setFillColor(getResources().getColor(fillColor));// Gradient fill color
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         dataSet.setDrawValues(false); // Remove value labels from data points
 
         dataSets.add(dataSet);
     }
-
-    private ArrayList<Entry> parseMessageToEntries(String message) {
-        ArrayList<Entry> entries = new ArrayList<>();
-        String[] dataPoints = message.split(",");
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-
-        for (int i = 0; i < dataPoints.length; i++) {
-            try {
-                float value = Float.parseFloat(dataPoints[i]);
-                float timestamp = System.currentTimeMillis(); // Use actual timestamp if available
-                entries.add(new Entry(timestamp, value));
-            } catch (NumberFormatException e) {
-                // Handle potential parsing errors
-                e.printStackTrace();
-            }
-        }
-
-        // Sort by timestamp and keep the last 100 points
-        Collections.sort(entries, (entry1, entry2) -> Float.compare(entry1.getX(), entry2.getX()));
-        if (entries.size() > maxDataPoints) {
-            entries = new ArrayList<>(entries.subList(entries.size() - maxDataPoints, entries.size()));
-        }
-        return entries;
-    }
-
-    // Helper function to calculate average for limited data
-    private List<Entry> getAverageEntries(ArrayList<Float> values, int limit, String label) {
-        List<Entry> entries = new ArrayList<>();
-        int totalValues = Math.min(values.size(), limit);
-        float sum = 0;
-
-        // Sum up values from the selected data
-        for (int i = 0; i < totalValues; i++) {
-            sum += values.get(i);
-        }
-
-        // Calculate the average
-        float average = sum / totalValues;
-
-        // Create a single entry with the average value (e.g., X-axis is time or index)
-        entries.add(new Entry(0, average)); // The '0' is a placeholder for X-axis value (time or index)
-        return entries;
-    }
-
-
-
     private void showAddDeviceDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setTitle("Add New Device");
@@ -651,11 +779,6 @@ public class HomeFragment extends Fragment {
     }
 
 
-
-
-
-
-
     private void checkPermissions() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
@@ -667,65 +790,95 @@ public class HomeFragment extends Fragment {
             }, PERMISSION_REQUEST_CODE);
         }
     }
-
     private void startScan() {
         statusTextView.setText("Scanning...");
-        Disposable scanDisposable = rxBleClient.scanBleDevices()
+        Log.d("BLE", "Starting scan for BLE devices...");
+
+        scanDisposable = rxBleClient.scanBleDevices()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(scanResult -> {
+                    Log.d("BLE", "Scan result received for device: " + scanResult.getBleDevice().getName() + " - " + scanResult.getBleDevice().getMacAddress());
+
+                    if (scanResult.getBleDevice().getMacAddress() == null) {
+                        Log.w("BLE", "Scan result has a null MAC address.");
+                        return; // Skip if MAC address is null
+                    }
+
                     if (scanResult.getBleDevice().getMacAddress().equals(TARGET_DEVICE_MAC)) {
                         selectedDevice = scanResult.getBleDevice();
-                        statusTextView.setText("Target device found: " + selectedDevice.getName());
+                        statusTextView.setText("Target device found: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+                        Log.d("BLE", "Target device found: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+
+                        if (scanDisposable != null && !scanDisposable.isDisposed()) {
+                            scanDisposable.dispose();
+                            Log.d("BLE", "Scan stopped after finding target device.");
+                        }
+                    } else {
+                        Log.d("BLE", "Found device is not the target: " + scanResult.getBleDevice().getName() + " - " + scanResult.getBleDevice().getMacAddress());
                     }
                 }, throwable -> {
+                    Log.e("BLE", "Error during scan: " + throwable.toString());
                     statusTextView.setText("Scan failed.");
-                    Log.e("BLE", "Scan failed: " + throwable.toString());
                 });
-        disposables.add(scanDisposable);
     }
-
     private void connectToDevice() {
         if (selectedDevice == null) {
             statusTextView.setText("No device selected.");
+            Log.d("BLE", "No device selected.");
             return;
         }
 
+        Log.d("BLE", "Attempting to connect to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+
         connectionDisposable = selectedDevice.establishConnection(false)
-                .doOnDispose(() -> Log.d("BLE", "Disconnected"))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(rxBleConnection -> {
                     connection = rxBleConnection;
                     statusTextView.setText("Connected.");
-                    handler.postDelayed(updateTask, 5000);
-                }, throwable -> {
+                    Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+                    readCharacteristic();
+                    }, throwable -> {
+                    Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress() + ", error: " + throwable.toString());
                     statusTextView.setText("Connection failed.");
-                    Log.e("BLE", "Connection failed: " + throwable.toString());
                 });
-        disposables.add(connectionDisposable);
     }
     private void readCharacteristic() {
+        if (connection == null) {
+            Log.e("BLE", "Connection is null, cannot read characteristic.");
+            return;
+        }
+
+        Log.d("BLE", "Attempting to read characteristic with UUID: " + CHARACTERISTIC_UUID);
+
         Disposable readDisposable = connection.readCharacteristic(UUID.fromString(CHARACTERISTIC_UUID))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(characteristicValue -> {
+                    Log.d("BLE", "Characteristic read successfully. Value length: " + (characteristicValue != null ? characteristicValue.length : 0));
+
+                    if (characteristicValue == null || characteristicValue.length == 0) {
+                        Log.w("BLE", "Received characteristic value is null or empty.");
+                        statusTextView.setText("Error: Empty data received.");
+                        return;
+                    }
+
                     // Convert the characteristic value to a JSON string
                     String jsonString = new String(characteristicValue);
+                    Log.d("BLE", "Raw JSON string: " + jsonString);
+
                     updateUIWithData(jsonString);
+                    processMqttMessage(jsonString);
 
                     try {
-                        // Parse the JSON string
                         JSONObject jsonObject = new JSONObject(jsonString);
+                        Log.d("BLE", "JSON object parsed successfully.");
 
-                        // Extract the device_id value
                         int deviceId = jsonObject.getInt("device_id");
+                        Log.d("BLE", "Extracted device_id: " + deviceId);
 
-                        // Construct the MQTT topic
                         String MQTT_TOPIC = "data/" + deviceId;
                         Log.d("BLE", "MQTT_TOPIC: " + MQTT_TOPIC);
 
-                        // Publish the message using the constructed topic
                         publishMessage(MQTT_TOPIC, jsonString);
-
-                        // Optionally, log the message being published
                         Log.d("BLE", "Published message to topic: " + MQTT_TOPIC + ", message: " + jsonString);
 
                     } catch (JSONException e) {
@@ -733,14 +886,13 @@ public class HomeFragment extends Fragment {
                         statusTextView.setText("Error parsing data.");
                     }
                 }, throwable -> {
-                    statusTextView.setText("Read failed.");
                     Log.e("BLE", "Read failed: " + throwable.toString());
+                    statusTextView.setText("Read failed.");
                 });
 
         disposables.add(readDisposable);
     }
-
-    private void saveDataToCSV(JSONObject jsonObject, String timestamp) {
+    private void saveDataToCSV(JSONObject jsonObject, String timestamp, double latitude, double longitude) {
         try {
             if (csvFile == null) {
                 csvFile = new File(requireContext().getExternalFilesDir(null), "sensor_data.csv");
@@ -750,8 +902,8 @@ public class HomeFragment extends Fragment {
 
             try (FileWriter writer = new FileWriter(csvFile, true)) {
                 if (isNewFile) {
-                    // Write headers for a new file including all metrics from data, calculated, predicted, and status
-                    writer.append("Timestamp,Temperature,Humidity,Pressure,PM1,PM2.5,PM10,CO,VOC,CO2,aqi_dust,aqi_co,aqi_voc,aqi_co2,aqi_dust_predicted,aqi_co_predicted,dust_status,co_status\n");
+                    // Write headers for a new file including all metrics from data, calculated, predicted, status, latitude, and longitude
+                    writer.append("Timestamp,Temperature,Humidity,Pressure,PM1,PM2.5,PM10,CO,VOC,CO2,aqi_dust,aqi_co,aqi_voc,aqi_co2,aqi_dust_predicted,aqi_co_predicted,dust_status,co_status,Latitude,Longitude\n");
                 }
 
                 JSONObject data = jsonObject.getJSONObject("data");
@@ -777,7 +929,9 @@ public class HomeFragment extends Fragment {
                         predicted.getInt("aqi_dust") + "," +
                         predicted.getInt("aqi_co") + "," +
                         status.getInt("dust") + "," +
-                        status.getInt("co") + "\n";
+                        status.getInt("co") + "," +
+                        latitude + "," + // Append latitude
+                        longitude + "\n"; // Append longitude
 
                 writer.append(row);
 
@@ -790,9 +944,6 @@ public class HomeFragment extends Fragment {
             Log.e("CSV", "Error writing to CSV: " + e.toString());
         }
     }
-
-
-
     private void exportDataToCSV() {
         if (csvFile != null && csvFile.exists()) {
             Uri fileUri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".provider", csvFile);
@@ -807,11 +958,10 @@ public class HomeFragment extends Fragment {
 
         }
     }
-
     private void updateUIWithData(String jsonString) {
         try {
             label1.setText(jsonString);
-
+            processMqttMessage(jsonString);
             JSONObject jsonObject = new JSONObject(jsonString);
             JSONObject data = jsonObject.getJSONObject("data");
 
@@ -827,11 +977,18 @@ public class HomeFragment extends Fragment {
 
 
 
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+             timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
 
 
-            saveDataToCSV(jsonObject, timestamp);
+            // Call saveDataToCSV with the new data
+            if (latitude != 0 && longitude != 0) {
+                saveDataToCSV(jsonObject, timestamp, latitude, longitude);
+            } else {
+                Log.e("LocationError", "Location data is not available.");
+            }
+
+
         } catch (JSONException e) {
             statusTextView.setText("Invalid data received.");
             Log.e("BLE", "JSON Parsing error: " + e.toString());
@@ -840,8 +997,7 @@ public class HomeFragment extends Fragment {
 
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), "tcp://broker.hivemq.com:1883", clientId, Ack.AUTO_ACK);
-
+        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
@@ -851,74 +1007,109 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
+                    textViewStatus.setText("Connected to MQTT broker");
+                    retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
                     subscribeToTopic(MQTT_TOPIC); // Subscribe to the topic on connection
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
+                    textViewStatus.setText("Failed to connect: " + exception.getMessage());
+
+                    // Check if retry attempts have reached the maximum allowed
+                    if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
+                        Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
+                        handler.postDelayed(() -> setupMqttClient(), retryInterval);
+                        retryInterval *= 2; // Exponential backoff
+                    } else {
+                        Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
+                        textViewStatus.setText("Max retry attempts reached. Unable to connect.");
+                    }
                 }
             });
 
             mqttClient.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
-                    if (cause != null) {
-                        Log.e("MQTT", "Connection lost: " + cause.toString());
-                        statusTextView.setText("MQTT connection lost: " + cause.toString());
-                    } else {
-                        Log.e("MQTT", "Connection lost with unknown cause");
-                        statusTextView.setText("MQTT connection lost: Unknown cause");
-                    }
+                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.toString() : "Unknown cause"));
+                    textViewStatus.setText("Connection lost. Reconnecting...");
 
-                    // Optionally, attempt to reconnect after a delay
-                    handler.postDelayed(() -> setupMqttClient(), 5000); // Reattempt connection in 5 seconds
+                    // Attempt to reconnect with an exponential backoff strategy
+                    handler.postDelayed(() -> setupMqttClient(), retryInterval);
+                    retryInterval *= 2; // Double the interval for the next attempt
                 }
-
 
                 @Override
-                public void messageArrived(String MQTT_TOPIC , MqttMessage message) throws Exception {
-                    Log.d("MQTT", "Message received from topic: " + MQTT_TOPIC );
+                public void messageArrived(String MQTT_TOPIC , MqttMessage message) {
                     String receivedMessage = new String(message.getPayload());
-                    Log.d("MQTT", "Received message: " + receivedMessage);
-                    textViewReceivedMessages.setText(receivedMessage); // Update UI with the message
-                }
+                    Log.d("MQTT", "Message arrived: " + receivedMessage);
+                    displayReceivedMessage(receivedMessage);
 
+                }
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
-                    // Do nothing for delivery complete
+                    Log.d("MQTT", "Message delivery complete");
                 }
             });
 
         } catch (Exception e) {
             Log.e("MQTT", "Error setting up MQTT client: " + e.toString());
+            textViewStatus.setText("MQTT setup error: " + e.getMessage());
         }
     }
-
-    private void subscribeToTopic(String MQTT_TOPIC ) {
+    private void subscribeToTopic(String MQTT_TOPIC) {
         try {
-            mqttClient.subscribe(MQTT_TOPIC, 2);
-            Log.d("MQTT", "Subscribed to topic: " + MQTT_TOPIC );
+            mqttClient.subscribe(MQTT_TOPIC, 0);
+            Log.d("MQTT", "Subscribed to MQTT_TOPIC: " + MQTT_TOPIC);
+            textViewStatus.setText("Subscribed to topic: " + MQTT_TOPIC);
         } catch (Exception e) {
             Log.e("MQTT", "Error subscribing to topic: " + e.toString());
+            textViewStatus.setText("Subscription error: " + e.getMessage());
         }
     }
-
     private void publishMessage(String MQTT_TOPIC, String message) {
         try {
             MqttMessage mqttMessage = new MqttMessage(message.getBytes());
-            mqttMessage.setQos(1); // Set QoS level if needed
-            mqttMessage.setRetained(false); // Set retained flag if needed
-
-            // Publish the message to the topic
             mqttClient.publish(MQTT_TOPIC, mqttMessage);
             Log.d("MQTT", "Message published to topic: " + MQTT_TOPIC + ", message: " + message);
+            textViewStatus.setText("Message published to topic: " + MQTT_TOPIC);
         } catch (Exception e) {
             Log.e("MQTT", "Error publishing message: " + e.toString());
+            textViewStatus.setText("Publish error: " + e.getMessage());
         }
     }
+    private void displayReceivedMessage(String message) {
+        // Append received message to the TextView for cumulative display
+        String currentText = textViewReceivedMessages.getText().toString();
+        textViewReceivedMessages.setText(currentText + "\n" + message);
+    }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        mapView.onResume(); // Needed for compass, my location overlays, etc.
+        if (myLocationOverlay != null) {
+            myLocationOverlay.enableMyLocation(); // Re-enable location overlay
+        }
+    }
+    @Override
+    public void onPause() {
+        super.onPause();
+        mapView.onPause(); // Needed for compass, my location overlays, etc.
+        if (myLocationOverlay != null) {
+            myLocationOverlay.disableMyLocation(); // Disable location overlay when paused
+        }
+    }
+    private void requestPermissionsIfNecessary(String[] permissions) {
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(requireContext(), permission) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(requireActivity(), permissions, REQUEST_PERMISSIONS_REQUEST_CODE);
+                break;
+            }
+        }
+    }
 
     @Override
     public void onDestroyView() {

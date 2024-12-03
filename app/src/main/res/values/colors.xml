@@ -105,4 +105,15 @@
     <color name="colorPredictedDust">#8BC34A</color>
     <color name="colorPredictedCO">#FF5722</color>
 
+
+    <color name="colorTemperature">#FF5733</color> <!-- Temperature -->
+    <color name="colorHumidity">#33FF57</color> <!-- Humidity -->
+    <color name="colorPressure">#3357FF</color> <!-- Pressure -->
+    <color name="colorPM1">#FF33A1</color> <!-- PM1 -->
+    <color name="colorPM2_5">#A133FF</color> <!-- PM2.5 -->
+    <color name="colorPM10">#33FFF5</color> <!-- PM10 -->
+    <color name="colorCO">#FFB833</color> <!-- CO -->
+    <color name="colorVOC">#33FFF7</color> <!-- VOC -->
+    <color name="colorCO2">#57FF33</color> <!-- CO2 -->
+
 </resources>
