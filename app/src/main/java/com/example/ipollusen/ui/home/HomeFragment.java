@@ -46,6 +46,7 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.google.android.gms.maps.model.LatLng;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -64,6 +65,8 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -290,8 +293,6 @@ public class HomeFragment extends Fragment {
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         label1 = view.findViewById(R.id.label1);
 
-        // Simulate receiving data to test
-        String sampleData = "{\"device_id\":2617,\"timestamp\":\"2024-11-30 21:44:06\",\"data\":{\"temperature\":26.89,\"humidity\":73.33,\"pressure\":1003.87,\"pm1\":72,\"pm2_5\":137,\"pm10\":153,\"co\":88.21,\"voc\":0,\"co2\":1348}}";
 
 
         deviceRecyclerView = view.findViewById(R.id.deviceRecyclerView);
@@ -332,9 +333,10 @@ public class HomeFragment extends Fragment {
         updateTask = new Runnable() {
             @Override
             public void run() {
-//
-                readCharacteristic(); // Read characteristic periodically
-                handler.postDelayed(this, 5000); // Schedule next execution in 5 seconds
+                if (connection != null) {
+                    readCharacteristic();
+                    handler.postDelayed(this, 5000);
+                }
             }
                 };
 
@@ -385,8 +387,14 @@ public class HomeFragment extends Fragment {
 
         handler = new Handler();
         setupMqttClient();
-
-
+        // Read data from the CSV and add markers
+        String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
+        List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
+        if (coordinates != null && !coordinates.isEmpty()) {
+            addMarkersToMap(mapView, coordinates);
+        } else {
+            System.out.println("No coordinates to display.");
+        }
         return view;
     }
     @Override
@@ -836,7 +844,7 @@ public class HomeFragment extends Fragment {
                     connection = rxBleConnection;
                     statusTextView.setText("Connected.");
                     Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
-                    readCharacteristic();
+                    handler.postDelayed(updateTask, 5000);
                     }, throwable -> {
                     Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress() + ", error: " + throwable.toString());
                     statusTextView.setText("Connection failed.");
@@ -1110,7 +1118,52 @@ public class HomeFragment extends Fragment {
             }
         }
     }
+    private void addMarkersToMap(MapView mapView, List<GeoPoint> coordinates) {
+        for (GeoPoint coord : coordinates) {
+            Marker marker = new Marker(mapView);
+            marker.setPosition(coord);
+            marker.setTitle("Sensor Location");
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+            mapView.getOverlays().add(marker);
+        }
+        mapView.invalidate();
+    }
 
+    public static class CSVParser {
+        public static List<GeoPoint> parseSensorData(String filePath) {
+            List<GeoPoint> coordinates = new ArrayList<>();
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(new File(filePath)))) {
+                String line;
+                // Skip header if present
+                boolean isFirstLine = true;
+
+                while ((line = reader.readLine()) != null) {
+                    if (isFirstLine) {
+                        isFirstLine = false;
+                        continue; // Skip header
+                    }
+
+                    String[] parts = line.split(",");
+                    if (parts.length >= 2) {
+                        try {
+                            double latitude = Double.parseDouble(parts[0].trim());
+                            double longitude = Double.parseDouble(parts[1].trim());
+                            coordinates.add(new GeoPoint(latitude, longitude));
+                        } catch (NumberFormatException e) {
+                            System.err.println("Invalid latitude/longitude format: " + line);
+                        }
+                    } else {
+                        System.err.println("Invalid line format: " + line);
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("Error reading CSV file: " + e.getMessage());
+            }
+
+            return coordinates;
+        }
+    }
     @Override
     public void onDestroyView() {
         super.onDestroyView();
