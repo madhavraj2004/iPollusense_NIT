@@ -118,7 +118,7 @@ public class HomeFragment extends Fragment {
     private static final String MQTT_TOPIC = " "; // Default topic
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
     private String jsonString;
-
+    private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
 
@@ -338,7 +338,7 @@ public class HomeFragment extends Fragment {
         connectButton.setOnClickListener(v -> connectToDevice());
 
 
-        checkPermissions();
+
         rxBleClient = RxBleClient.create(requireContext());
         startScan(); // Automatically start scanning when the fragment is opened
         setupMqttClient(); // Set up MQTT client
@@ -397,11 +397,12 @@ public class HomeFragment extends Fragment {
         editTextTopic = view.findViewById(R.id.editTextTopic);
         editTextMessage = view.findViewById(R.id.editTextMessage);
 
-
+        checkPermissions();
+        rxBleClient = RxBleClient.create(requireContext());
         handler = new Handler();
         setupMqttClient();
         // Read data from the CSV and add markers
-        String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
+
         List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
         if (coordinates != null && !coordinates.isEmpty()) {
             addMarkersToMap(mapView, coordinates);
@@ -409,6 +410,7 @@ public class HomeFragment extends Fragment {
             System.out.println("No coordinates to display.");
         }
         return view;
+
     }
 
     @Override
@@ -696,49 +698,41 @@ public class HomeFragment extends Fragment {
         editor.putString(macAddress, nickname);
         editor.apply();
     }
-
-
     private void checkPermissions() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{
-                    Manifest.permission.BLUETOOTH,
-                    Manifest.permission.BLUETOOTH_ADMIN,
+            ActivityCompat.requestPermissions(requireActivity(), new String[]{
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.ACCESS_FINE_LOCATION
             }, PERMISSION_REQUEST_CODE);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startScan();
+        } else {
+            statusTextView.setText("Permissions denied.");
         }
     }
 
     private void startScan() {
         statusTextView.setText("Scanning...");
-        Log.d("BLE", "Starting scan for BLE devices...");
-
-        scanDisposable = rxBleClient.scanBleDevices()
+        Disposable scanDisposable = rxBleClient.scanBleDevices()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(scanResult -> {
-
-                    if (scanResult.getBleDevice().getMacAddress() == null) {
-                        Log.w("BLE", "Scan result has a null MAC address.");
-                        return; // Skip if MAC address is null
-                    }
-
                     if (scanResult.getBleDevice().getMacAddress().equals(TARGET_DEVICE_MAC)) {
                         selectedDevice = scanResult.getBleDevice();
-                        statusTextView.setText("Target device found: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
-
-
-                        if (scanDisposable != null && !scanDisposable.isDisposed()) {
-                            scanDisposable.dispose();
-                            Log.d("BLE", "Scan stopped after finding target device.");
-                        }
-                    } else {
-                        Log.d("BLE", "Found device is not the target: " + scanResult.getBleDevice().getName() + " - " + scanResult.getBleDevice().getMacAddress());
+                        statusTextView.setText("Target device found: " + selectedDevice.getName());
                     }
                 }, throwable -> {
-                    Log.e("BLE", "Error during scan: " + throwable.toString());
                     statusTextView.setText("Scan failed.");
+                    Log.e("BLE", "Scan failed: " + throwable.toString());
                 });
+        disposables.add(scanDisposable);
     }
 
     private void connectToDevice() {
@@ -903,7 +897,7 @@ public class HomeFragment extends Fragment {
     private void updateUIWithData(String jsonString) {
         try {
             label1.setText(jsonString);
-             jsonObject = new JSONObject(jsonString);
+            jsonObject = new JSONObject(jsonString);
             JSONObject data = jsonObject.getJSONObject("data");
 
             tempValue.setText(String.format("%.2f", data.getDouble("temperature")));
@@ -918,7 +912,7 @@ public class HomeFragment extends Fragment {
 
 
 
-             timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+            timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
             saveDataToCSV(jsonObject, timestamp, latitude, longitude);
 
