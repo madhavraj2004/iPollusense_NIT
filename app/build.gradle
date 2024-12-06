@@ -106,5 +106,6 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'org.osmdroid:osmdroid-android:6.1.14'
+    implementation 'org.apache.commons:commons-csv:1.8'
 
 }

@@ -114,6 +114,7 @@
     <color name="colorPM10">#33FFF5</color> <!-- PM10 -->
     <color name="colorCO">#FFB833</color> <!-- CO -->
     <color name="colorVOC">#33FFF7</color> <!-- VOC -->
-    <color name="colorCO2">#57FF33</color> <!-- CO2 -->
+    <color name="colorCO2">#D80606</color>
+    <color name="colorPM2">#009688</color> <!-- CO2 -->
 
 </resources>

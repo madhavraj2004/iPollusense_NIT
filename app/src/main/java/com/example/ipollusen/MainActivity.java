@@ -93,13 +93,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(View v) {
                 Log.d("MainActivity", "Notification button clicked, replacing fragment");
 
-                NotificationsFragment notificationsFragment = new NotificationsFragment();
-                getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, notificationsFragment)
-                        .addToBackStack(null)
-                        .commit();
 
-                Log.d("MainActivity", "Fragment transaction committed");
             }
         });
 
@@ -154,21 +148,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Sensor Data Notification Channel",
-                    NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Notifications for when sensor data exceeds a threshold.");
-
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            if (notificationManager != null) {
-                notificationManager.createNotificationChannel(channel);
-            }
-        }
-    }
+//    private void createNotificationChannel() {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            NotificationChannel channel = new NotificationChannel(
+//                    CHANNEL_ID,
+//                    "Sensor Data Notification Channel",
+//                    NotificationManager.IMPORTANCE_HIGH
+//            );
+//            channel.setDescription("Notifications for when sensor data exceeds a threshold.");
+//
+//            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+//            if (notificationManager != null) {
+//                notificationManager.createNotificationChannel(channel);
+//            }
+//        }
+//    }
 
     private void checkCsvAndNotify(String filePath) {
         try {
@@ -218,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         int coStatus = Integer.parseInt(record[17]); // Replace 17 with actual index if different
 
                         // Check if dust_status or co_status is 1
-                        if (dustStatus == 1 || coStatus == 1) {
+                        if (dustStatus == -1 || coStatus == -1) {
                             String message = "Sensor Alert: ";
                             if (dustStatus == 1) {
                                 message += "Dust sensor is faulty. ";

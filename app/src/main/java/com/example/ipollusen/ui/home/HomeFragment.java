@@ -9,6 +9,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -66,6 +67,7 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -110,12 +112,12 @@ public class HomeFragment extends Fragment {
     private static final int MAX_RETRIES = 5; // Set a maximum number of retries to prevent infinite attempts
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
-    private static final String MQTT_BROKER_URL = "tcp://broker.hivemq.com:1883";
+    private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static final String MQTT_TOPIC = " "; // Default topic
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
-    private static final String topic = "data/81029";
+    private String jsonString;
 
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
@@ -132,8 +134,8 @@ public class HomeFragment extends Fragment {
     private TextView pm2Value; // PM2.5
     private TextView pm10Value; // PM10
     private TextView textViewReceivedMessages; // For received MQTT messages
-   // private EditText editTextTopic; // For MQTT topic input
-   // private EditText editTextMessage; // For MQTT message input
+    // private EditText editTextTopic; // For MQTT topic input
+    // private EditText editTextMessage; // For MQTT message input
 
 
     private FragmentHomeBinding binding;
@@ -179,6 +181,9 @@ public class HomeFragment extends Fragment {
 
     private EditText editTextTopic;
     private EditText editTextMessage;
+
+    private ArrayList<Entry> tempData, humData, pressData;
+    private ArrayList<Entry> pm1Data, pm2Data, pm10Data, coData, vocData, co2Data;
 
 
     private ArrayList<Entry> dataEntries = new ArrayList<>();
@@ -250,13 +255,16 @@ public class HomeFragment extends Fragment {
             }
 
             @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
 
             @Override
-            public void onProviderEnabled(@NonNull String provider) {}
+            public void onProviderEnabled(@NonNull String provider) {
+            }
 
             @Override
-            public void onProviderDisabled(@NonNull String provider) {}
+            public void onProviderDisabled(@NonNull String provider) {
+            }
         };
 
         // Request location updates (e.g., every 5 seconds or minimum distance change)
@@ -277,7 +285,15 @@ public class HomeFragment extends Fragment {
         co2Value = view.findViewById(R.id.co2_value);
         textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
 
-
+        tempData = new ArrayList<>();
+        humData = new ArrayList<>();
+        pressData = new ArrayList<>();
+        pm1Data = new ArrayList<>();
+        pm2Data = new ArrayList<>();
+        pm10Data = new ArrayList<>();
+        coData = new ArrayList<>();
+        vocData = new ArrayList<>();
+        co2Data = new ArrayList<>();
         CardView deviceCard = view.findViewById(R.id.DeviceCard);
         deviceCard.setOnClickListener(v -> showAddDeviceDialog());
 
@@ -292,7 +308,6 @@ public class HomeFragment extends Fragment {
         }
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         label1 = view.findViewById(R.id.label1);
-
 
 
         deviceRecyclerView = view.findViewById(R.id.deviceRecyclerView);
@@ -338,7 +353,7 @@ public class HomeFragment extends Fragment {
                     handler.postDelayed(this, 5000);
                 }
             }
-                };
+        };
 
         lineChart = view.findViewById(R.id.exposureLineChart);
 
@@ -383,8 +398,6 @@ public class HomeFragment extends Fragment {
         editTextMessage = view.findViewById(R.id.editTextMessage);
 
 
-
-
         handler = new Handler();
         setupMqttClient();
         // Read data from the CSV and add markers
@@ -397,6 +410,7 @@ public class HomeFragment extends Fragment {
         }
         return view;
     }
+
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -411,142 +425,16 @@ public class HomeFragment extends Fragment {
         CheckBox checkboxCO = view.findViewById(R.id.checkboxpredictionCO);
 
         // Set listeners for checkboxes
-        checkboxLive.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
-        checkboxPredicted.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
-        checkboxDust.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
-        checkboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart());
-        updateChart();
-        updatePredictionChart();
+        checkboxLive.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
+        checkboxPredicted.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
+        checkboxDust.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
+        checkboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
+
+        // Optionally call the update method initially if needed
+        updatePredictionChart(jsonString);
     }
-    private void processMqttMessage(String message) {
-        try {
-            Log.d("MqttProcessing", "Raw message received: " + message);
-
-            // Validate JSON format
-            if (message.trim().startsWith("{") && message.trim().endsWith("}")) {
-                JSONObject jsonObject = new JSONObject(message);
-                JSONObject data = jsonObject.getJSONObject("data");
 
 
-
-
-                // Iterate through each key in the "data" section
-                for (Iterator<String> keysIterator = data.keys(); keysIterator.hasNext();) {
-                    String key = keysIterator.next();
-
-                    // Check if the key exists in the initialized dataQueues
-                    if (dataQueues.containsKey(key)) {
-                        double value = data.getDouble(key);
-                        Entry entry = new Entry(System.currentTimeMillis(), (float) value);
-
-                        // Get the corresponding queue for the key
-                        ArrayBlockingQueue<Entry> queue = dataQueues.get(key);
-                        if (queue != null) {
-                            if (queue.size() == MAX_RECORDS) {
-                                queue.poll(); // Remove the oldest record if the queue is full
-                            }
-                            queue.offer(entry); // Add the new entry to the queue
-                        }
-
-                        Log.d("MqttProcessing", "Added value to queue: " + key + " - " + value);
-                    } else {
-                        Log.w("MqttProcessing", "Key " + key + " not found in initialized queues.");
-                    }
-                }
-
-                // Update the chart with the new data
-                updateLiveChart();
-            } else {
-                Log.e("MqttProcessing", "Received message is not a valid JSON object: " + message);
-            }
-        } catch (JSONException e) {
-            Log.e("MqttProcessing", "Error parsing MQTT message: " + message, e);
-        } catch (Exception e) {
-            Log.e("MqttProcessing", "Unexpected error: " + e.toString(), e);
-        }
-    }
-    private void updateLiveChart() {
-        if (liveLineChart != null && getView() != null) {
-            List<ILineDataSet> dataSets = new ArrayList<>();
-
-            // Get the checkboxes for each sensor type using updated IDs from the XML layout
-            CheckBox checkboxTemperature = getView().findViewById(R.id.LivecheckboxTemperature);
-            CheckBox checkboxHumidity = getView().findViewById(R.id.LivecheckboxHumidity);
-            CheckBox checkboxCO2 = getView().findViewById(R.id.LivecheckboxCO2);
-            CheckBox checkboxPressure = getView().findViewById(R.id.LivecheckboxPressure);
-            CheckBox checkboxVOC = getView().findViewById(R.id.LivecheckboxVOC);
-            CheckBox checkboxCO = getView().findViewById(R.id.LivecheckboxCO);
-            CheckBox checkboxPM1 = getView().findViewById(R.id.LivecheckboxPM1);
-            CheckBox checkboxPM2_5 = getView().findViewById(R.id.LivecheckboxPM2_5);
-            CheckBox checkboxPM10 = getView().findViewById(R.id.LivecheckboxPM10);
-
-            // Data limit for smoother graphs (e.g., limit to 100 points)
-            int dataLimit = 100;
-
-            // Add data sets for each selected sensor type
-            if (checkboxTemperature.isChecked() && dataQueues.containsKey("temperature")) {
-                createAddDataSet(dataSets, "Temperature", "temperature", dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
-            }
-
-            if (checkboxHumidity.isChecked() && dataQueues.containsKey("humidity")) {
-                createAddDataSet(dataSets, "Humidity", "humidity", dataLimit, R.color.colorAccent, R.color.colorAccentLight);
-            }
-
-            if (checkboxCO2.isChecked() && dataQueues.containsKey("co2")) {
-                createAddDataSet(dataSets, "CO2", "co2", dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
-            }
-
-            if (checkboxPressure.isChecked() && dataQueues.containsKey("pressure")) {
-                createAddDataSet(dataSets, "Pressure", "pressure", dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
-            }
-
-            if (checkboxVOC.isChecked() && dataQueues.containsKey("voc")) {
-                createAddDataSet(dataSets, "VOC", "voc", dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
-            }
-
-            if (checkboxCO.isChecked() && dataQueues.containsKey("co")) {
-                createAddDataSet(dataSets, "CO", "co", dataLimit, R.color.colorFifth, R.color.colorFifthLight);
-            }
-
-            if (checkboxPM1.isChecked() && dataQueues.containsKey("pm1")) {
-                createAddDataSet(dataSets, "PM1", "pm1", dataLimit, R.color.colorSixth, R.color.colorSixthLight);
-            }
-
-            if (checkboxPM2_5.isChecked() && dataQueues.containsKey("pm2_5")) {
-                createAddDataSet(dataSets, "PM2.5", "pm2_5", dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
-            }
-
-            if (checkboxPM10.isChecked() && dataQueues.containsKey("pm10")) {
-                createAddDataSet(dataSets, "PM10", "pm10", dataLimit, R.color.colorEighth, R.color.colorEighthLight);
-            }
-
-            // Update chart with the new data
-            LineData lineData = new LineData(dataSets);
-            liveLineChart.setData(lineData);
-            liveLineChart.invalidate(); // Refresh the chart
-        }
-    }
-    // Helper method to create and add data sets to the chart
-    private void createAddDataSet(List<ILineDataSet> dataSets, String label, String key, int dataLimit, int color, int colorLight) {
-        ArrayBlockingQueue<Entry> queue = dataQueues.get(key);
-        if (queue != null) {
-            List<Entry> entryList = new ArrayList<>(queue);
-            if (entryList.size() > dataLimit) {
-                entryList = entryList.subList(entryList.size() - dataLimit, entryList.size()); // Keep only the latest `dataLimit` entries
-            }
-
-            LineDataSet dataSet = new LineDataSet(entryList, label);
-            dataSet.setColor(getResources().getColor(color, null));
-            dataSet.setValueTextColor(getResources().getColor(colorLight, null));
-            dataSet.setDrawFilled(true); // Enable gradient fill
-
-            dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-            dataSet.setDrawCircles(false);
-            dataSet.setLineWidth(2.5f);
-            dataSets.add(dataSet);
-
-        }
-    }
     private void setupChart() {
         if (lineChart != null) {
             // Enable dragging (panning)
@@ -578,20 +466,24 @@ public class HomeFragment extends Fragment {
 
     }
     private void setupliveChart() {
-        liveLineChart.setTouchEnabled(true);
-        liveLineChart.setPinchZoom(true);
-        liveLineChart.getDescription().setEnabled(false);
+        liveLineChart.setPinchZoom(true); // Enables pinch zooming
+        liveLineChart.setScaleEnabled(true); // Enables scaling
+        liveLineChart.setDragEnabled(true); // Enables dragging the chart
+        liveLineChart.getDescription().setEnabled(false); // Optional: remove chart description for a cleaner look
+        liveLineChart.setBackgroundColor(Color.WHITE); // Optional: change background color
+        liveLineChart.setBorderColor(Color.BLACK); // Optional: change border color
 
-        LineDataSet dataSet = new LineDataSet(dataEntries, "Live Data");
-        dataSet.setColor(getResources().getColor(R.color.blue, null)); // Set color for the line
-        dataSet.setValueTextColor(getResources().getColor(R.color.black, null)); // Set color for data points
-        dataSet.setDrawFilled(true);
-        dataSet.setDrawValues(false);
+        // Enable axis customization for better visualization
+        YAxis leftAxis = liveLineChart.getAxisLeft();
+        leftAxis.setGranularity(1f); // Optional: set the granularity for better readability
+        leftAxis.setAxisMinimum(0f); // Set the minimum value for the Y-axis to 0
 
-        LineData lineData = new LineData(dataSet);
-        liveLineChart.setData(lineData);
-        liveLineChart.invalidate(); // Refresh the chart to display initial data
+        // Right axis is not used, so we disable it for better performance
+        liveLineChart.getAxisRight().setEnabled(false);
     }
+
+
+
     public void updateChart() {
         if (lineChart != null && getView() != null) {
             List<ILineDataSet> dataSets = new ArrayList<>();
@@ -653,81 +545,98 @@ public class HomeFragment extends Fragment {
             lineChart.invalidate(); // Refresh the chart
         }
     }
-    private void updatePredictionChart() {
-        BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
-        CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
-        CheckBox checkboxPredicted = getView().findViewById(R.id.checkboxPredicted);
-        CheckBox checkboxDust = getView().findViewById(R.id.checkboxpredictionDust);
-        CheckBox checkboxCO = getView().findViewById(R.id.checkboxpredictionCO);
 
-        if (predictionBarChart != null) {
-            Log.d("PredictionChart", "Updating prediction chart...");
-            List<BarEntry> entries = new ArrayList<>();
-            List<Integer> colors = new ArrayList<>();
+    private void updatePredictionChart(String jsonString) {
+        if (jsonString == null || jsonString.isEmpty()) {
+            Log.e("PredictionChart", "JSON string is null or empty, cannot update chart.");
+            return;
+        }
 
-            boolean showLive = checkboxLive.isChecked();
-            boolean showPredicted = checkboxPredicted.isChecked();
-            boolean showDust = checkboxDust.isChecked();
-            boolean showCO = checkboxCO.isChecked();
+        try {
+            JSONObject jsonObject = new JSONObject(jsonString);
+            JSONObject calculated = jsonObject.getJSONObject("calculated");
+            JSONObject predicted = jsonObject.getJSONObject("predicted");
 
-            Log.d("PredictionChart", "CheckBox States - Live: " + showLive + ", Predicted: " + showPredicted +
-                    ", Dust: " + showDust + ", CO: " + showCO);
+            BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
+            CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
+            CheckBox checkboxPredicted = getView().findViewById(R.id.checkboxPredicted);
+            CheckBox checkboxDust = getView().findViewById(R.id.checkboxpredictionDust);
+            CheckBox checkboxCO = getView().findViewById(R.id.checkboxpredictionCO);
 
-            if (!showDust && !showCO) {
-                Log.w("PredictionChart", "No data selected to display (Dust and CO unchecked).");
-                predictionBarChart.clear();
-                return;
-            }
+            if (predictionBarChart != null) {
+                Log.d("PredictionChart", "Updating prediction chart...");
+                List<BarEntry> entries = new ArrayList<>();
+                List<Integer> colors = new ArrayList<>();
 
-            // Handle Live Data
-            if (showLive) {
-                if (showDust) {
-                    float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
-                    Log.d("PredictionChart", "Live Dust Average: " + liveDustAverage);
-                    entries.add(new BarEntry(entries.size() + 1, liveDustAverage));
-                    colors.add(getResources().getColor(R.color.colorLiveDust));
+                boolean showLive = checkboxLive.isChecked();
+                boolean showPredicted = checkboxPredicted.isChecked();
+                boolean showDust = checkboxDust.isChecked();
+                boolean showCO = checkboxCO.isChecked();
+
+                Log.d("PredictionChart", "CheckBox States - Live: " + showLive + ", Predicted: " + showPredicted +
+                        ", Dust: " + showDust + ", CO: " + showCO);
+
+                if (!showDust && !showCO) {
+                    Log.w("PredictionChart", "No data selected to display (Dust and CO unchecked).");
+                    predictionBarChart.clear();
+                    return;
                 }
-                if (showCO) {
-                    float liveCOAverage = getAverage(getContext(), "sensor_data.csv", "aqi_co", true);
-                    Log.d("PredictionChart", "Live CO Average: " + liveCOAverage);
-                    entries.add(new BarEntry(entries.size() + 1, liveCOAverage));
-                    colors.add(getResources().getColor(R.color.colorLiveCO));
+
+                // Handle Live Data
+                if (showLive) {
+                    if (showDust) {
+                        float liveDust = (float) calculated.optInt("aqi_dust", 0);
+                        Log.d("PredictionChart", "Live Dust AQI: " + liveDust);
+                        entries.add(new BarEntry(entries.size(), liveDust));
+                        colors.add(getResources().getColor(R.color.colorLiveDust));
+                    }
+                    if (showCO) {
+                        float liveCO = (float) calculated.optInt("aqi_co", 0);
+                        Log.d("PredictionChart", "Live CO AQI: " + liveCO);
+                        entries.add(new BarEntry(entries.size(), liveCO));
+                        colors.add(getResources().getColor(R.color.colorLiveCO));
+                    }
                 }
-            }
 
-            // Handle Predicted Data
-            if (showPredicted) {
-                if (showDust) {
-                    float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
-                    Log.d("PredictionChart", "Predicted Dust Average: " + predictedDustAverage);
-                    entries.add(new BarEntry(entries.size() + 1, predictedDustAverage));
-                    colors.add(getResources().getColor(R.color.colorPredictedDust));
+                // Handle Predicted Data
+                if (showPredicted) {
+                    if (showDust) {
+                        float predictedDust = (float) predicted.optInt("aqi_dust", 0);
+                        Log.d("PredictionChart", "Predicted Dust AQI: " + predictedDust);
+                        entries.add(new BarEntry(entries.size(), predictedDust));
+                        colors.add(getResources().getColor(R.color.colorPredictedDust));
+                    }
+                    if (showCO) {
+                        float predictedCO = (float) predicted.optInt("aqi_co", 0);
+                        Log.d("PredictionChart", "Predicted CO AQI: " + predictedCO);
+                        entries.add(new BarEntry(entries.size(), predictedCO));
+                        colors.add(getResources().getColor(R.color.colorPredictedCO));
+                    }
                 }
-                if (showCO) {
-                    float predictedCOAverage = getAverage(getContext(), "sensor_data.csv", "aqi_co_predicted", false);
-                    Log.d("PredictionChart", "Predicted CO Average: " + predictedCOAverage);
-                    entries.add(new BarEntry(entries.size() + 1, predictedCOAverage));
-                    colors.add(getResources().getColor(R.color.colorPredictedCO));
+
+                // Log Entries for debugging
+                for (int i = 0; i < entries.size(); i++) {
+                    Log.d("PredictionChart", "BarEntry " + i + ": x = " + entries.get(i).getX() + ", y = " + entries.get(i).getY());
                 }
+
+                // Configure BarDataSet
+                BarDataSet dataSet = new BarDataSet(entries, "AQI Data");
+                dataSet.setColors(colors);
+                dataSet.setValueTextSize(12f);
+
+                // Update BarChart
+                BarData data = new BarData(dataSet);
+                predictionBarChart.setData(data);
+                predictionBarChart.invalidate();
+                Log.d("PredictionChart", "Chart updated successfully.");
             }
-
-            // Log Entries
-            for (int i = 0; i < entries.size(); i++) {
-                Log.d("PredictionChart", "BarEntry " + i + ": x = " + entries.get(i).getX() + ", y = " + entries.get(i).getY());
-            }
-
-            // Configure BarDataSet
-            BarDataSet dataSet = new BarDataSet(entries, "AQI Data");
-            dataSet.setColors(colors);
-            dataSet.setValueTextSize(12f);
-
-            // Update BarChart
-            BarData data = new BarData(dataSet);
-            predictionBarChart.setData(data);
-            predictionBarChart.invalidate();
-            Log.d("PredictionChart", "Chart updated successfully.");
+        } catch (JSONException e) {
+            Log.e("PredictionChart", "JSON Parsing error: " + e.toString());
         }
     }
+
+
+
     // Helper method to create and add a LineDataSet with smooth lines
     private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
         ArrayList<Entry> entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", columnIndex, dataLimit);
@@ -746,6 +655,7 @@ public class HomeFragment extends Fragment {
 
         dataSets.add(dataSet);
     }
+
     private void showAddDeviceDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setTitle("Add New Device");
@@ -778,6 +688,7 @@ public class HomeFragment extends Fragment {
 
         builder.create().show();
     }
+
     private void saveDeviceData(String macAddress, String nickname) {
         SharedPreferences sharedPreferences = requireContext().getSharedPreferences("DeviceData", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -798,6 +709,7 @@ public class HomeFragment extends Fragment {
             }, PERMISSION_REQUEST_CODE);
         }
     }
+
     private void startScan() {
         statusTextView.setText("Scanning...");
         Log.d("BLE", "Starting scan for BLE devices...");
@@ -805,7 +717,6 @@ public class HomeFragment extends Fragment {
         scanDisposable = rxBleClient.scanBleDevices()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(scanResult -> {
-                    Log.d("BLE", "Scan result received for device: " + scanResult.getBleDevice().getName() + " - " + scanResult.getBleDevice().getMacAddress());
 
                     if (scanResult.getBleDevice().getMacAddress() == null) {
                         Log.w("BLE", "Scan result has a null MAC address.");
@@ -815,7 +726,7 @@ public class HomeFragment extends Fragment {
                     if (scanResult.getBleDevice().getMacAddress().equals(TARGET_DEVICE_MAC)) {
                         selectedDevice = scanResult.getBleDevice();
                         statusTextView.setText("Target device found: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
-                        Log.d("BLE", "Target device found: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+
 
                         if (scanDisposable != null && !scanDisposable.isDisposed()) {
                             scanDisposable.dispose();
@@ -829,6 +740,7 @@ public class HomeFragment extends Fragment {
                     statusTextView.setText("Scan failed.");
                 });
     }
+
     private void connectToDevice() {
         if (selectedDevice == null) {
             statusTextView.setText("No device selected.");
@@ -840,15 +752,31 @@ public class HomeFragment extends Fragment {
 
         connectionDisposable = selectedDevice.establishConnection(false)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(rxBleConnection -> {
-                    connection = rxBleConnection;
-                    statusTextView.setText("Connected.");
-                    Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
-                    handler.postDelayed(updateTask, 5000);
-                    }, throwable -> {
-                    Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress() + ", error: " + throwable.toString());
-                    statusTextView.setText("Connection failed.");
-                });
+                .subscribe(
+                        rxBleConnection -> {
+                            connection = rxBleConnection;
+                            statusTextView.setText("Connected.");
+                            Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+                            handler.postDelayed(updateTask, 5000);
+                        },
+                        throwable -> {
+                            Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress() + ", error: " + throwable.toString());
+                            statusTextView.setText("Connection failed.");
+
+                            // Retry logic
+                            if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
+                                Log.d("BLE", "Retrying connection in " + retryInterval + "ms");
+                                handler.postDelayed(() -> {
+                                    Log.d("BLE", "Retrying connection to device...");
+                                    connectToDevice();
+                                }, retryInterval);
+                                retryInterval *= 2; // Exponential backoff
+                            } else {
+                                Log.e("BLE", "Max retries reached. Unable to connect to DEVICE.");
+                                statusTextView.setText("Max retry attempts reached. Unable to connect.");
+                            }
+                        }
+                );
     }
     private void readCharacteristic() {
         if (connection == null) {
@@ -874,7 +802,7 @@ public class HomeFragment extends Fragment {
                     Log.d("BLE", "Raw JSON string: " + jsonString);
 
                     updateUIWithData(jsonString);
-                    processMqttMessage(jsonString);
+                    updatePredictionChart(jsonString);
 
                     try {
                         JSONObject jsonObject = new JSONObject(jsonString);
@@ -900,77 +828,82 @@ public class HomeFragment extends Fragment {
 
         disposables.add(readDisposable);
     }
+
+
     private void saveDataToCSV(JSONObject jsonObject, String timestamp, double latitude, double longitude) {
         try {
             if (csvFile == null) {
                 csvFile = new File(requireContext().getExternalFilesDir(null), "sensor_data.csv");
             }
 
+            Log.d("CSV", "CSV file path: " + csvFile.getAbsolutePath());
+
             boolean isNewFile = !csvFile.exists() || csvFile.length() == 0;
 
             try (FileWriter writer = new FileWriter(csvFile, true)) {
                 if (isNewFile) {
-                    // Write headers for a new file including all metrics from data, calculated, predicted, status, latitude, and longitude
+                    Log.d("CSV", "Writing headers to CSV...");
                     writer.append("Timestamp,Temperature,Humidity,Pressure,PM1,PM2.5,PM10,CO,VOC,CO2,aqi_dust,aqi_co,aqi_voc,aqi_co2,aqi_dust_predicted,aqi_co_predicted,dust_status,co_status,Latitude,Longitude\n");
                 }
 
+                Log.d("CSV", "Parsing JSON object...");
                 JSONObject data = jsonObject.getJSONObject("data");
                 JSONObject calculated = jsonObject.getJSONObject("calculated");
                 JSONObject predicted = jsonObject.getJSONObject("predicted");
                 JSONObject status = jsonObject.getJSONObject("status");
 
-                // Build the row with values from all parts
+                Log.d("CSV", "Building row...");
                 String row = timestamp + "," +
-                        data.getDouble("temperature") + "," +
-                        data.getDouble("humidity") + "," +
-                        data.getDouble("pressure") + "," +
-                        data.getInt("pm1") + "," +
-                        data.getInt("pm2_5") + "," +
-                        data.getInt("pm10") + "," +
-                        data.getInt("co") + "," +
-                        data.getInt("voc") + "," +
-                        data.getInt("co2") + "," +
-                        calculated.getInt("aqi_dust") + "," +
-                        calculated.getInt("aqi_co") + "," +
-                        calculated.getInt("aqi_voc") + "," +
-                        calculated.getInt("aqi_co2") + "," +
-                        predicted.getInt("aqi_dust") + "," +
-                        predicted.getInt("aqi_co") + "," +
-                        status.getInt("dust") + "," +
-                        status.getInt("co") + "," +
-                        latitude + "," + // Append latitude
-                        longitude + "\n"; // Append longitude
+                        data.optDouble("temperature", 0) + "," +
+                        data.optDouble("humidity", 0) + "," +
+                        data.optDouble("pressure", 0) + "," +
+                        data.optInt("pm1", 0) + "," +
+                        data.optInt("pm2_5", 0) + "," +
+                        data.optInt("pm10", 0) + "," +
+                        data.optInt("co", 0) + "," +
+                        data.optInt("voc", 0) + "," +
+                        data.optInt("co2", 0) + "," +
+                        calculated.optInt("aqi_dust", 0) + "," +
+                        calculated.optInt("aqi_co", 0) + "," +
+                        calculated.optInt("aqi_voc", 0) + "," +
+                        calculated.optInt("aqi_co2", 0) + "," +
+                        predicted.optInt("aqi_dust", 0) + "," +
+                        predicted.optInt("aqi_co", 0) + "," +
+                        status.optInt("dust", 0) + "," +
+                        status.optInt("co", 0) + "," +
+                        latitude + "," +
+                        longitude + "\n";
 
+                Log.d("CSV", "Appending data row: " + row);
                 writer.append(row);
-
-                // Log or return the file path where the data is written
-                Log.d("CSV", "Data written to: " + csvFile.getAbsolutePath());
-
+                writer.flush();
+                Log.d("CSV", "Data successfully written to: " + csvFile.getAbsolutePath());
             }
 
         } catch (IOException | JSONException e) {
-            Log.e("CSV", "Error writing to CSV: " + e.toString());
+            Log.e("CSV", "Error writing to CSV: ", e);
         }
     }
+
+
+
     private void exportDataToCSV() {
         if (csvFile != null && csvFile.exists()) {
-            Uri fileUri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".provider", csvFile);
-
-
+            Uri fileUri = FileProvider.getUriForFile(
+                    requireContext(), getContext().getPackageName() + ".provider", csvFile);
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("text/csv");
             intent.putExtra(Intent.EXTRA_STREAM, fileUri);
             startActivity(Intent.createChooser(intent, "Share CSV File"));
         } else {
             Toast.makeText(requireContext(), "CSV file not available.", Toast.LENGTH_SHORT).show();
-
         }
     }
+
     private void updateUIWithData(String jsonString) {
         try {
             label1.setText(jsonString);
-            processMqttMessage(jsonString);
-            JSONObject jsonObject = new JSONObject(jsonString);
+             jsonObject = new JSONObject(jsonString);
             JSONObject data = jsonObject.getJSONObject("data");
 
             tempValue.setText(String.format("%.2f", data.getDouble("temperature")));
@@ -987,21 +920,63 @@ public class HomeFragment extends Fragment {
 
              timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
+            saveDataToCSV(jsonObject, timestamp, latitude, longitude);
 
 
-            // Call saveDataToCSV with the new data
-            if (latitude != 0 && longitude != 0) {
-                saveDataToCSV(jsonObject, timestamp, latitude, longitude);
-            } else {
-                Log.e("LocationError", "Location data is not available.");
-            }
+            // Scaling factors for each parameter (modify as needed)
+            double scaledTemp = data.optDouble("temperature", 0) / 50.0;
+            double scaledHumidity = data.optDouble("humidity", 0) / 100.0;
+            double scaledPressure = data.optDouble("pressure", 0) / 1000.0;
+            double scaledPm1 = data.optInt("pm1", 0) / 5.0;
+            double scaledPm2_5 = data.optInt("pm2_5", 0) / 5.0;
+            double scaledPm10 = data.optInt("pm10", 0) / 5.0;
+            double scaledCo = data.optDouble("co", 0) / 100.0;
+            double scaledVoc = data.optDouble("voc", 0) / 100.0;
+            double scaledCo2 = data.optDouble("co2", 0) / 100.0;
 
+            // Add scaled data to respective data lists for chart plotting
+            tempData.add(new Entry(tempData.size(), (float) scaledTemp));
+            humData.add(new Entry(humData.size(), (float) scaledHumidity));
+            pressData.add(new Entry(pressData.size(), (float) scaledPressure));
+            pm1Data.add(new Entry(pm1Data.size(), (float) scaledPm1));
+            pm2Data.add(new Entry(pm2Data.size(), (float) scaledPm2_5));
+            pm10Data.add(new Entry(pm10Data.size(), (float) scaledPm10));
+            coData.add(new Entry(coData.size(), (float) scaledCo));
+            vocData.add(new Entry(vocData.size(), (float) scaledVoc));
+            co2Data.add(new Entry(co2Data.size(), (float) scaledCo2));
+
+            // Create data sets with line widths and colors
+            LineDataSet tempDataSet = createLineDataSet(tempData, "Temperature", Color.BLUE, 3.0f);
+            LineDataSet humDataSet = createLineDataSet(humData, "Humidity", Color.GREEN, 3.0f);
+            LineDataSet pressDataSet = createLineDataSet(pressData, "Pressure", Color.YELLOW, 3.0f);
+            LineDataSet pm1DataSet = createLineDataSet(pm1Data, "PM1", Color.CYAN, 3.0f);
+            LineDataSet pm2DataSet = createLineDataSet(pm2Data, "PM2.5", Color.MAGENTA, 3.0f);
+            LineDataSet pm10DataSet = createLineDataSet(pm10Data, "PM10", Color.GRAY, 3.0f);
+            LineDataSet coDataSet = createLineDataSet(coData, "CO", Color.RED, 3.0f);
+            LineDataSet vocDataSet = createLineDataSet(vocData, "VOC", Color.LTGRAY, 3.0f);
+            LineDataSet co2DataSet = createLineDataSet(co2Data, "CO2", Color.DKGRAY, 3.0f);
+
+            // Combine data sets into a single LineData object
+            LineData lineData = new LineData(tempDataSet, humDataSet, pressDataSet, pm1DataSet, pm2DataSet, pm10DataSet, coDataSet, vocDataSet, co2DataSet);
+            liveLineChart.setData(lineData);
+            liveLineChart.invalidate(); // Refresh the chart
 
         } catch (JSONException e) {
             statusTextView.setText("Invalid data received.");
             Log.e("BLE", "JSON Parsing error: " + e.toString());
         }
     }
+    private LineDataSet createLineDataSet(List<Entry> data, String label, int color, float lineWidth) {
+        LineDataSet dataSet = new LineDataSet(data, label);
+        dataSet.setColor(color);
+        dataSet.setLineWidth(lineWidth);
+        dataSet.setDrawCircles(false); // Optionally, hide circles at data points
+        return dataSet;
+    }
+
+
+
+
 
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
