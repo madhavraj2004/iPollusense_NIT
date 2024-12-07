@@ -93,36 +93,46 @@
                             android:id="@+id/liveButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
                             android:backgroundTint="#0078D7"
                             android:fontFamily="sans-serif-medium"
+                            android:padding="12dp"
+                            android:stateListAnimator="@null"
                             android:text="LIVE"
                             android:textColor="#FFFFFF"
                             android:textSize="14sp"
-                            android:padding="12dp"
                             app:cornerRadius="12dp"
-                            app:elevation="4dp"
-                            android:stateListAnimator="@null" />
+                            app:elevation="4dp" />
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/historicalButton"
+                            android:id="@+id/pick_date_button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:layout_marginStart="8dp"
+                            android:layout_weight="1"
                             android:backgroundTint="#005BBB"
                             android:fontFamily="sans-serif-medium"
+                            android:padding="12dp"
+                            android:stateListAnimator="@null"
                             android:text="HISTORICAL"
                             android:textColor="#FFFFFF"
                             android:textSize="14sp"
-                            android:padding="12dp"
                             app:cornerRadius="12dp"
                             app:elevation="4dp"
-                            android:stateListAnimator="@null" /> <!-- Remove ripple effect for cleaner appearance -->
+                            app:icon="@drawable/ic_baseline_add_to_photos_24" /> <!-- Remove ripple effect for cleaner appearance -->
 
 
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/show_selected_date"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="128dp"
+                        android:text="Selected Date is : "
+                        android:textSize="18sp" />
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
 

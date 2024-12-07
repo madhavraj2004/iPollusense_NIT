@@ -6,6 +6,7 @@ import static android.content.ContentValues.TAG;
 import static com.example.ipollusen.ui.home.SensorDataUtil.getAverage;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -33,6 +34,7 @@ import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.util.Pair;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -48,6 +50,8 @@ import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -104,6 +108,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class HomeFragment extends Fragment {
 
+    private Button mPickDateButton;
+    private TextView mShowSelectedDateText;
     private double latitude;
     private double longitude;
     private JSONObject jsonObject;
@@ -338,7 +344,6 @@ public class HomeFragment extends Fragment {
         connectButton.setOnClickListener(v -> connectToDevice());
 
 
-
         rxBleClient = RxBleClient.create(requireContext());
         startScan(); // Automatically start scanning when the fragment is opened
         setupMqttClient(); // Set up MQTT client
@@ -409,7 +414,31 @@ public class HomeFragment extends Fragment {
         } else {
             System.out.println("No coordinates to display.");
         }
+
+        // Initialize the button and text view
+        // Register the button and text view
+        mPickDateButton = view.findViewById(R.id.pick_date_button);
+        mShowSelectedDateText = view.findViewById(R.id.show_selected_date);
+
+        // Create an instance of the Material Date Range Picker
+        MaterialDatePicker.Builder<androidx.core.util.Pair<Long, Long>> materialDateBuilder = MaterialDatePicker.Builder.dateRangePicker();
+        materialDateBuilder.setTitleText("SELECT A DATE");
+
+        final MaterialDatePicker<Pair<Long, Long>> materialDatePicker = materialDateBuilder.build();
+
+        // Set up the button to open the Material Date Range Picker
+        mPickDateButton.setOnClickListener(v -> materialDatePicker.show(getParentFragmentManager(), "MATERIAL_DATE_PICKER"));
+
+        // Handle the positive button click from the Material Date Range Picker
+        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
+            // Update the TextView with the selected date range
+            @SuppressLint("SetTextI18n")
+            String selectedDate = "Selected Date is : " + materialDatePicker.getHeaderText();
+            mShowSelectedDateText.setText(selectedDate);
+        });
+
         return view;
+
 
     }
 
@@ -436,6 +465,24 @@ public class HomeFragment extends Fragment {
         updatePredictionChart(jsonString);
     }
 
+
+
+    private void setupliveChart() {
+        liveLineChart.setPinchZoom(true); // Enables pinch zooming
+        liveLineChart.setScaleEnabled(true); // Enables scaling
+        liveLineChart.setDragEnabled(true); // Enables dragging the chart
+        liveLineChart.getDescription().setEnabled(false); // Optional: remove chart description for a cleaner look
+        liveLineChart.setBackgroundColor(Color.WHITE); // Optional: change background color
+        liveLineChart.setBorderColor(Color.BLACK); // Optional: change border color
+
+        // Enable axis customization for better visualization
+        YAxis leftAxis = liveLineChart.getAxisLeft();
+        leftAxis.setGranularity(1f); // Optional: set the granularity for better readability
+        leftAxis.setAxisMinimum(0f); // Set the minimum value for the Y-axis to 0
+
+        // Right axis is not used, so we disable it for better performance
+        liveLineChart.getAxisRight().setEnabled(false);
+    }
 
     private void setupChart() {
         if (lineChart != null) {
@@ -467,24 +514,6 @@ public class HomeFragment extends Fragment {
         }
 
     }
-    private void setupliveChart() {
-        liveLineChart.setPinchZoom(true); // Enables pinch zooming
-        liveLineChart.setScaleEnabled(true); // Enables scaling
-        liveLineChart.setDragEnabled(true); // Enables dragging the chart
-        liveLineChart.getDescription().setEnabled(false); // Optional: remove chart description for a cleaner look
-        liveLineChart.setBackgroundColor(Color.WHITE); // Optional: change background color
-        liveLineChart.setBorderColor(Color.BLACK); // Optional: change border color
-
-        // Enable axis customization for better visualization
-        YAxis leftAxis = liveLineChart.getAxisLeft();
-        leftAxis.setGranularity(1f); // Optional: set the granularity for better readability
-        leftAxis.setAxisMinimum(0f); // Set the minimum value for the Y-axis to 0
-
-        // Right axis is not used, so we disable it for better performance
-        liveLineChart.getAxisRight().setEnabled(false);
-    }
-
-
 
     public void updateChart() {
         if (lineChart != null && getView() != null) {
