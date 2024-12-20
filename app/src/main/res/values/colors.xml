@@ -115,6 +115,11 @@
     <color name="colorCO">#FFB833</color> <!-- CO -->
     <color name="colorVOC">#33FFF7</color> <!-- VOC -->
     <color name="colorCO2">#D80606</color>
-    <color name="colorPM2">#009688</color> <!-- CO2 -->
+    <color name="colorPM2">#009688</color>
+    <color name="primaryColor" />
+    <color name="gray">#464241</color>
+    <color name="selected_item_background">#009688</color>
+    <color name="default_item_background">#4CAF50</color>
+    <color name="secondaryColor">#03A9F4</color> <!-- CO2 -->
 
 </resources>

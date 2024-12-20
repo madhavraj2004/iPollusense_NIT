@@ -21,9 +21,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,7 +41,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.ipollusen.DeviceAdapter;
+import com.example.ipollusen.BluetoothDeviceAdapter;
 import com.example.ipollusen.R;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
 import com.github.mikephil.charting.charts.BarChart;
@@ -49,9 +51,7 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.datepicker.MaterialDatePicker;
-import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -71,10 +71,9 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -82,7 +81,6 @@ import io.reactivex.rxjava3.disposables.Disposable;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.mapsforge.map.android.layers.MyLocationOverlay;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
@@ -98,6 +96,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import android.content.Context;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -120,15 +119,23 @@ public class HomeFragment extends Fragment {
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
     private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
-    private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
+    //private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static final String MQTT_TOPIC = " "; // Default topic
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
     private String jsonString;
     private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
-
+    private RecyclerView recyclerView;
+    private BluetoothDeviceAdapter recyclerViewAdapter;
+    private List<RxBleDevice> discoveredDevices = new ArrayList<>();
+    private List<String> connectedDevicesList = new ArrayList<>();
+    private Spinner deviceSpinner;
+    private ArrayAdapter<String> deviceAdapter;
     private TextView statusTextView;
+    private RxBleClient rxBleClient;
+    private String targetDeviceMac;
+
     private TextView label1; // For JSON data
     private TextView tempValue; // Temperature
     private TextView humValue; // Humidity
@@ -152,7 +159,7 @@ public class HomeFragment extends Fragment {
     private List<LineDataSet> dataSetList;
 
 
-    private RxBleClient rxBleClient;
+
     private RxBleDevice selectedDevice;
     private RxBleConnection connection;
     private Disposable connectionDisposable;
@@ -160,8 +167,7 @@ public class HomeFragment extends Fragment {
 
     private MqttAndroidClient mqttClient;
 
-    private RecyclerView deviceRecyclerView;
-    private DeviceAdapter deviceAdapter;
+
 
     private Map<String, String> devices = new HashMap<>(); // Map of MAC Address to Nickname
 
@@ -201,6 +207,19 @@ public class HomeFragment extends Fragment {
     private TextView tvCoordinates;
     private LocationManager locationManager;
 
+
+
+    private static final String SHARED_PREFS_NAME = "ConnectedDevicesPrefs";
+    private static final String KEY_CONNECTED_DEVICES = "connected_devices";
+
+
+
+
+
+
+
+
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -208,7 +227,56 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         setupChart();
         Configuration.getInstance().setUserAgentValue("com.example.ipollusen");
+        // Load connected devices from SharedPreferences
+        loadConnectedDevices();
+        // Initialize RecyclerView
+        recyclerView = view.findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
+        // Initialize the BluetoothDeviceAdapter and set it to the RecyclerView
+        recyclerViewAdapter = new BluetoothDeviceAdapter(discoveredDevices, device -> {
+            // When an item is clicked, update the target device MAC
+            targetDeviceMac = device.getMacAddress();
+            statusTextView.setText("Selected device: " + device.getName());
+        });
+        recyclerView.setAdapter(recyclerViewAdapter);
+
+        // Initialize the Spinner
+        deviceSpinner = view.findViewById(R.id.device_spinner);
+
+        // Create an ArrayAdapter for the Spinner
+        deviceAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, connectedDevicesList);
+        deviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        deviceSpinner.setAdapter(deviceAdapter);
+
+
+        // Set the OnItemSelectedListener for the Spinner
+        deviceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // Get the selected device from the Spinner (assuming connectedDevicesList contains MAC addresses)
+                String selectedDeviceMac = connectedDevicesList.get(position);
+                targetDeviceMac = selectedDeviceMac;
+
+                // Update the status text to show the selected device
+                statusTextView.setText("Selected device: " + selectedDeviceMac);
+
+                // Call connectToDevice() with the selected MAC address
+                connectToDevice();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Handle case where no item is selected (optional)
+                statusTextView.setText("No device selected.");
+            }
+        });
+
+
+        // Start scanning for devices
+
+        recyclerView.setVisibility(View.GONE);
 
         // Initialize MapView
         mapView = view.findViewById(R.id.mapView);
@@ -300,8 +368,8 @@ public class HomeFragment extends Fragment {
         coData = new ArrayList<>();
         vocData = new ArrayList<>();
         co2Data = new ArrayList<>();
-        CardView deviceCard = view.findViewById(R.id.DeviceCard);
-        deviceCard.setOnClickListener(v -> showAddDeviceDialog());
+
+
 
         dataQueues = new HashMap<>();
         String[] keys = {
@@ -316,25 +384,9 @@ public class HomeFragment extends Fragment {
         label1 = view.findViewById(R.id.label1);
 
 
-        deviceRecyclerView = view.findViewById(R.id.deviceRecyclerView);
-        deviceRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        deviceAdapter = new DeviceAdapter(new ArrayList<>(devices.entrySet()));
-        deviceRecyclerView.setAdapter(deviceAdapter);
 
-        // Initially hide the RecyclerView
-        deviceRecyclerView.setVisibility(View.GONE);
 
-        // Set up the dropdown icon click listener
-        ImageView dropdownIcon = view.findViewById(R.id.dropdownIcon);
-        dropdownIcon.setOnClickListener(v -> {
-            if (deviceRecyclerView.getVisibility() == View.GONE) {
-                // Show the RecyclerView if it's hidden
-                deviceRecyclerView.setVisibility(View.VISIBLE);
-            } else {
-                // Hide the RecyclerView if it's visible
-                deviceRecyclerView.setVisibility(View.GONE);
-            }
-        });
+
         Button exportButton = view.findViewById(R.id.exportButton);
         Button scanButton = view.findViewById(R.id.scanButton);
         Button connectButton = view.findViewById(R.id.connectButton);
@@ -345,7 +397,7 @@ public class HomeFragment extends Fragment {
 
 
         rxBleClient = RxBleClient.create(requireContext());
-        startScan(); // Automatically start scanning when the fragment is opened
+         // Automatically start scanning when the fragment is opened
         setupMqttClient(); // Set up MQTT client
 
         // Initialize handler for periodic updates
@@ -687,46 +739,9 @@ public class HomeFragment extends Fragment {
         dataSets.add(dataSet);
     }
 
-    private void showAddDeviceDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Add New Device");
 
-        // Inflate the dialog layout
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_device, null);
-        EditText macAddressInput = dialogView.findViewById(R.id.macAddressInput);
-        EditText nicknameInput = dialogView.findViewById(R.id.nicknameInput);
 
-        builder.setView(dialogView);
 
-        builder.setPositiveButton("Add", (dialog, which) -> {
-            String macAddress = macAddressInput.getText().toString().trim();
-            String nickname = nicknameInput.getText().toString().trim();
-
-            if (!macAddress.isEmpty() && !nickname.isEmpty()) {
-                // Save the MAC address and nickname to your data structure
-                devices.put(macAddress, nickname);
-
-                // Optionally, save the data persistently (e.g., using SharedPreferences)
-                saveDeviceData(macAddress, nickname);
-
-                Toast.makeText(requireContext(), "Device added", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(requireContext(), "Please enter both MAC address and nickname", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-
-        builder.create().show();
-    }
-
-    private void saveDeviceData(String macAddress, String nickname) {
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences("DeviceData", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        // Save the nickname using the MAC address as the key
-        editor.putString(macAddress, nickname);
-        editor.apply();
-    }
     private void checkPermissions() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
@@ -747,43 +762,106 @@ public class HomeFragment extends Fragment {
             statusTextView.setText("Permissions denied.");
         }
     }
+    // Code for scanning or updating the device list
+    private void updateDeviceList(RxBleDevice device) {
+        if (!discoveredDevices.contains(device)) {
+            discoveredDevices.add(device);
+            recyclerViewAdapter.notifyDataSetChanged();  // Update RecyclerView
+        }
 
-    private void startScan() {
-        statusTextView.setText("Scanning...");
-        Disposable scanDisposable = rxBleClient.scanBleDevices()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(scanResult -> {
-                    if (scanResult.getBleDevice().getMacAddress().equals(TARGET_DEVICE_MAC)) {
-                        selectedDevice = scanResult.getBleDevice();
-                        statusTextView.setText("Target device found: " + selectedDevice.getName());
-                    }
-                }, throwable -> {
-                    statusTextView.setText("Scan failed.");
-                    Log.e("BLE", "Scan failed: " + throwable.toString());
-                });
-        disposables.add(scanDisposable);
+        // Add device to Spinner list (if it's not already added)
+        String deviceName = device.getName();
+        String deviceMac = device.getMacAddress();
+        if (!connectedDevicesList.contains(deviceMac)) {
+            connectedDevicesList.add(deviceMac);  // Use MAC address for identification
+            deviceAdapter.notifyDataSetChanged();  // Update Spinner
+        }
     }
 
-    private void connectToDevice() {
-        if (selectedDevice == null) {
-            statusTextView.setText("No device selected.");
-            Log.d("BLE", "No device selected.");
+    private void startScan() {
+        // Check if statusTextView is null before setting text
+        if (statusTextView != null) {
+            statusTextView.setText("Scanning...");
+        } else {
+            Log.e("BLE", "statusTextView is null.");
             return;
         }
 
-        Log.d("BLE", "Attempting to connect to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+        // Check if rxBleClient is initialized
+        if (rxBleClient == null) {
+            Log.e("BLE", "rxBleClient is not initialized.");
+            return;
+        }
+        recyclerView.setVisibility(View.VISIBLE);
+        Disposable scanDisposable = rxBleClient.scanBleDevices()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(scanResult -> {
+                    RxBleDevice device = scanResult.getBleDevice();
+                    updateDeviceList(device);
 
-        connectionDisposable = selectedDevice.establishConnection(false)
+                    // Check if the scanned device matches the target device
+                    if (device.getMacAddress().equals(targetDeviceMac)) {
+                        selectedDevice = device;
+
+                        // Ensure statusTextView is not null before updating text
+                        if (statusTextView != null) {
+                            statusTextView.setText("Target device found: " + selectedDevice.getName());
+                        }
+                    }
+                }, throwable -> {
+                    // Handle scan failure
+                    if (statusTextView != null) {
+                        statusTextView.setText("Scan failed.");
+                    }
+                    Log.e("BLE", "Scan failed: " + throwable.toString());
+                });
+
+        // Add the disposable to the disposables collection
+        disposables.add(scanDisposable);
+    }
+
+
+    private void connectToDevice() {
+        // Check if a device MAC address is selected
+        if (targetDeviceMac == null || targetDeviceMac.isEmpty()) {
+            Log.d("BLE", "No device selected.");
+            Toast.makeText(getContext(), "No device selected.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Find the selected device using the MAC address from the targetDeviceMac variable
+        RxBleDevice deviceToConnect = findDeviceByMac(targetDeviceMac);
+        if (deviceToConnect == null) {
+            Log.d("BLE", "Device with MAC " + targetDeviceMac + " not found.");
+            Toast.makeText(getContext(), "Device not found.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d("BLE", "Attempting to connect to device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress());
+
+        // Proceed with the connection to the selected device
+        connectionDisposable = deviceToConnect.establishConnection(false)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         rxBleConnection -> {
                             connection = rxBleConnection;
-                            statusTextView.setText("Connected.");
-                            Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
+                            Log.d("BLE", "Connected to device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress());
                             handler.postDelayed(updateTask, 5000);
+                            recyclerView.setVisibility(View.GONE);
+                            // Add the device name and MAC address to the spinner or connected devices list
+                            String deviceInfo = deviceToConnect.getName() + " (" + deviceToConnect.getMacAddress() + ")";
+                            if (!connectedDevicesList.contains(deviceInfo)) {
+                                connectedDevicesList.add(deviceInfo);
+                                deviceAdapter.notifyDataSetChanged();  // Notify spinner adapter of the update
+
+                                // Save the updated list of connected devices
+                                saveConnectedDevices();
+                            }
+
+                            Toast.makeText(getContext(), "Connected to: " + deviceInfo, Toast.LENGTH_SHORT).show();
                         },
                         throwable -> {
-                            Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress() + ", error: " + throwable.toString());
+                            Log.e("BLE", "Connection failed for device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress() + ", error: " + throwable.toString());
                             statusTextView.setText("Connection failed.");
 
                             // Retry logic
@@ -795,11 +873,40 @@ public class HomeFragment extends Fragment {
                                 }, retryInterval);
                                 retryInterval *= 2; // Exponential backoff
                             } else {
-                                Log.e("BLE", "Max retries reached. Unable to connect to DEVICE.");
+                                Log.e("BLE", "Max retries reached. Unable to connect to device.");
                                 statusTextView.setText("Max retry attempts reached. Unable to connect.");
                             }
                         }
                 );
+    }
+
+    // Helper method to find a device by its MAC address from the list of discovered devices
+    private RxBleDevice findDeviceByMac(String macAddress) {
+        for (RxBleDevice device : discoveredDevices) {
+            if (device.getMacAddress().equals(macAddress)) {
+                return device;
+            }
+        }
+        return null; // Return null if device not found
+    }
+
+    private void saveConnectedDevices() {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        // Save the connected devices list as a Set
+        Set<String> deviceSet = new HashSet<>(connectedDevicesList);
+        editor.putStringSet(KEY_CONNECTED_DEVICES, deviceSet);
+        editor.apply();
+    }
+
+    private void loadConnectedDevices() {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
+
+        // Load the connected devices list from SharedPreferences
+        Set<String> deviceSet = sharedPreferences.getStringSet(KEY_CONNECTED_DEVICES, new HashSet<>());
+        connectedDevicesList.clear();
+        connectedDevicesList.addAll(deviceSet);
     }
     private void readCharacteristic() {
         if (connection == null) {
