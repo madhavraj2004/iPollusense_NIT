@@ -117,11 +117,27 @@ public class HomeFragment extends Fragment {
     private static final int MAX_RETRIES = 5; // Set a maximum number of retries to prevent infinite attempts
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
-    private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
+    private static final String MQTT_BROKER_URL = "tcp://broker.hivemq.com:1883";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     //private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
-    private static final String MQTT_TOPIC = " "; // Default topic
+    private static String MQTT_TOPIC = ""; // Default topic
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
+    private static final String SHARED_PREFS_NAME = "connected_devices_prefs";
+    private static final String KEY_CONNECTED_DEVICES = "connected_devices";
+    private Button buttonSubscribe;
+    private TextView textViewStatus;
+    private TextView textViewReceivedMessages;
+    private static String MQTT_DEVICE = "";
+    private MqttAndroidClient mqttClient;
+    private String currentTopic;
+    private Map<String, List<Entry>> currentData = new HashMap<>();
+
+    private EditText editTextTopic;
+    private EditText editTextMessage;
+
+    private Spinner deviceSpinner;
+    private List<String> connectedDevicesList = new ArrayList<>();
+    private ArrayAdapter<String> spinnerAdapter;
     private String jsonString;
     private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
@@ -129,8 +145,7 @@ public class HomeFragment extends Fragment {
     private RecyclerView recyclerView;
     private BluetoothDeviceAdapter recyclerViewAdapter;
     private List<RxBleDevice> discoveredDevices = new ArrayList<>();
-    private List<String> connectedDevicesList = new ArrayList<>();
-    private Spinner deviceSpinner;
+
     private ArrayAdapter<String> deviceAdapter;
     private TextView statusTextView;
     private RxBleClient rxBleClient;
@@ -146,9 +161,7 @@ public class HomeFragment extends Fragment {
     private TextView pm1Value; // PM1
     private TextView pm2Value; // PM2.5
     private TextView pm10Value; // PM10
-    private TextView textViewReceivedMessages; // For received MQTT messages
-    // private EditText editTextTopic; // For MQTT topic input
-    // private EditText editTextMessage; // For MQTT message input
+
 
 
     private FragmentHomeBinding binding;
@@ -165,7 +178,7 @@ public class HomeFragment extends Fragment {
     private Disposable connectionDisposable;
     private Disposable scanDisposable;
 
-    private MqttAndroidClient mqttClient;
+
 
 
 
@@ -188,11 +201,9 @@ public class HomeFragment extends Fragment {
     private List<Float> liveCOData = new ArrayList<>();
 
 
-    private Map<String, List<Entry>> currentData = new HashMap<>();
-    private TextView textViewStatus;
 
-    private EditText editTextTopic;
-    private EditText editTextMessage;
+
+
 
     private ArrayList<Entry> tempData, humData, pressData;
     private ArrayList<Entry> pm1Data, pm2Data, pm10Data, coData, vocData, co2Data;
@@ -208,18 +219,6 @@ public class HomeFragment extends Fragment {
     private LocationManager locationManager;
 
 
-
-    private static final String SHARED_PREFS_NAME = "ConnectedDevicesPrefs";
-    private static final String KEY_CONNECTED_DEVICES = "connected_devices";
-
-
-
-
-
-
-
-
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -233,34 +232,50 @@ public class HomeFragment extends Fragment {
         recyclerView = view.findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        // Initialize the BluetoothDeviceAdapter and set it to the RecyclerView
+// Initialize the BluetoothDeviceAdapter and set it to the RecyclerView
         recyclerViewAdapter = new BluetoothDeviceAdapter(discoveredDevices, device -> {
             // When an item is clicked, update the target device MAC
             targetDeviceMac = device.getMacAddress();
             statusTextView.setText("Selected device: " + device.getName());
+
+            // Hide RecyclerView once a device is selected
+            recyclerView.setVisibility(View.GONE);
+
+            // Add the selected device to the Spinner if not already present
+            String deviceInfo = device.getName() + " (" + device.getMacAddress() + ")";
+            if (!connectedDevicesList.contains(deviceInfo)) {
+                connectedDevicesList.add(deviceInfo);
+                spinnerAdapter.notifyDataSetChanged(); // Notify spinnerAdapter of the update
+
+                // Save the updated connected devices list
+                saveConnectedDevices();
+            }
         });
         recyclerView.setAdapter(recyclerViewAdapter);
 
-        // Initialize the Spinner
+// Initialize the Spinner
         deviceSpinner = view.findViewById(R.id.device_spinner);
 
-        // Create an ArrayAdapter for the Spinner
-        deviceAdapter = new ArrayAdapter<>(requireContext(),
+// Create a spinnerAdapter for the Spinner
+        spinnerAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, connectedDevicesList);
-        deviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        deviceSpinner.setAdapter(deviceAdapter);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        deviceSpinner.setAdapter(spinnerAdapter);
 
-
-        // Set the OnItemSelectedListener for the Spinner
+// Set the OnItemSelectedListener for the Spinner
         deviceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                // Get the selected device from the Spinner (assuming connectedDevicesList contains MAC addresses)
-                String selectedDeviceMac = connectedDevicesList.get(position);
+                // Get the selected device info from the Spinner (e.g., "DeviceName (MAC Address)")
+                String selectedDeviceInfo = connectedDevicesList.get(position);
+
+                // Extract MAC address from the selected item
+                String selectedDeviceMac = extractMacAddress(selectedDeviceInfo);
+
                 targetDeviceMac = selectedDeviceMac;
 
                 // Update the status text to show the selected device
-                statusTextView.setText("Selected device: " + selectedDeviceMac);
+                statusTextView.setText("Selected device: " + selectedDeviceInfo);
 
                 // Call connectToDevice() with the selected MAC address
                 connectToDevice();
@@ -273,10 +288,9 @@ public class HomeFragment extends Fragment {
             }
         });
 
-
-        // Start scanning for devices
-
+// Hide RecyclerView by default
         recyclerView.setVisibility(View.GONE);
+
 
         // Initialize MapView
         mapView = view.findViewById(R.id.mapView);
@@ -390,7 +404,18 @@ public class HomeFragment extends Fragment {
         Button exportButton = view.findViewById(R.id.exportButton);
         Button scanButton = view.findViewById(R.id.scanButton);
         Button connectButton = view.findViewById(R.id.connectButton);
-        Button buttonPublish = view.findViewById(R.id.buttonPublish); // Button to publish messages
+        textViewStatus = view.findViewById(R.id.textViewStatus);
+        textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
+        editTextTopic = view.findViewById(R.id.editTextTopic);
+
+
+        buttonSubscribe = view.findViewById(R.id.buttonsubscribe);
+        buttonSubscribe.setOnClickListener(v -> {
+            // Use the topic entered or the default one if empty
+            MQTT_DEVICE = editTextTopic.getText().toString().isEmpty() ? MQTT_DEVICE : editTextTopic.getText().toString();
+
+            setupMqttDevice();
+        });
         exportButton.setOnClickListener(v -> exportDataToCSV());
         scanButton.setOnClickListener(v -> startScan());
         connectButton.setOnClickListener(v -> connectToDevice());
@@ -402,6 +427,8 @@ public class HomeFragment extends Fragment {
 
         // Initialize handler for periodic updates
         handler = new Handler();
+        setupMqttClient();
+        setupMqttDevice();
         updateTask = new Runnable() {
             @Override
             public void run() {
@@ -452,12 +479,13 @@ public class HomeFragment extends Fragment {
         textViewStatus = view.findViewById(R.id.textViewStatus);
         textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
         editTextTopic = view.findViewById(R.id.editTextTopic);
-        editTextMessage = view.findViewById(R.id.editTextMessage);
+
 
         checkPermissions();
         rxBleClient = RxBleClient.create(requireContext());
         handler = new Handler();
         setupMqttClient();
+
         // Read data from the CSV and add markers
 
         List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
@@ -517,7 +545,91 @@ public class HomeFragment extends Fragment {
         updatePredictionChart(jsonString);
     }
 
+    // for mqtt device data card
+    private void setupMqttDevice() {
+        String clientId = UUID.randomUUID().toString();
+        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setCleanSession(true);
+
+        try {
+            mqttClient.connect(options, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    Log.d("MQTT", "Connected to MQTT broker");
+                    textViewStatus.setText("Connected to MQTT broker");
+                    retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
+                    subscribeToDevice(MQTT_DEVICE); // Subscribe to the topic on connection
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
+                    textViewStatus.setText("Failed to connect: " + exception.getMessage());
+
+                    // Retry connection logic with backoff
+                    if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
+                        Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
+                        handler.postDelayed(() -> setupMqttDevice(), retryInterval);
+                        retryInterval *= 2; // Exponential backoff
+                    } else {
+                        Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
+                        textViewStatus.setText("Max retry attempts reached. Unable to connect.");
+                    }
+                }
+            });
+
+            mqttClient.setCallback(new MqttCallback() {
+                @Override
+                public void connectionLost(Throwable cause) {
+                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
+                    textViewStatus.setText("Connection lost. Reconnecting...");
+                    // Try to reconnect if the connection is lost
+                    setupMqttDevice();
+                }
+
+                @Override
+                public void messageArrived(String MQTT_DEVICE, MqttMessage message) throws Exception {
+                    // When a message is received, update the UI or process the message as needed
+                    String receivedMessage = new String(message.getPayload());
+                    Log.d("MQTT", "Message received from topic " + MQTT_DEVICE + ": " + receivedMessage);
+                    textViewReceivedMessages.setText("Message received: " + receivedMessage);
+                    // Process the message (example: parsing JSON, updating charts, etc.)
+                }
+
+                @Override
+                public void deliveryComplete(IMqttDeliveryToken token) {
+                    // Optional: Handle message delivery confirmation if necessary
+                    Log.d("MQTT", "Message delivery completed for token: " + token.getMessageId());
+                }
+            });
+        } catch (Exception e) {
+            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
+            textViewStatus.setText("Error setting up MQTT client.");
+        }
+    }
+
+    // Method to subscribe to a topic
+    private void subscribeToDevice(String MQTT_DEVICE) {
+        try {
+            mqttClient.subscribe(MQTT_DEVICE, 1, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
+                    textViewStatus.setText("Subscribed to topic: " + MQTT_DEVICE);
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
+                    textViewStatus.setText("Failed to subscribe to topic.");
+                }
+            });
+        } catch (Exception e) {
+            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
+        }
+    }
 
     private void setupliveChart() {
         liveLineChart.setPinchZoom(true); // Enables pinch zooming
@@ -777,7 +889,41 @@ public class HomeFragment extends Fragment {
             deviceAdapter.notifyDataSetChanged();  // Update Spinner
         }
     }
+    private String extractMacAddress(String deviceInfo) {
+        // Assuming deviceInfo is in the format "DeviceName (MAC Address)"
+        int startIndex = deviceInfo.indexOf("(");
+        int endIndex = deviceInfo.indexOf(")");
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            return deviceInfo.substring(startIndex + 1, endIndex);
+        }
+        return ""; // Return empty string if format is invalid
+    }
 
+    
+
+    private void saveConnectedDevices() {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        // Save the connected devices list as a Set
+        Set<String> deviceSet = new HashSet<>(connectedDevicesList);
+        editor.putStringSet(KEY_CONNECTED_DEVICES, deviceSet);
+        editor.apply();
+    }
+
+    private void loadConnectedDevices() {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
+
+        // Retrieve the connected devices as a Set
+        Set<String> deviceSet = sharedPreferences.getStringSet(KEY_CONNECTED_DEVICES, new HashSet<>());
+        connectedDevicesList.clear();
+        connectedDevicesList.addAll(deviceSet);
+
+        // Notify the spinner adapter about the updated data
+        if (spinnerAdapter != null) {
+            spinnerAdapter.notifyDataSetChanged();
+        }
+    }
     private void startScan() {
         // Check if statusTextView is null before setting text
         if (statusTextView != null) {
@@ -829,49 +975,54 @@ public class HomeFragment extends Fragment {
             return;
         }
 
-        // Find the selected device using the MAC address from the targetDeviceMac variable
-        RxBleDevice deviceToConnect = findDeviceByMac(targetDeviceMac);
-        if (deviceToConnect == null) {
-            Log.d("BLE", "Device with MAC " + targetDeviceMac + " not found.");
+        // Find the selected device in your BLE client or other data source
+        RxBleDevice selectedDevice = rxBleClient.getBleDevice(targetDeviceMac);
+
+        if (selectedDevice == null) {
+            Log.d("BLE", "Device not found.");
             Toast.makeText(getContext(), "Device not found.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Log.d("BLE", "Attempting to connect to device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress());
+        Log.d("BLE", "Attempting to connect to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
 
-        // Proceed with the connection to the selected device
-        connectionDisposable = deviceToConnect.establishConnection(false)
+        connectionDisposable = selectedDevice.establishConnection(false)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         rxBleConnection -> {
+                            // Successfully connected
                             connection = rxBleConnection;
-                            Log.d("BLE", "Connected to device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress());
-                            handler.postDelayed(updateTask, 5000);
+                            Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
                             recyclerView.setVisibility(View.GONE);
-                            // Add the device name and MAC address to the spinner or connected devices list
-                            String deviceInfo = deviceToConnect.getName() + " (" + deviceToConnect.getMacAddress() + ")";
+                            handler.postDelayed(updateTask, 5000); // Start a periodic update task if needed
+
+
+                            // Add the device to the list and save it
+                            String deviceInfo = selectedDevice.getName() + " (" + selectedDevice.getMacAddress() + ")";
                             if (!connectedDevicesList.contains(deviceInfo)) {
                                 connectedDevicesList.add(deviceInfo);
-                                deviceAdapter.notifyDataSetChanged();  // Notify spinner adapter of the update
-
-                                // Save the updated list of connected devices
-                                saveConnectedDevices();
+                                spinnerAdapter.notifyDataSetChanged(); // Notify adapter for Spinner update
+                                saveConnectedDevices();                // Save connected devices
                             }
+
+                            // Reset retry interval after successful connection
+                            retryInterval = RETRY_INTERVAL_MS;
 
                             Toast.makeText(getContext(), "Connected to: " + deviceInfo, Toast.LENGTH_SHORT).show();
                         },
                         throwable -> {
-                            Log.e("BLE", "Connection failed for device: " + deviceToConnect.getName() + " - " + deviceToConnect.getMacAddress() + ", error: " + throwable.toString());
+                            // Connection failed
+                            Log.e("BLE", "Connection failed for device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress(), throwable);
                             statusTextView.setText("Connection failed.");
 
-                            // Retry logic
+                            // Retry logic with exponential backoff
                             if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
                                 Log.d("BLE", "Retrying connection in " + retryInterval + "ms");
                                 handler.postDelayed(() -> {
                                     Log.d("BLE", "Retrying connection to device...");
-                                    connectToDevice();
+                                    connectToDevice(); // Retry the connection
                                 }, retryInterval);
-                                retryInterval *= 2; // Exponential backoff
+                                retryInterval *= 2; // Double the interval for exponential backoff
                             } else {
                                 Log.e("BLE", "Max retries reached. Unable to connect to device.");
                                 statusTextView.setText("Max retry attempts reached. Unable to connect.");
@@ -890,24 +1041,8 @@ public class HomeFragment extends Fragment {
         return null; // Return null if device not found
     }
 
-    private void saveConnectedDevices() {
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
 
-        // Save the connected devices list as a Set
-        Set<String> deviceSet = new HashSet<>(connectedDevicesList);
-        editor.putStringSet(KEY_CONNECTED_DEVICES, deviceSet);
-        editor.apply();
-    }
 
-    private void loadConnectedDevices() {
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
-
-        // Load the connected devices list from SharedPreferences
-        Set<String> deviceSet = sharedPreferences.getStringSet(KEY_CONNECTED_DEVICES, new HashSet<>());
-        connectedDevicesList.clear();
-        connectedDevicesList.addAll(deviceSet);
-    }
     private void readCharacteristic() {
         if (connection == null) {
             Log.e("BLE", "Connection is null, cannot read characteristic.");
@@ -920,7 +1055,7 @@ public class HomeFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(characteristicValue -> {
                     Log.d("BLE", "Characteristic read successfully. Value length: " + (characteristicValue != null ? characteristicValue.length : 0));
-
+                    recyclerView.setVisibility(View.GONE);
                     if (characteristicValue == null || characteristicValue.length == 0) {
                         Log.w("BLE", "Received characteristic value is null or empty.");
                         statusTextView.setText("Error: Empty data received.");
@@ -1130,7 +1265,7 @@ public class HomeFragment extends Fragment {
                     Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
                     textViewStatus.setText("Failed to connect: " + exception.getMessage());
 
-                    // Check if retry attempts have reached the maximum allowed
+                    // Retry connection logic with backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
                         Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
                         handler.postDelayed(() -> setupMqttClient(), retryInterval);
@@ -1145,59 +1280,83 @@ public class HomeFragment extends Fragment {
             mqttClient.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
-                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.toString() : "Unknown cause"));
+                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
                     textViewStatus.setText("Connection lost. Reconnecting...");
-
-                    // Attempt to reconnect with an exponential backoff strategy
-                    handler.postDelayed(() -> setupMqttClient(), retryInterval);
-                    retryInterval *= 2; // Double the interval for the next attempt
+                    // Try to reconnect if the connection is lost
+                    setupMqttClient();
                 }
 
                 @Override
-                public void messageArrived(String MQTT_TOPIC , MqttMessage message) {
+                public void messageArrived(String MQTT_TOPIC, MqttMessage message) throws Exception {
+                    // When a message is received, update the UI or process the message as needed
                     String receivedMessage = new String(message.getPayload());
-                    Log.d("MQTT", "Message arrived: " + receivedMessage);
-                    displayReceivedMessage(receivedMessage);
-
+                    Log.d("MQTT", "Message received from topic " + MQTT_TOPIC + ": " + receivedMessage);
+                    textViewReceivedMessages.setText("Message received: " + receivedMessage);
+                    // Process the message (example: parsing JSON, updating charts, etc.)
                 }
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
-                    Log.d("MQTT", "Message delivery complete");
+                    // Optional: Handle message delivery confirmation if necessary
+                    Log.d("MQTT", "Message delivery completed for token: " + token.getMessageId());
                 }
             });
-
         } catch (Exception e) {
-            Log.e("MQTT", "Error setting up MQTT client: " + e.toString());
-            textViewStatus.setText("MQTT setup error: " + e.getMessage());
+            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
+            textViewStatus.setText("Error setting up MQTT client.");
         }
     }
+
+    // Method to subscribe to a topic
     private void subscribeToTopic(String MQTT_TOPIC) {
         try {
-            mqttClient.subscribe(MQTT_TOPIC, 0);
-            Log.d("MQTT", "Subscribed to MQTT_TOPIC: " + MQTT_TOPIC);
-            textViewStatus.setText("Subscribed to topic: " + MQTT_TOPIC);
+            mqttClient.subscribe(MQTT_TOPIC, 1, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_TOPIC);
+                    textViewStatus.setText("Subscribed to topic: " + MQTT_TOPIC);
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
+                    textViewStatus.setText("Failed to subscribe to topic.");
+                }
+            });
         } catch (Exception e) {
-            Log.e("MQTT", "Error subscribing to topic: " + e.toString());
-            textViewStatus.setText("Subscription error: " + e.getMessage());
+            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
         }
     }
+
+    // Method to publish a message to a topic
     private void publishMessage(String MQTT_TOPIC, String message) {
-        try {
-            MqttMessage mqttMessage = new MqttMessage(message.getBytes());
-            mqttClient.publish(MQTT_TOPIC, mqttMessage);
-            Log.d("MQTT", "Message published to topic: " + MQTT_TOPIC + ", message: " + message);
-            textViewStatus.setText("Message published to topic: " + MQTT_TOPIC);
-        } catch (Exception e) {
-            Log.e("MQTT", "Error publishing message: " + e.toString());
-            textViewStatus.setText("Publish error: " + e.getMessage());
+        if (mqttClient != null && mqttClient.isConnected()) {
+            try {
+                MqttMessage mqttMessage = new MqttMessage(message.getBytes());
+                mqttMessage.setQos(1);  // Set the QoS level (1 for "at least once delivery")
+                mqttClient.publish(MQTT_TOPIC, mqttMessage, null, new IMqttActionListener() {
+                    @Override
+                    public void onSuccess(IMqttToken asyncActionToken) {
+                        Log.d("MQTT", "Message published successfully to topic: " + MQTT_TOPIC);
+                        textViewStatus.setText("Message published successfully.");
+                    }
+
+                    @Override
+                    public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                        Log.e("MQTT", "Failed to publish message to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
+                        textViewStatus.setText("Failed to publish message.");
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("MQTT", "Error publishing message: " + e.getMessage());
+                textViewStatus.setText("Error publishing message.");
+            }
+        } else {
+            Log.e("MQTT", "MQTT client is not connected.");
+            textViewStatus.setText("Not connected to MQTT broker.");
         }
     }
-    private void displayReceivedMessage(String message) {
-        // Append received message to the TextView for cumulative display
-        String currentText = textViewReceivedMessages.getText().toString();
-        textViewReceivedMessages.setText(currentText + "\n" + message);
-    }
+
 
     @Override
     public void onResume() {

@@ -112,6 +112,78 @@
 
 
 
+            <androidx.cardview.widget.CardView
+                android:id="@+id/mqttCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#D4E4F9">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="366dp"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Status Display -->
+                    <TextView
+                        android:id="@+id/textViewStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:padding="16dp"
+                        android:text="MQTT Status"
+                        android:textSize="18sp" />
+
+                    <!-- Topic Input Area -->
+                    <EditText
+                        android:id="@+id/editTextTopic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="Enter Topic"
+                        android:minHeight="48dp" />
+
+
+                    <!-- Publish Button -->
+                    <Button
+                        android:id="@+id/buttonsubscribe"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="8dp"
+                        android:text="Subscribe" />
+
+                    <!-- Received Messages Label -->
+                    <TextView
+                        android:id="@+id/textViewReceivedMessagesLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Received Messages"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <!-- ScrollView for Received Messages -->
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:id="@+id/textViewReceivedMessages"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="..."
+                            android:textColor="@android:color/black"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </ScrollView>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- Data Type Card Section -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/DataTypeCard"
@@ -624,83 +696,7 @@
 
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
-            <androidx.cardview.widget.CardView
-                android:id="@+id/mqttCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="#D4E4F9">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="460dp"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <!-- Status Display -->
-                    <TextView
-                        android:id="@+id/textViewStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:padding="16dp"
-                        android:text="MQTT Status"
-                        android:textSize="18sp" />
-
-                    <EditText
-                        android:id="@+id/editTextTopic"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:hint="Enter Topic"
-                        android:minHeight="48dp" />
-
-                    <EditText
-                        android:id="@+id/editTextMessage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:hint="Enter Message"
-                        android:minHeight="48dp" />
-
-                    <!-- Publish Button -->
-                    <Button
-                        android:id="@+id/buttonPublish"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_marginTop="8dp"
-                        android:text="Publish" />
-
-                    <!-- Received Messages Label -->
-                    <TextView
-                        android:id="@+id/textViewReceivedMessagesLabel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="Received Messages"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <!-- ScrollView for Received Messages -->
-                    <ScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp">
-
-                        <TextView
-                            android:id="@+id/textViewReceivedMessages"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="..."
-                            android:textColor="@android:color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-                    </ScrollView>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/bleCard"
