@@ -136,14 +136,18 @@
                         android:text="MQTT Status"
                         android:textSize="18sp" />
 
-                    <!-- Topic Input Area -->
+                    <!-- Device ID Input Area -->
                     <EditText
                         android:id="@+id/editTextTopic"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:hint="Enter Topic"
-                        android:minHeight="48dp" />
+                        android:hint="Enter Device ID"
+                        android:minHeight="48dp"
+                        android:backgroundTint="@color/gray"
+                        android:padding="12dp"
+                        android:inputType="text" />
+
 
 
                     <!-- Publish Button -->

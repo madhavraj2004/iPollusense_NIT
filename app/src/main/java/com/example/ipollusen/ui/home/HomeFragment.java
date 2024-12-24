@@ -25,6 +25,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -74,6 +75,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -117,7 +119,7 @@ public class HomeFragment extends Fragment {
     private static final int MAX_RETRIES = 5; // Set a maximum number of retries to prevent infinite attempts
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
-    private static final String MQTT_BROKER_URL = "tcp://broker.hivemq.com:1883";
+    private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     //private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static String MQTT_TOPIC = ""; // Default topic
@@ -411,11 +413,20 @@ public class HomeFragment extends Fragment {
 
         buttonSubscribe = view.findViewById(R.id.buttonsubscribe);
         buttonSubscribe.setOnClickListener(v -> {
-            // Use the topic entered or the default one if empty
-            MQTT_DEVICE = editTextTopic.getText().toString().isEmpty() ? MQTT_DEVICE : editTextTopic.getText().toString();
+            // Ensure the topic has the 'data/' prefix and takes only the device ID from editTextTopic
+            String deviceId = editTextTopic.getText().toString().trim();
+            if (!deviceId.isEmpty()) {
+                MQTT_DEVICE = "data/" + deviceId;
+            } else {
+                Log.e("MQTT", "Device ID is empty. Please enter a valid device ID.");
+                Toast.makeText(requireContext(), "Please enter a valid device ID", Toast.LENGTH_SHORT).show();
+                return; // Exit if device ID is not provided
+            }
 
+            // Setup MQTT for the specified device
             setupMqttDevice();
         });
+
         exportButton.setOnClickListener(v -> exportDataToCSV());
         scanButton.setOnClickListener(v -> startScan());
         connectButton.setOnClickListener(v -> connectToDevice());
@@ -595,7 +606,14 @@ public class HomeFragment extends Fragment {
                     String receivedMessage = new String(message.getPayload());
                     Log.d("MQTT", "Message received from topic " + MQTT_DEVICE + ": " + receivedMessage);
                     textViewReceivedMessages.setText("Message received: " + receivedMessage);
+
                     // Process the message (example: parsing JSON, updating charts, etc.)
+                    JSONObject jsonObject = new JSONObject(receivedMessage);
+                    String jsonString = jsonObject.toString();
+
+                    // Update the UI with the parsed JSON string
+                    updatePredictionChart(jsonString);
+                    updateUIWithData(jsonString);
                 }
 
                 @Override
@@ -751,7 +769,7 @@ public class HomeFragment extends Fragment {
             JSONObject jsonObject = new JSONObject(jsonString);
             JSONObject calculated = jsonObject.getJSONObject("calculated");
             JSONObject predicted = jsonObject.getJSONObject("predicted");
-
+            updateStatusIcon(calculated);
             BarChart predictionBarChart = getView().findViewById(R.id.predictionBarChart);
             CheckBox checkboxLive = getView().findViewById(R.id.checkboxLive);
             CheckBox checkboxPredicted = getView().findViewById(R.id.checkboxPredicted);
@@ -830,7 +848,50 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    private void updateStatusIcon(JSONObject calculated) {
+        try {
+            // Find the highest value in the 'calculated' JSONObject
+            int highestValue = 0;
+            Iterator<String> keys = calculated.keys();
 
+            while (keys.hasNext()) {
+                String key = keys.next();
+                int value = calculated.optInt(key, 0);
+                if (value > highestValue) {
+                    highestValue = value;
+                }
+            }
+
+            // Determine the image resource based on the highest value
+            int resourceId;
+            if (highestValue <= 1) {
+                resourceId = R.drawable.image1;
+            } else if (highestValue <= 2) {
+                resourceId = R.drawable.image2;
+            } else if (highestValue <= 3) {
+                resourceId = R.drawable.image3;
+            } else if (highestValue <= 4) {
+                resourceId = R.drawable.image4;
+            } else if (highestValue <= 5) {
+                resourceId = R.drawable.image5;
+            } else {
+                resourceId = R.drawable.image6;
+            }
+
+            // Update the ImageView and TextView
+            ImageView statusIcon = getView().findViewById(R.id.statusIcon);
+            TextView statusText = getView().findViewById(R.id.statusText);
+
+            if (statusIcon != null) {
+                statusIcon.setImageResource(resourceId);
+            }
+            if (statusText != null) {
+                statusText.setText("AQI Level: " + highestValue);
+            }
+        } catch (Exception e) {
+            Log.e("StatusIcon", "Error updating status icon: " + e.getMessage());
+        }
+    }
 
     // Helper method to create and add a LineDataSet with smooth lines
     private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
@@ -1070,7 +1131,7 @@ public class HomeFragment extends Fragment {
                     updatePredictionChart(jsonString);
 
                     try {
-                        JSONObject jsonObject = new JSONObject(jsonString);
+                         jsonObject = new JSONObject(jsonString);
                         Log.d("BLE", "JSON object parsed successfully.");
 
                         int deviceId = jsonObject.getInt("device_id");
@@ -1291,8 +1352,7 @@ public class HomeFragment extends Fragment {
                     // When a message is received, update the UI or process the message as needed
                     String receivedMessage = new String(message.getPayload());
                     Log.d("MQTT", "Message received from topic " + MQTT_TOPIC + ": " + receivedMessage);
-                    textViewReceivedMessages.setText("Message received: " + receivedMessage);
-                    // Process the message (example: parsing JSON, updating charts, etc.)
+
                 }
 
                 @Override
