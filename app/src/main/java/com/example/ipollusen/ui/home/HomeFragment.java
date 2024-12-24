@@ -120,6 +120,7 @@ public class HomeFragment extends Fragment {
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
     private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
+
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     //private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static String MQTT_TOPIC = ""; // Default topic
@@ -614,6 +615,7 @@ public class HomeFragment extends Fragment {
                     // Update the UI with the parsed JSON string
                     updatePredictionChart(jsonString);
                     updateUIWithData(jsonString);
+
                 }
 
                 @Override
@@ -862,20 +864,28 @@ public class HomeFragment extends Fragment {
                 }
             }
 
-            // Determine the image resource based on the highest value
+            // Determine the image resource and AQI description based on the highest value
             int resourceId;
-            if (highestValue <= 1) {
+            String statusDescription;
+
+            if (highestValue == 1) {
                 resourceId = R.drawable.image1;
-            } else if (highestValue <= 2) {
+                statusDescription = "Good";
+            } else if (highestValue == 2) {
                 resourceId = R.drawable.image2;
-            } else if (highestValue <= 3) {
+                statusDescription = "Moderate";
+            } else if (highestValue == 3) {
                 resourceId = R.drawable.image3;
-            } else if (highestValue <= 4) {
+                statusDescription = "Satisfactory";
+            } else if (highestValue == 4) {
                 resourceId = R.drawable.image4;
-            } else if (highestValue <= 5) {
+                statusDescription = "Poor";
+            } else if (highestValue == 5) {
                 resourceId = R.drawable.image5;
+                statusDescription = "Very Poor";
             } else {
                 resourceId = R.drawable.image6;
+                statusDescription = "Severe";
             }
 
             // Update the ImageView and TextView
@@ -886,12 +896,13 @@ public class HomeFragment extends Fragment {
                 statusIcon.setImageResource(resourceId);
             }
             if (statusText != null) {
-                statusText.setText("AQI Level: " + highestValue);
+                statusText.setText("AQI Level: " + highestValue + " " + statusDescription);
             }
         } catch (Exception e) {
             Log.e("StatusIcon", "Error updating status icon: " + e.getMessage());
         }
     }
+
 
     // Helper method to create and add a LineDataSet with smooth lines
     private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {

@@ -122,7 +122,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="366dp"
+                    android:layout_height="227dp"
                     android:orientation="vertical"
                     android:padding="16dp">
 
@@ -142,12 +142,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:hint="Enter Device ID"
-                        android:minHeight="48dp"
                         android:backgroundTint="@color/gray"
-                        android:padding="12dp"
-                        android:inputType="text" />
-
+                        android:hint="Enter Device ID"
+                        android:inputType="text"
+                        android:minHeight="48dp"
+                        android:padding="12dp" />
 
 
                     <!-- Publish Button -->
@@ -167,13 +166,15 @@
                         android:layout_marginTop="16dp"
                         android:text="Received Messages"
                         android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:visibility="gone" />
 
                     <!-- ScrollView for Received Messages -->
                     <ScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp">
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone">
 
                         <TextView
                             android:id="@+id/textViewReceivedMessages"
@@ -185,6 +186,7 @@
                             android:textSize="16sp"
                             android:textStyle="bold" />
                     </ScrollView>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
