@@ -32,8 +32,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -41,6 +39,7 @@ import androidx.core.util.Pair;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.example.ipollusen.BluetoothDeviceAdapter;
 import com.example.ipollusen.R;
@@ -73,6 +72,7 @@ import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -81,6 +81,7 @@ import java.util.List;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.osmdroid.config.Configuration;
@@ -104,6 +105,13 @@ import android.content.Context;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import info.mqtt.android.service.MqttAndroidClient;
 import info.mqtt.android.service.Ack;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -169,8 +177,9 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private LineChart lineChart;
+    private CheckBox tempCheckbox, humCheckbox, co2Checkbox, pressCheckbox, vocCheckbox, coCheckbox, pm1Checkbox, pm2Checkbox, pm10Checkbox;
+    private HashMap<String, List<Entry>> sensorData = new HashMap<>();
 
-    private CheckBox temperatureCheckbox, humidityCheckbox, co2Checkbox, pressureCheckbox, vocCheckbox, coCheckbox, pm1Checkbox, pm2Checkbox, pm10Checkbox;
     private LineData lineData;
     private List<LineDataSet> dataSetList;
 
@@ -227,7 +236,7 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-        setupChart();
+
         Configuration.getInstance().setUserAgentValue("com.example.ipollusen");
         // Load connected devices from SharedPreferences
         loadConnectedDevices();
@@ -453,29 +462,13 @@ public class HomeFragment extends Fragment {
 
         lineChart = view.findViewById(R.id.exposureLineChart);
 
+
+        mPickDateButton = view.findViewById(R.id.pick_date_button);
+        mShowSelectedDateText = view.findViewById(R.id.show_selected_date);
         // Load CSV data
 
 
-        CheckBox tempCheckbox = view.findViewById(R.id.checkboxTemperature);
-        CheckBox humCheckbox = view.findViewById(R.id.checkboxHumidity);
-        CheckBox co2Checkbox = view.findViewById(R.id.checkboxCO2);
-        CheckBox pressCheckbox = view.findViewById(R.id.checkboxPressure);
-        CheckBox vocCheckbox = view.findViewById(R.id.checkboxVOC);
-        CheckBox coCheckbox = view.findViewById(R.id.checkboxCO);
-        CheckBox pm1Checkbox = view.findViewById(R.id.checkboxPM1);
-        CheckBox pm2Checkbox = view.findViewById(R.id.checkboxPM2_5);
-        CheckBox pm10Checkbox = view.findViewById(R.id.checkboxPM10);
 
-        // Set listeners for each checkbox
-        tempCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        humCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        co2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pressCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        vocCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        coCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm1Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
 
         float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
 
@@ -507,8 +500,8 @@ public class HomeFragment extends Fragment {
             System.out.println("No coordinates to display.");
         }
 
-        // Initialize the button and text view
-        // Register the button and text view
+         //Initialize the button and text view
+//         Register the button and text view
         mPickDateButton = view.findViewById(R.id.pick_date_button);
         mShowSelectedDateText = view.findViewById(R.id.show_selected_date);
 
@@ -528,6 +521,9 @@ public class HomeFragment extends Fragment {
             String selectedDate = "Selected Date is : " + materialDatePicker.getHeaderText();
             mShowSelectedDateText.setText(selectedDate);
         });
+        setupDatePicker();
+        initCheckBoxes(view);
+        setupChart();
 
         return view;
 
@@ -667,99 +663,313 @@ public class HomeFragment extends Fragment {
         // Right axis is not used, so we disable it for better performance
         liveLineChart.getAxisRight().setEnabled(false);
     }
-
     private void setupChart() {
-        if (lineChart != null) {
-            // Enable dragging (panning)
-            lineChart.setDragEnabled(true);
-
-            // Enable scaling (zooming)
-            lineChart.setScaleEnabled(true);
-
-            // Optionally, enable pinch-to-zoom in both directions (x and y axes)
-            lineChart.setPinchZoom(true);
-
-            // Set the chart's X and Y axes to be movable (optional)
-            XAxis xAxis = lineChart.getXAxis();
-            xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);  // Optional: Position X-axis at the bottom
-            YAxis leftAxis = lineChart.getAxisLeft();
-            leftAxis.setDrawGridLines(true);  // Optional: Enable grid lines for better visual representation
-            YAxis rightAxis = lineChart.getAxisRight();
-            rightAxis.setEnabled(false);  // Optional: Disable the right axis (if not needed)
-
-            // Setting up viewPort offset to ensure the chart is visible with proper padding
-            lineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
-
-            // Optionally, set the minimum/maximum values for X and Y axes (this does not restrict zoom, but sets axis limits)
-            lineChart.getXAxis().setAxisMinimum(0f); // X-axis minimum value
-            lineChart.getXAxis().setAxisMaximum(10f); // X-axis maximum value
-            lineChart.getAxisLeft().setAxisMinimum(0f); // Y-axis minimum value
-            lineChart.getAxisLeft().setAxisMaximum(100f); // Y-axis maximum value
+        if (lineChart == null) {
+            Log.e("HomeFragment", "setupChart: LineChart is NULL");
+            return;
         }
+        Log.d("HomeFragment", "Initializing chart setup");
 
+        lineChart.setDragEnabled(true);
+        lineChart.setScaleEnabled(true);
+        lineChart.setPinchZoom(true);
+
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        YAxis leftAxis = lineChart.getAxisLeft();
+        leftAxis.setDrawGridLines(true);
+        YAxis rightAxis = lineChart.getAxisRight();
+        rightAxis.setEnabled(false);
+
+        lineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
+        lineChart.getXAxis().setAxisMinimum(0f);
+        lineChart.getXAxis().setAxisMaximum(10f);
+        lineChart.getAxisLeft().setAxisMinimum(0f);
+        lineChart.getAxisLeft().setAxisMaximum(100f);
+
+        Log.d("HomeFragment", "Chart setup completed");
     }
 
-    public void updateChart() {
-        if (lineChart != null && getView() != null) {
-            List<ILineDataSet> dataSets = new ArrayList<>();
+    private void setupDatePicker() {
+        Log.d("HomeFragment", "Initializing date picker");
+        MaterialDatePicker.Builder<Pair<Long, Long>> materialDateBuilder = MaterialDatePicker.Builder.dateRangePicker();
+        materialDateBuilder.setTitleText("SELECT A DATE");
+        final MaterialDatePicker<Pair<Long, Long>> materialDatePicker = materialDateBuilder.build();
 
-            // Get the checkboxes for each sensor type
-            CheckBox checkboxTemperature = getView().findViewById(R.id.checkboxTemperature);
-            CheckBox checkboxHumidity = getView().findViewById(R.id.checkboxHumidity);
-            CheckBox checkboxCO2 = getView().findViewById(R.id.checkboxCO2);
-            CheckBox checkboxPressure = getView().findViewById(R.id.checkboxPressure);
-            CheckBox checkboxVOC = getView().findViewById(R.id.checkboxVOC);
-            CheckBox checkboxCO = getView().findViewById(R.id.checkboxCO);
-            CheckBox checkboxPM1 = getView().findViewById(R.id.checkboxPM1);
-            CheckBox checkboxPM2_5 = getView().findViewById(R.id.checkboxPM2_5);
-            CheckBox checkboxPM10 = getView().findViewById(R.id.checkboxPM10);
+        mPickDateButton.setOnClickListener(v -> materialDatePicker.show(getParentFragmentManager(), "MATERIAL_DATE_PICKER"));
 
-            // Data limit for smoother graphs (e.g., limit to 100 points)
-            int dataLimit = 100;
+        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+            String startDate = sdf.format(new Date(selection.first));
+            String endDate = sdf.format(new Date(selection.second));
 
-            // Helper method to create and customize datasets
-            if (checkboxTemperature.isChecked()) {
-                createAndAddDataSet(dataSets, "Temperature", 1, dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
-            }
+            Log.d("HomeFragment", "Selected date range: " + startDate + " to " + endDate);
 
-            if (checkboxHumidity.isChecked()) {
-                createAndAddDataSet(dataSets, "Humidity", 2, dataLimit, R.color.colorAccent, R.color.colorAccentLight);
-            }
+            String selectedDate = "Selected Date is : " + materialDatePicker.getHeaderText();
+            mShowSelectedDateText.setText(selectedDate);
 
-            if (checkboxCO2.isChecked()) {
-                createAndAddDataSet(dataSets, "CO2", 3, dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
-            }
-
-            if (checkboxPressure.isChecked()) {
-                createAndAddDataSet(dataSets, "Pressure", 4, dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
-            }
-
-            if (checkboxVOC.isChecked()) {
-                createAndAddDataSet(dataSets, "VOC", 5, dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
-            }
-
-            if (checkboxCO.isChecked()) {
-                createAndAddDataSet(dataSets, "CO", 6, dataLimit, R.color.colorFifth, R.color.colorFifthLight);
-            }
-
-            if (checkboxPM1.isChecked()) {
-                createAndAddDataSet(dataSets, "PM1", 7, dataLimit, R.color.colorSixth, R.color.colorSixthLight);
-            }
-
-            if (checkboxPM2_5.isChecked()) {
-                createAndAddDataSet(dataSets, "PM2.5", 8, dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
-            }
-
-            if (checkboxPM10.isChecked()) {
-                createAndAddDataSet(dataSets, "PM10", 9, dataLimit, R.color.colorEighth, R.color.colorEighthLight);
-            }
-
-            // Update chart with the new data
-            LineData lineData = new LineData(dataSets);
-            lineChart.setData(lineData);
-            lineChart.invalidate(); // Refresh the chart
-        }
+            fetchData(startDate, endDate);
+        });
     }
+
+    private void fetchData(String start, String end) {
+        String url = "http://52.250.54.24:3500/api/node/filter";
+        JSONObject jsonBody = new JSONObject();
+        try {
+            // Convert date format to expected "dd/MM/yyyy HH:mm:ss"
+            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+
+            Date startDate = inputFormat.parse(start);
+            Date endDate = inputFormat.parse(end);
+
+            String formattedStart = outputFormat.format(startDate);
+            String formattedEnd = outputFormat.format(endDate);
+
+            jsonBody.put("start", formattedStart);
+            jsonBody.put("end", formattedEnd);
+
+            // Ensure nodeValue only contains "1192"
+            String nodeId = MQTT_DEVICE.replace("data/", ""); // Remove "data/" prefix
+            jsonBody.put("nodeValue", nodeId);
+
+            Log.d("API_REQUEST", "Formatted JSON Body: " + jsonBody.toString());
+
+        } catch (JSONException | ParseException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        postData(url, jsonBody);
+    }
+
+
+    private void postData(String url, JSONObject jsonBody) {
+        Log.d("HomeFragment", "Sending POST request to: " + url);
+        OkHttpClient client = new OkHttpClient();
+
+        MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        String json = jsonBody.toString();
+
+        RequestBody body = RequestBody.create(json, JSON);
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("API_ERROR", "Error sending POST request: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                Log.d("API_RESPONSE", "Response received with code: " + response.code());
+                if (response.isSuccessful()) {
+                    try {
+                        String responseString = response.body().string();
+                        Log.d("API_RESPONSE", "Response body: " + responseString);
+                        JSONObject jsonResponse = new JSONObject(responseString);
+                        parseAndDisplayData(jsonResponse);
+                    } catch (JSONException e) {
+                        Log.e("API_ERROR", "JSON Parsing error: " + e.getMessage());
+                    }
+                } else {
+                    Log.e("API_ERROR", "Error response: " + response.message());
+                }
+            }
+        });
+    }
+
+    private void parseAndDisplayData(JSONObject response) {
+        Log.d("HomeFragment", "Parsing response data");
+        List<Entry> entries = new ArrayList<>();
+        try {
+            JSONArray dataArray = response.getJSONArray("data");
+            Log.d("API_DATA", "Data array size: " + dataArray.length());
+            for (int i = 0; i < dataArray.length(); i++) {
+                JSONObject dataPoint = dataArray.getJSONObject(i);
+                float xValue = (float) i;
+                float yValue = (float) dataPoint.getDouble("value");
+                entries.add(new Entry(xValue, yValue));
+            }
+        } catch (JSONException e) {
+            Log.e("API_ERROR", "Error parsing JSON data: " + e.getMessage());
+            return;
+        }
+
+        Log.d("HomeFragment", "Updating chart with new data");
+        LineDataSet dataSet = new LineDataSet(entries, "Sensor Data");
+        dataSet.setColor(Color.BLUE);
+        dataSet.setValueTextColor(Color.BLACK);
+
+        LineData lineData = new LineData(dataSet);
+        lineChart.setData(lineData);
+        lineChart.invalidate();
+        Log.d("HomeFragment", "Chart updated successfully");
+    }
+    private void initCheckBoxes(View view) {
+        tempCheckbox = view.findViewById(R.id.checkboxTemperature);
+        humCheckbox = view.findViewById(R.id.checkboxHumidity);
+        co2Checkbox = view.findViewById(R.id.checkboxCO2);
+        pressCheckbox = view.findViewById(R.id.checkboxPressure);
+        vocCheckbox = view.findViewById(R.id.checkboxVOC);
+        coCheckbox = view.findViewById(R.id.checkboxCO);
+        pm1Checkbox = view.findViewById(R.id.checkboxPM1);
+        pm2Checkbox = view.findViewById(R.id.checkboxPM2_5);
+        pm10Checkbox = view.findViewById(R.id.checkboxPM10);
+
+        tempCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        humCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        co2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pressCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        vocCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        coCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm1Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+    }
+
+    private void updateChart() {
+        LineData data = new LineData();
+        if (tempCheckbox.isChecked() && sensorData.containsKey("temperature")) {
+            data.addDataSet(createDataSet(sensorData.get("temperature"), "Temperature", Color.RED));
+        }
+        if (humCheckbox.isChecked() && sensorData.containsKey("humidity")) {
+            data.addDataSet(createDataSet(sensorData.get("humidity"), "Humidity", Color.BLUE));
+        }
+        if (co2Checkbox.isChecked() && sensorData.containsKey("co2")) {
+            data.addDataSet(createDataSet(sensorData.get("co2"), "CO2", Color.GREEN));
+        }
+        if (pressCheckbox.isChecked() && sensorData.containsKey("pressure")) {
+            data.addDataSet(createDataSet(sensorData.get("pressure"), "Pressure", Color.YELLOW));
+        }
+        if (vocCheckbox.isChecked() && sensorData.containsKey("voc")) {
+            data.addDataSet(createDataSet(sensorData.get("voc"), "VOC", Color.MAGENTA));
+        }
+        if (coCheckbox.isChecked() && sensorData.containsKey("co")) {
+            data.addDataSet(createDataSet(sensorData.get("co"), "CO", Color.CYAN));
+        }
+        if (pm1Checkbox.isChecked() && sensorData.containsKey("pm1")) {
+            data.addDataSet(createDataSet(sensorData.get("pm1"), "PM1", Color.DKGRAY));
+        }
+        if (pm2Checkbox.isChecked() && sensorData.containsKey("pm2.5")) {
+            data.addDataSet(createDataSet(sensorData.get("pm2.5"), "PM2.5", Color.LTGRAY));
+        }
+        if (pm10Checkbox.isChecked() && sensorData.containsKey("pm10")) {
+            data.addDataSet(createDataSet(sensorData.get("pm10"), "PM10", Color.BLACK));
+        }
+
+        lineChart.setData(data);
+        lineChart.invalidate(); // Refresh chart
+    }
+
+    private LineDataSet createDataSet(List<Entry> values, String label, int color) {
+        LineDataSet dataSet = new LineDataSet(values, label);
+        dataSet.setColor(color);
+        dataSet.setCircleColor(color);
+        dataSet.setLineWidth(2f);
+        dataSet.setCircleRadius(3f);
+        dataSet.setDrawCircleHole(false);
+        dataSet.setValueTextSize(10f);
+        dataSet.setDrawFilled(false);
+        return dataSet;
+    }
+
+
+//    private void setupChart() {
+//        if (lineChart != null) {
+//            // Enable dragging (panning)
+//            lineChart.setDragEnabled(true);
+//
+//            // Enable scaling (zooming)
+//            lineChart.setScaleEnabled(true);
+//
+//            // Optionally, enable pinch-to-zoom in both directions (x and y axes)
+//            lineChart.setPinchZoom(true);
+//
+//            // Set the chart's X and Y axes to be movable (optional)
+//            XAxis xAxis = lineChart.getXAxis();
+//            xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);  // Optional: Position X-axis at the bottom
+//            YAxis leftAxis = lineChart.getAxisLeft();
+//            leftAxis.setDrawGridLines(true);  // Optional: Enable grid lines for better visual representation
+//            YAxis rightAxis = lineChart.getAxisRight();
+//            rightAxis.setEnabled(false);  // Optional: Disable the right axis (if not needed)
+//
+//            // Setting up viewPort offset to ensure the chart is visible with proper padding
+//            lineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
+//
+//            // Optionally, set the minimum/maximum values for X and Y axes (this does not restrict zoom, but sets axis limits)
+//            lineChart.getXAxis().setAxisMinimum(0f); // X-axis minimum value
+//            lineChart.getXAxis().setAxisMaximum(10f); // X-axis maximum value
+//            lineChart.getAxisLeft().setAxisMinimum(0f); // Y-axis minimum value
+//            lineChart.getAxisLeft().setAxisMaximum(100f); // Y-axis maximum value
+//        }
+//
+//    }
+//
+//    public void updateChart() {
+//        if (lineChart != null && getView() != null) {
+//            List<ILineDataSet> dataSets = new ArrayList<>();
+//
+//            // Get the checkboxes for each sensor type
+//            CheckBox checkboxTemperature = getView().findViewById(R.id.checkboxTemperature);
+//            CheckBox checkboxHumidity = getView().findViewById(R.id.checkboxHumidity);
+//            CheckBox checkboxCO2 = getView().findViewById(R.id.checkboxCO2);
+//            CheckBox checkboxPressure = getView().findViewById(R.id.checkboxPressure);
+//            CheckBox checkboxVOC = getView().findViewById(R.id.checkboxVOC);
+//            CheckBox checkboxCO = getView().findViewById(R.id.checkboxCO);
+//            CheckBox checkboxPM1 = getView().findViewById(R.id.checkboxPM1);
+//            CheckBox checkboxPM2_5 = getView().findViewById(R.id.checkboxPM2_5);
+//            CheckBox checkboxPM10 = getView().findViewById(R.id.checkboxPM10);
+//
+//            // Data limit for smoother graphs (e.g., limit to 100 points)
+//            int dataLimit = 100;
+//
+//            // Helper method to create and customize datasets
+//            if (checkboxTemperature.isChecked()) {
+//                createAndAddDataSet(dataSets, "Temperature", 1, dataLimit, R.color.colorPrimary, R.color.colorPrimaryLight);
+//            }
+//
+//            if (checkboxHumidity.isChecked()) {
+//                createAndAddDataSet(dataSets, "Humidity", 2, dataLimit, R.color.colorAccent, R.color.colorAccentLight);
+//            }
+//
+//            if (checkboxCO2.isChecked()) {
+//                createAndAddDataSet(dataSets, "CO2", 3, dataLimit, R.color.colorSecondary, R.color.colorSecondaryLight);
+//            }
+//
+//            if (checkboxPressure.isChecked()) {
+//                createAndAddDataSet(dataSets, "Pressure", 4, dataLimit, R.color.colorTertiary, R.color.colorTertiaryLight);
+//            }
+//
+//            if (checkboxVOC.isChecked()) {
+//                createAndAddDataSet(dataSets, "VOC", 5, dataLimit, R.color.colorQuaternary, R.color.colorQuaternaryLight);
+//            }
+//
+//            if (checkboxCO.isChecked()) {
+//                createAndAddDataSet(dataSets, "CO", 6, dataLimit, R.color.colorFifth, R.color.colorFifthLight);
+//            }
+//
+//            if (checkboxPM1.isChecked()) {
+//                createAndAddDataSet(dataSets, "PM1", 7, dataLimit, R.color.colorSixth, R.color.colorSixthLight);
+//            }
+//
+//            if (checkboxPM2_5.isChecked()) {
+//                createAndAddDataSet(dataSets, "PM2.5", 8, dataLimit, R.color.colorSeventh, R.color.colorSeventhLight);
+//            }
+//
+//            if (checkboxPM10.isChecked()) {
+//                createAndAddDataSet(dataSets, "PM10", 9, dataLimit, R.color.colorEighth, R.color.colorEighthLight);
+//            }
+//
+//            // Update chart with the new data
+//            LineData lineData = new LineData(dataSets);
+//            lineChart.setData(lineData);
+//            lineChart.invalidate(); // Refresh the chart
+//        }
+//    }
 
     private void updatePredictionChart(String jsonString) {
         if (jsonString == null || jsonString.isEmpty()) {
@@ -1103,15 +1313,7 @@ public class HomeFragment extends Fragment {
                 );
     }
 
-    // Helper method to find a device by its MAC address from the list of discovered devices
-    private RxBleDevice findDeviceByMac(String macAddress) {
-        for (RxBleDevice device : discoveredDevices) {
-            if (device.getMacAddress().equals(macAddress)) {
-                return device;
-            }
-        }
-        return null; // Return null if device not found
-    }
+
 
 
 
