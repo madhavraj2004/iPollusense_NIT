@@ -25,28 +25,37 @@
             android:paddingBottom="16dp">
 
 
-
-
-
             <androidx.cardview.widget.CardView
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="16dp"
                 android:elevation="4dp"
-                app:cardCornerRadius="8dp"
-                app:cardBackgroundColor="@android:color/white">
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="8dp">
 
-                <TextView
-                    android:id="@+id/statusTextView"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="16dp"
-                    android:text="Status"
-                    android:textColor="@android:color/holo_red_light"
-                    android:textSize="18sp" />
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Status TextView -->
+
+                    <!-- Export CSV Button -->
+                    <TextView
+                        android:id="@+id/statusTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Status"
+                        android:textColor="@android:color/holo_red_light"
+                        android:textSize="18sp" />
+
+
+
+                </LinearLayout>
+
             </androidx.cardview.widget.CardView>
+
 
 
 
@@ -64,129 +73,106 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Header Section -->
+                    <!-- Dropdown for Device Selection -->
                     <Spinner
-                        android:id="@+id/device_spinner"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginBottom="16dp" />
-
-                    <!-- Scan and Connect Buttons Section -->
-                    <LinearLayout
+                        android:id="@+id/deviceDropdown"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center">
+                        android:minHeight="48dp"
+                        android:prompt="@string/select_device" />
+
+
+                    <!-- Add New Device Flow -->
+                    <LinearLayout
+                        android:id="@+id/addDeviceLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+
 
                         <Button
-                            android:id="@+id/scanButton"
-                            android:layout_width="0dp"
+                            android:id="@+id/bluetoothOption"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:backgroundTint="@color/primaryColor"
-                            android:text="Scan new Device"
-                            android:textColor="@android:color/white" />
+                            android:text="Bluetooth" />
 
                         <Button
-                            android:id="@+id/connectButton"
-                            android:layout_width="13dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginEnd="8dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="@color/primaryColor"
-                            android:text="Pair"
-                            android:textColor="@android:color/white" />
+                            android:id="@+id/mqttOption"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="MQTT" />
+
+                        <Button
+                            android:id="@+id/cancelOption"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Cancel" />
                     </LinearLayout>
 
-                    <!-- RecyclerView for Available Devices -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recycler_view"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_marginTop="16dp"
-                        android:visibility="gone" />
-
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/mqttCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="#D4E4F9">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="227dp"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <!-- Status Display -->
-                    <TextView
-                        android:id="@+id/textViewStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:padding="16dp"
-                        android:text="MQTT Status"
-                        android:textSize="18sp" />
-
-                    <!-- Device ID Input Area -->
-                    <EditText
-                        android:id="@+id/editTextTopic"
+                    <!-- MQTT Device ID Entry -->
+                    <LinearLayout
+                        android:id="@+id/mqttDeviceLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:backgroundTint="@color/gray"
-                        android:hint="Enter Device ID"
-                        android:inputType="text"
-                        android:minHeight="48dp"
-                        android:padding="12dp" />
-
-
-                    <!-- Publish Button -->
-                    <Button
-                        android:id="@+id/buttonsubscribe"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_marginTop="8dp"
-                        android:text="Subscribe" />
-
-                    <!-- Received Messages Label -->
-                    <TextView
-                        android:id="@+id/textViewReceivedMessagesLabel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="Received Messages"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:visibility="gone" />
-
-                    <!-- ScrollView for Received Messages -->
-                    <ScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
                         android:visibility="gone">
 
                         <TextView
-                            android:id="@+id/textViewReceivedMessages"
+                            android:text="Enter Device ID:"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"/>
+
+                        <EditText
+                            android:id="@+id/deviceIdInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="..."
-                            android:textColor="@android:color/black"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-                    </ScrollView>
+                            android:hint="Device ID" />
 
+                        <Button
+                            android:id="@+id/okButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="OK" />
+
+                        <Button
+                            android:id="@+id/backButtonMqtt"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Back" />
+                    </LinearLayout>
+
+                    <!-- Bluetooth Device List -->
+                    <LinearLayout
+                        android:id="@+id/bluetoothDeviceLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:text="List of Devices:"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/bluetoothRecyclerView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+
+                        <Button
+                            android:id="@+id/scanButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SCAN" />
+
+                        <Button
+                            android:id="@+id/backButtonBluetooth"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Back" />
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -520,70 +506,7 @@
             </androidx.cardview.widget.CardView>
 
 
-            <!-- Map Section -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/MapCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/md_theme_light_secondaryContainer"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
 
-                <RelativeLayout
-                    android:layout_width="400dp"
-                    android:layout_height="446dp"
-                    android:padding="16dp">
-
-                    <!-- Map Title -->
-                    <TextView
-                        android:id="@+id/MapTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentStart="true"
-                        android:layout_alignParentTop="true"
-                        android:layout_marginBottom="8dp"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="Map"
-                        android:textColor="@color/md_theme_light_onSecondaryContainer"
-                        android:textSize="18sp" />
-
-
-                    <!-- Enlarge Button (Overlayed on top of MapView) -->
-                    <org.osmdroid.views.MapView
-                        android:id="@+id/mapView"
-                        android:layout_width="364dp"
-                        android:layout_height="338dp"
-                        android:layout_below="@id/MapTitle"
-                        android:layout_marginTop="53dp"
-                        android:contentDescription="Map displaying location and surrounding area" />
-
-                    <TextView
-                        android:id="@+id/tv_coordinates"
-                        android:layout_width="206dp"
-                        android:layout_height="65dp"
-                        android:layout_alignParentTop="true"
-                        android:layout_marginTop="12dp"
-                        android:layout_marginEnd="43dp"
-                        android:layout_toStartOf="@+id/enlargeButton"
-                        android:padding="8dp"
-                        android:text="Coordinates: "
-                        android:textSize="16sp" />
-
-                    <ImageButton
-                        android:id="@+id/enlargeButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:layout_alignParentTop="true"
-                        android:layout_alignParentEnd="true"
-                        android:background="@android:color/transparent"
-                        android:contentDescription="Enlarge Map"
-                        android:scaleType="centerInside"
-                        android:src="@drawable/ic_zoom_in" />
-
-                </RelativeLayout>
-            </androidx.cardview.widget.CardView>
             <!-- Live Feed Section -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/LiveCard"
@@ -704,188 +627,7 @@
             </androidx.cardview.widget.CardView>
 
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/bleCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="#D4E4F9">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="686dp"
-                    android:layout_marginTop="16dp"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-
-
-
-                    <Button
-                        android:id="@+id/exportButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Export CSV"
-                        android:layout_marginBottom="16dp" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerView"
-                        android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:layout_marginBottom="16dp" />
-                    <TextView
-                        android:id="@+id/dbmessage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="for db" />
-                    <TextView
-                        android:id="@+id/label1"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Text for Label1" />
-
-                    <TableLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="322dp"
-                        android:layout_marginTop="8dp"
-                        android:stretchColumns="1">
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="Temperature" />
-
-                            <TextView
-                                android:id="@+id/temp_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="Humidity" />
-
-                            <TextView
-                                android:id="@+id/hum_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="PRESS." />
-
-                            <TextView
-                                android:id="@+id/press_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="PM1" />
-
-                            <TextView
-                                android:id="@+id/pm1_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="PM2.5" />
-
-                            <TextView
-                                android:id="@+id/pm2_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="PM10" />
-
-                            <TextView
-                                android:id="@+id/pm10_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="CO" />
-
-                            <TextView
-                                android:id="@+id/co_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="CO2" />
-
-                            <TextView
-                                android:id="@+id/co2_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-                        <TableRow>
-
-                            <TextView
-                                android:padding="4dp"
-                                android:text="VOC" />
-
-                            <TextView
-                                android:id="@+id/voc_value"
-                                android:background="@android:color/black"
-                                android:padding="4dp"
-                                android:text="000"
-                                android:textColor="@android:color/holo_green_light" />
-                        </TableRow>
-
-
-                    </TableLayout>
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
 
 
 

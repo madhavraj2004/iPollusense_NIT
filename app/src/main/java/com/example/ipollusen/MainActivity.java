@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Set up AppBarConfiguration for navigation
         appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_assistant, R.id.navigation_map)
+                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_map)
                 .setOpenableLayout(drawerLayout)
                 .build();
 
@@ -414,8 +414,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navController.navigate(R.id.navigation_home);
         } else if (itemId == R.id.navigation_dashboard) {
             navController.navigate(R.id.navigation_dashboard);
-        } else if (itemId == R.id.navigation_assistant) {
-            navController.navigate(R.id.navigation_assistant);
         } else if (itemId == R.id.navigation_map) {
             navController.navigate(R.id.navigation_map);
         }else if (itemId == R.id.nav_logout) {

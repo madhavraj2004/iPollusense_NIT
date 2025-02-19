@@ -1,8 +1,0 @@
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/add_new_device"
-        android:title="Add New Device" />
-    <item
-        android:id="@+id/other_option"
-        android:title="Other Option" />
-</menu>

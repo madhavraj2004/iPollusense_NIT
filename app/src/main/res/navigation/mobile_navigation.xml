@@ -17,12 +17,6 @@
         android:label="@string/title_dashboard"
         tools:layout="@layout/fragment_dashboard" />
 
-    <fragment
-        android:id="@+id/navigation_assistant"
-        android:name="com.example.ipollusen.ui.assistant.AssistantFragment"
-        android:label="@string/title_assistant"
-        tools:layout="@layout/fragment_assistant" />
-
 
     <fragment
         android:id="@+id/navigation_map"

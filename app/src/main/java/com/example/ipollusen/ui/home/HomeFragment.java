@@ -7,6 +7,7 @@ import static com.example.ipollusen.ui.home.SensorDataUtil.getAverage;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -15,6 +16,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -86,10 +88,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -135,16 +134,13 @@ public class HomeFragment extends Fragment {
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
     private static final String SHARED_PREFS_NAME = "connected_devices_prefs";
     private static final String KEY_CONNECTED_DEVICES = "connected_devices";
-    private Button buttonSubscribe;
-    private TextView textViewStatus;
-    private TextView textViewReceivedMessages;
+
     private static String MQTT_DEVICE = "";
     private MqttAndroidClient mqttClient;
     private String currentTopic;
     private Map<String, List<Entry>> currentData = new HashMap<>();
 
-    private EditText editTextTopic;
-    private EditText editTextMessage;
+
 
     private Spinner deviceSpinner;
     private List<String> connectedDevicesList = new ArrayList<>();
@@ -153,7 +149,7 @@ public class HomeFragment extends Fragment {
     private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
-    private RecyclerView recyclerView;
+
     private BluetoothDeviceAdapter recyclerViewAdapter;
     private List<RxBleDevice> discoveredDevices = new ArrayList<>();
 
@@ -162,18 +158,9 @@ public class HomeFragment extends Fragment {
     private RxBleClient rxBleClient;
     private String targetDeviceMac;
 
-    private TextView label1; // For JSON data
-    private TextView tempValue; // Temperature
-    private TextView humValue; // Humidity
-    private TextView co2Value; // NO2
-    private TextView pressValue; // Pressure
-    private TextView vocValue; // VOC
-    private TextView coValue; // CO
-    private TextView pm1Value; // PM1
-    private TextView pm2Value; // PM2.5
-    private TextView pm10Value; // PM10
 
 
+    private CheckBox liveCheckboxTemperature, liveCheckboxHumidity , liveCheckboxPressure , liveCheckboxPM1 , liveCheckboxPM2_5 , liveCheckboxPM10 , liveCheckboxCO , liveCheckboxVOC , liveCheckboxCO2 ;
 
     private FragmentHomeBinding binding;
     private LineChart lineChart;
@@ -225,9 +212,17 @@ public class HomeFragment extends Fragment {
     private final int maxDataPoints = 100;
     private String message;
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
-    private MapView mapView;
-    private MyLocationNewOverlay myLocationOverlay;
-    private TextView tvCoordinates;
+    private Spinner deviceDropdown;
+    private View addDeviceLayout, mqttDeviceLayout, bluetoothDeviceLayout;
+    private Button  bluetoothOption, mqttOption, cancelOption;
+    private Button okButton, backButtonMqtt, scanButton, backButtonBluetooth;
+    private EditText deviceIdInput;
+    private RecyclerView bluetoothRecyclerView;
+
+    private ArrayList<String> deviceList = new ArrayList<>();
+    private BluetoothAdapter bluetoothAdapter;
+
+
     private LocationManager locationManager;
 
 
@@ -237,12 +232,58 @@ public class HomeFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
+        CheckBox liveCheckboxTemperature = view.findViewById(R.id.LivecheckboxTemperature);
+        CheckBox liveCheckboxHumidity = view.findViewById(R.id.LivecheckboxHumidity);
+        CheckBox liveCheckboxCO2 = view.findViewById(R.id.LivecheckboxCO2);
+        CheckBox liveCheckboxPressure = view.findViewById(R.id.LivecheckboxPressure);
+        CheckBox liveCheckboxVOC = view.findViewById(R.id.LivecheckboxVOC);
+        CheckBox liveCheckboxCO = view.findViewById(R.id.LivecheckboxCO);
+        CheckBox liveCheckboxPM1 = view.findViewById(R.id.LivecheckboxPM1);
+        CheckBox liveCheckboxPM2_5 = view.findViewById(R.id.LivecheckboxPM2_5);
+        CheckBox liveCheckboxPM10 = view.findViewById(R.id.LivecheckboxPM10);
+
+        liveCheckboxTemperature.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxHumidity.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxPressure.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxPM1.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxPM2_5.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxPM10.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxVOC.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+        liveCheckboxCO2.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+
+
+        // Initialize UI Elements
+        deviceDropdown = view.findViewById(R.id.deviceDropdown);
+        addDeviceLayout = view.findViewById(R.id.addDeviceLayout);
+        mqttDeviceLayout = view.findViewById(R.id.mqttDeviceLayout);
+        bluetoothDeviceLayout = view.findViewById(R.id.bluetoothDeviceLayout);
+        statusTextView = view.findViewById(R.id.statusTextView);
+        deviceSpinner = view.findViewById(R.id.deviceDropdown);
+
+
+        bluetoothOption = view.findViewById(R.id.bluetoothOption);
+        mqttOption = view.findViewById(R.id.mqttOption);
+        cancelOption = view.findViewById(R.id.cancelOption);
+
+        okButton = view.findViewById(R.id.okButton);
+        backButtonMqtt = view.findViewById(R.id.backButtonMqtt);
+        scanButton = view.findViewById(R.id.scanButton);
+        backButtonBluetooth = view.findViewById(R.id.backButtonBluetooth);
+
+        deviceIdInput = view.findViewById(R.id.deviceIdInput);
+        bluetoothRecyclerView = view.findViewById(R.id.bluetoothRecyclerView);
+
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        requestBluetoothPermissions(); // Ensure permissions are granted at launch
+        setupDeviceDropdown();
+        setupButtonListeners();
         Configuration.getInstance().setUserAgentValue("com.example.ipollusen");
         // Load connected devices from SharedPreferences
         loadConnectedDevices();
         // Initialize RecyclerView
-        recyclerView = view.findViewById(R.id.recycler_view);
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        bluetoothRecyclerView = view.findViewById(R.id.bluetoothRecyclerView);
+        bluetoothRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
 // Initialize the BluetoothDeviceAdapter and set it to the RecyclerView
         recyclerViewAdapter = new BluetoothDeviceAdapter(discoveredDevices, device -> {
@@ -251,7 +292,7 @@ public class HomeFragment extends Fragment {
             statusTextView.setText("Selected device: " + device.getName());
 
             // Hide RecyclerView once a device is selected
-            recyclerView.setVisibility(View.GONE);
+            bluetoothRecyclerView.setVisibility(View.GONE);
 
             // Add the selected device to the Spinner if not already present
             String deviceInfo = device.getName() + " (" + device.getMacAddress() + ")";
@@ -263,10 +304,8 @@ public class HomeFragment extends Fragment {
                 saveConnectedDevices();
             }
         });
-        recyclerView.setAdapter(recyclerViewAdapter);
+        bluetoothRecyclerView.setAdapter(recyclerViewAdapter);
 
-// Initialize the Spinner
-        deviceSpinner = view.findViewById(R.id.device_spinner);
 
 // Create a spinnerAdapter for the Spinner
         spinnerAdapter = new ArrayAdapter<>(requireContext(),
@@ -301,37 +340,21 @@ public class HomeFragment extends Fragment {
         });
 
 // Hide RecyclerView by default
-        recyclerView.setVisibility(View.GONE);
+        bluetoothRecyclerView.setVisibility(View.GONE);
 
 
-        // Initialize MapView
-        mapView = view.findViewById(R.id.mapView);
-        mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK);
-        mapView.setMultiTouchControls(true);
-        mapView.getController().setZoom(15.0);
 
-        // Set a default location (Eiffel Tower)
-        GeoPoint startPoint = new GeoPoint(48.8583, 2.2944);
-        mapView.getController().setCenter(startPoint);
 
-        // Add a marker at the location
-        Marker startMarker = new Marker(mapView);
-        startMarker.setPosition(startPoint);
-        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        startMarker.setTitle("Eiffel Tower");
-        mapView.getOverlays().add(startMarker);
 
-        // Initialize MyLocationNewOverlay to show current location
+
+
+
         GpsMyLocationProvider locationProvider = new GpsMyLocationProvider(requireContext());
-        myLocationOverlay = new MyLocationNewOverlay(locationProvider, mapView);
-        myLocationOverlay.enableMyLocation();
-        myLocationOverlay.enableFollowLocation();  // Optional: centers the map on the user's location
-        mapView.getOverlays().add(myLocationOverlay);
+
+
+
         locationManager = (LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
-        tvCoordinates = view.findViewById(R.id.tv_coordinates);
-        if (tvCoordinates != null) {
-            tvCoordinates.setText("Coordinates: Waiting for location...");
-        }
+
 
         // Request permissions if not already granted
         requestPermissionsIfNecessary(new String[]{
@@ -345,7 +368,7 @@ public class HomeFragment extends Fragment {
             public void onLocationChanged(@NonNull Location location) {
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
-                tvCoordinates.setText(String.format("Coordinates: %.6f, %.6f", latitude, longitude));
+
                 if (jsonObject != null && timestamp != null) {
                     saveDataToCSV(jsonObject, timestamp, latitude, longitude);
                 } else {
@@ -373,17 +396,8 @@ public class HomeFragment extends Fragment {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, locationListener);
         }
         statusTextView = view.findViewById(R.id.statusTextView);
-        label1 = view.findViewById(R.id.label1);
-        tempValue = view.findViewById(R.id.temp_value);
-        humValue = view.findViewById(R.id.hum_value);
-        pressValue = view.findViewById(R.id.press_value);
-        vocValue = view.findViewById(R.id.voc_value);
-        pm1Value = view.findViewById(R.id.pm1_value);
-        pm2Value = view.findViewById(R.id.pm2_value);
-        pm10Value = view.findViewById(R.id.pm10_value);
-        coValue = view.findViewById(R.id.co_value);
-        co2Value = view.findViewById(R.id.co2_value);
-        textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
+
+
 
         tempData = new ArrayList<>();
         humData = new ArrayList<>();
@@ -407,24 +421,23 @@ public class HomeFragment extends Fragment {
             dataQueues.put(key, new ArrayBlockingQueue<>(MAX_RECORDS));
         }
         liveLineChart = view.findViewById(R.id.LiveLineChart);
-        label1 = view.findViewById(R.id.label1);
 
 
 
 
 
-        Button exportButton = view.findViewById(R.id.exportButton);
+
+       // Button exportButton = view.findViewById(R.id.exportButton);
         Button scanButton = view.findViewById(R.id.scanButton);
-        Button connectButton = view.findViewById(R.id.connectButton);
-        textViewStatus = view.findViewById(R.id.textViewStatus);
-        textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
-        editTextTopic = view.findViewById(R.id.editTextTopic);
+
+        statusTextView = view.findViewById(R.id.statusTextView);
 
 
-        buttonSubscribe = view.findViewById(R.id.buttonsubscribe);
-        buttonSubscribe.setOnClickListener(v -> {
-            // Ensure the topic has the 'data/' prefix and takes only the device ID from editTextTopic
-            String deviceId = editTextTopic.getText().toString().trim();
+
+        okButton = view.findViewById(R.id.okButton);
+        okButton.setOnClickListener(v -> {
+            // Ensure the topic has the 'data/' prefix and takes only the device ID from deviceIdInput
+            String deviceId = deviceIdInput.getText().toString().trim();
             if (!deviceId.isEmpty()) {
                 MQTT_DEVICE = "data/" + deviceId;
             } else {
@@ -437,13 +450,13 @@ public class HomeFragment extends Fragment {
             setupMqttDevice();
         });
 
-        exportButton.setOnClickListener(v -> exportDataToCSV());
+        //exportButton.setOnClickListener(v -> exportDataToCSV());
         scanButton.setOnClickListener(v -> startScan());
-        connectButton.setOnClickListener(v -> connectToDevice());
+        okButton.setOnClickListener(v -> connectToDevice());
 
 
         rxBleClient = RxBleClient.create(requireContext());
-         // Automatically start scanning when the fragment is opened
+        // Automatically start scanning when the fragment is opened
         setupMqttClient(); // Set up MQTT client
 
         // Initialize handler for periodic updates
@@ -481,9 +494,8 @@ public class HomeFragment extends Fragment {
         if (liveLineChart == null) {
             Log.e("MqttProcessing", "Live chart initialization failed.");
         }
-        textViewStatus = view.findViewById(R.id.textViewStatus);
-        textViewReceivedMessages = view.findViewById(R.id.textViewReceivedMessages);
-        editTextTopic = view.findViewById(R.id.editTextTopic);
+
+
 
 
         checkPermissions();
@@ -494,13 +506,9 @@ public class HomeFragment extends Fragment {
         // Read data from the CSV and add markers
 
         List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
-        if (coordinates != null && !coordinates.isEmpty()) {
-            addMarkersToMap(mapView, coordinates);
-        } else {
-            System.out.println("No coordinates to display.");
-        }
 
-         //Initialize the button and text view
+
+        //Initialize the button and text view
 //         Register the button and text view
         mPickDateButton = view.findViewById(R.id.pick_date_button);
         mShowSelectedDateText = view.findViewById(R.id.show_selected_date);
@@ -524,7 +532,7 @@ public class HomeFragment extends Fragment {
         setupDatePicker();
         initCheckBoxes(view);
         setupChart();
-
+        setupDeviceDropdown();
         return view;
 
 
@@ -534,10 +542,8 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         // Safe to interact with views here
-        tvCoordinates = view.findViewById(R.id.tv_coordinates);
-        if (tvCoordinates != null) {
-            tvCoordinates.setText("Coordinates: Waiting for location...");
-        }
+
+
         CheckBox checkboxLive = view.findViewById(R.id.checkboxLive);
         CheckBox checkboxPredicted = view.findViewById(R.id.checkboxPredicted);
         CheckBox checkboxDust = view.findViewById(R.id.checkboxpredictionDust);
@@ -551,6 +557,74 @@ public class HomeFragment extends Fragment {
 
         // Optionally call the update method initially if needed
         updatePredictionChart(jsonString);
+    }
+    //for ui setup for device connection
+    private void setupDeviceDropdown() {
+        deviceList.add("Select Device");
+        deviceList.add("Add New Device");
+        if (deviceDropdown == null) {
+            Log.e("HomeFragment", "deviceDropdown is NULL! Check fragment_home.xml ID.");
+            return;
+        }
+        deviceAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, deviceList);
+        deviceDropdown.setAdapter(deviceAdapter);
+
+        deviceDropdown.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (position == deviceList.size() - 1) { // "Add New Device" selected
+                    addDeviceLayout.setVisibility(View.VISIBLE);
+                } else {
+                    addDeviceLayout.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+    }
+
+    private void setupButtonListeners() {
+
+        bluetoothOption.setOnClickListener(v -> {
+            addDeviceLayout.setVisibility(View.GONE);
+            bluetoothDeviceLayout.setVisibility(View.VISIBLE);
+
+        });
+
+        mqttOption.setOnClickListener(v -> {
+            addDeviceLayout.setVisibility(View.GONE);
+            mqttDeviceLayout.setVisibility(View.VISIBLE);
+        });
+
+        cancelOption.setOnClickListener(v -> addDeviceLayout.setVisibility(View.GONE));
+
+        okButton.setOnClickListener(v -> {
+            String deviceId = deviceIdInput.getText().toString().trim();
+            if (!deviceId.isEmpty()) {
+                deviceList.add(deviceId + " (MQTT)");
+                deviceAdapter.notifyDataSetChanged();
+                mqttDeviceLayout.setVisibility(View.GONE);
+            }
+        });
+        okButton.setOnClickListener(v -> mqttDeviceLayout.setVisibility(View.GONE));
+        backButtonMqtt.setOnClickListener(v -> mqttDeviceLayout.setVisibility(View.GONE));
+
+        scanButton.setOnClickListener(v -> startScan());
+
+        backButtonBluetooth.setOnClickListener(v -> bluetoothDeviceLayout.setVisibility(View.GONE));
+    }
+
+    // Request Bluetooth permissions at runtime (for Android 12+)
+    private void requestBluetoothPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(requireActivity(),
+                        new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN},
+                        1);
+            }
+        }
     }
 
     // for mqtt device data card
@@ -566,7 +640,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
-                    textViewStatus.setText("Connected to MQTT broker");
+                    statusTextView.setText("Connected to MQTT broker");
                     retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
                     subscribeToDevice(MQTT_DEVICE); // Subscribe to the topic on connection
                 }
@@ -574,7 +648,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
-                    textViewStatus.setText("Failed to connect: " + exception.getMessage());
+                    statusTextView.setText("Failed to connect: " + exception.getMessage());
 
                     // Retry connection logic with backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
@@ -583,7 +657,7 @@ public class HomeFragment extends Fragment {
                         retryInterval *= 2; // Exponential backoff
                     } else {
                         Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
-                        textViewStatus.setText("Max retry attempts reached. Unable to connect.");
+                        statusTextView.setText("Max retry attempts reached. Unable to connect.");
                     }
                 }
             });
@@ -592,7 +666,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void connectionLost(Throwable cause) {
                     Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                    textViewStatus.setText("Connection lost. Reconnecting...");
+                    statusTextView.setText("Connection lost. Reconnecting...");
                     // Try to reconnect if the connection is lost
                     setupMqttDevice();
                 }
@@ -602,7 +676,7 @@ public class HomeFragment extends Fragment {
                     // When a message is received, update the UI or process the message as needed
                     String receivedMessage = new String(message.getPayload());
                     Log.d("MQTT", "Message received from topic " + MQTT_DEVICE + ": " + receivedMessage);
-                    textViewReceivedMessages.setText("Message received: " + receivedMessage);
+                    statusTextView.setText("Message received: " + receivedMessage);
 
                     // Process the message (example: parsing JSON, updating charts, etc.)
                     JSONObject jsonObject = new JSONObject(receivedMessage);
@@ -622,7 +696,7 @@ public class HomeFragment extends Fragment {
             });
         } catch (Exception e) {
             Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
-            textViewStatus.setText("Error setting up MQTT client.");
+            statusTextView.setText("Error setting up MQTT client.");
         }
     }
 
@@ -633,13 +707,13 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
-                    textViewStatus.setText("Subscribed to topic: " + MQTT_DEVICE);
+                    statusTextView.setText("Subscribed to topic: " + MQTT_DEVICE);
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
-                    textViewStatus.setText("Failed to subscribe to topic.");
+                    statusTextView.setText("Failed to subscribe to topic.");
                 }
             });
         } catch (Exception e) {
@@ -647,21 +721,54 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    // Setup the chart with smooth lines
     private void setupliveChart() {
-        liveLineChart.setPinchZoom(true); // Enables pinch zooming
-        liveLineChart.setScaleEnabled(true); // Enables scaling
-        liveLineChart.setDragEnabled(true); // Enables dragging the chart
-        liveLineChart.getDescription().setEnabled(false); // Optional: remove chart description for a cleaner look
-        liveLineChart.setBackgroundColor(Color.WHITE); // Optional: change background color
-        liveLineChart.setBorderColor(Color.BLACK); // Optional: change border color
+        if (liveLineChart == null) {
+            Log.e("HomeFragment", "setupChart: LineChart is NULL");
+            return;
+        }
+        Log.d("HomeFragment", "Initializing chart setup");
 
-        // Enable axis customization for better visualization
+        // Enable interactions
+        liveLineChart.setPinchZoom(true);
+        liveLineChart.setScaleEnabled(true);
+        liveLineChart.setDragEnabled(true);
+
+        // Customize chart appearance
+        liveLineChart.getDescription().setEnabled(false); // Remove chart description
+        liveLineChart.setBackgroundColor(Color.WHITE); // Set background color
+        liveLineChart.setBorderColor(Color.BLACK); // Set border color
+
+        // Configure X-axis
+        XAxis xAxis = liveLineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+        xAxis.setGranularity(1f);
+
+        // Configure Y-axis
         YAxis leftAxis = liveLineChart.getAxisLeft();
-        leftAxis.setGranularity(1f); // Optional: set the granularity for better readability
-        leftAxis.setAxisMinimum(0f); // Set the minimum value for the Y-axis to 0
+        leftAxis.setDrawGridLines(true);
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setAxisMaximum(100f);
 
-        // Right axis is not used, so we disable it for better performance
-        liveLineChart.getAxisRight().setEnabled(false);
+        YAxis rightAxis = liveLineChart.getAxisRight();
+        rightAxis.setEnabled(false);
+
+        // Set viewport offsets
+        liveLineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
+
+        Log.d("HomeFragment", "Chart setup completed");
+    }
+
+    // Function to create smooth line datasets
+    private LineDataSet createSmoothLineDataSet(List<Entry> data, String label, int color, float lineWidth) {
+        LineDataSet dataSet = new LineDataSet(data, label);
+        dataSet.setColor(color);
+        dataSet.setLineWidth(lineWidth);
+        dataSet.setDrawCircles(false); // Disable data point circles for a cleaner look
+        dataSet.setDrawValues(false); // Disable values over points
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Enable smooth lines
+        return dataSet;
     }
     private void setupChart() {
         if (lineChart == null) {
@@ -829,6 +936,8 @@ public class HomeFragment extends Fragment {
         pm1Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
         pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
         pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+
+
     }
 
     private void updateChart() {
@@ -1181,7 +1290,7 @@ public class HomeFragment extends Fragment {
         return ""; // Return empty string if format is invalid
     }
 
-    
+
 
     private void saveConnectedDevices() {
         SharedPreferences sharedPreferences = requireContext().getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE);
@@ -1220,7 +1329,7 @@ public class HomeFragment extends Fragment {
             Log.e("BLE", "rxBleClient is not initialized.");
             return;
         }
-        recyclerView.setVisibility(View.VISIBLE);
+        bluetoothRecyclerView.setVisibility(View.VISIBLE);
         Disposable scanDisposable = rxBleClient.scanBleDevices()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(scanResult -> {
@@ -1275,7 +1384,7 @@ public class HomeFragment extends Fragment {
                             // Successfully connected
                             connection = rxBleConnection;
                             Log.d("BLE", "Connected to device: " + selectedDevice.getName() + " - " + selectedDevice.getMacAddress());
-                            recyclerView.setVisibility(View.GONE);
+                            bluetoothRecyclerView.setVisibility(View.GONE);
                             handler.postDelayed(updateTask, 5000); // Start a periodic update task if needed
 
 
@@ -1329,7 +1438,7 @@ public class HomeFragment extends Fragment {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(characteristicValue -> {
                     Log.d("BLE", "Characteristic read successfully. Value length: " + (characteristicValue != null ? characteristicValue.length : 0));
-                    recyclerView.setVisibility(View.GONE);
+                    bluetoothRecyclerView.setVisibility(View.GONE);
                     if (characteristicValue == null || characteristicValue.length == 0) {
                         Log.w("BLE", "Received characteristic value is null or empty.");
                         statusTextView.setText("Error: Empty data received.");
@@ -1344,7 +1453,7 @@ public class HomeFragment extends Fragment {
                     updatePredictionChart(jsonString);
 
                     try {
-                         jsonObject = new JSONObject(jsonString);
+                        jsonObject = new JSONObject(jsonString);
                         Log.d("BLE", "JSON object parsed successfully.");
 
                         int deviceId = jsonObject.getInt("device_id");
@@ -1440,27 +1549,53 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateUIWithData(String jsonString) {
+        if (jsonString == null || jsonString.trim().isEmpty()) {
+            Log.e("HomeFragment", "Received null or empty JSON string");
+            return;
+        }
+
         try {
-            label1.setText(jsonString);
+
             jsonObject = new JSONObject(jsonString);
             JSONObject data = jsonObject.getJSONObject("data");
 
-            tempValue.setText(String.format("%.2f", data.getDouble("temperature")));
-            humValue.setText(String.format("%.2f", data.getDouble("humidity")));
-            pressValue.setText(String.format("%.2f", data.getDouble("pressure")));
-            pm1Value.setText(String.valueOf(data.getInt("pm1")));
-            pm2Value.setText(String.valueOf(data.getInt("pm2_5")));
-            pm10Value.setText(String.valueOf(data.getInt("pm10")));
-            coValue.setText(String.valueOf(data.getInt("co")));
-            vocValue.setText(String.valueOf(data.getInt("voc")));
-            co2Value.setText(String.valueOf(data.getInt("co2")));
+            CheckBox liveCheckboxTemperature = getView().findViewById(R.id.LivecheckboxTemperature);
+            CheckBox liveCheckboxHumidity = getView().findViewById(R.id.LivecheckboxHumidity);
+            CheckBox liveCheckboxCO2 = getView().findViewById(R.id.LivecheckboxCO2);
+            CheckBox liveCheckboxPressure = getView().findViewById(R.id.LivecheckboxPressure);
+            CheckBox liveCheckboxVOC = getView().findViewById(R.id.LivecheckboxVOC);
+            CheckBox liveCheckboxCO = getView().findViewById(R.id.LivecheckboxCO);
+            CheckBox liveCheckboxPM1 = getView().findViewById(R.id.LivecheckboxPM1);
+            CheckBox liveCheckboxPM2_5 = getView().findViewById(R.id.LivecheckboxPM2_5);
+            CheckBox liveCheckboxPM10 = getView().findViewById(R.id.LivecheckboxPM10);
+
+            liveCheckboxTemperature.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxHumidity.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxPressure.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxPM1.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxPM2_5.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxPM10.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxCO.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxVOC.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+            liveCheckboxCO2.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
+
+
+
+//            tempValue.setText(String.format("%.2f", data.getDouble("temperature")));
+//            humValue.setText(String.format("%.2f", data.getDouble("humidity")));
+//            pressValue.setText(String.format("%.2f", data.getDouble("pressure")));
+//            pm1Value.setText(String.valueOf(data.getInt("pm1")));
+//            pm2Value.setText(String.valueOf(data.getInt("pm2_5")));
+//            pm10Value.setText(String.valueOf(data.getInt("pm10")));
+//            coValue.setText(String.valueOf(data.getInt("co")));
+//            vocValue.setText(String.valueOf(data.getInt("voc")));
+//            co2Value.setText(String.valueOf(data.getInt("co2")));
 
 
 
             timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
             saveDataToCSV(jsonObject, timestamp, latitude, longitude);
-
 
             // Scaling factors for each parameter (modify as needed)
             double scaledTemp = data.optDouble("temperature", 0) / 50.0;
@@ -1484,22 +1619,40 @@ public class HomeFragment extends Fragment {
             vocData.add(new Entry(vocData.size(), (float) scaledVoc));
             co2Data.add(new Entry(co2Data.size(), (float) scaledCo2));
 
-            // Create data sets with line widths and colors
-            LineDataSet tempDataSet = createLineDataSet(tempData, "Temperature", Color.BLUE, 3.0f);
-            LineDataSet humDataSet = createLineDataSet(humData, "Humidity", Color.GREEN, 3.0f);
-            LineDataSet pressDataSet = createLineDataSet(pressData, "Pressure", Color.YELLOW, 3.0f);
-            LineDataSet pm1DataSet = createLineDataSet(pm1Data, "PM1", Color.CYAN, 3.0f);
-            LineDataSet pm2DataSet = createLineDataSet(pm2Data, "PM2.5", Color.MAGENTA, 3.0f);
-            LineDataSet pm10DataSet = createLineDataSet(pm10Data, "PM10", Color.GRAY, 3.0f);
-            LineDataSet coDataSet = createLineDataSet(coData, "CO", Color.RED, 3.0f);
-            LineDataSet vocDataSet = createLineDataSet(vocData, "VOC", Color.LTGRAY, 3.0f);
-            LineDataSet co2DataSet = createLineDataSet(co2Data, "CO2", Color.DKGRAY, 3.0f);
+            // Create and add datasets based on checkbox selections
+            List<ILineDataSet> dataSets = new ArrayList<>();
+            if (liveCheckboxTemperature.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(tempData, "Temperature", Color.BLUE, 3.0f));
+            }
+            if (liveCheckboxHumidity.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(humData, "Humidity", Color.GREEN, 3.0f));
+            }
+            if (liveCheckboxPressure.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(pressData, "Pressure", Color.YELLOW, 3.0f));
+            }
+            if (liveCheckboxPM1.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(pm1Data, "PM1", Color.CYAN, 3.0f));
+            }
+            if (liveCheckboxPM2_5.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(pm2Data, "PM2.5", Color.MAGENTA, 3.0f));
+            }
+            if (liveCheckboxPM10.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(pm10Data, "PM10", Color.GRAY, 3.0f));
+            }
+            if (liveCheckboxCO.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(coData, "CO", Color.RED, 3.0f));
+            }
+            if (liveCheckboxVOC.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(vocData, "VOC", Color.LTGRAY, 3.0f));
+            }
+            if (liveCheckboxCO2.isChecked()) {
+                dataSets.add(createSmoothLineDataSet(co2Data, "CO2", Color.DKGRAY, 3.0f));
+            }
 
-            // Combine data sets into a single LineData object
-            LineData lineData = new LineData(tempDataSet, humDataSet, pressDataSet, pm1DataSet, pm2DataSet, pm10DataSet, coDataSet, vocDataSet, co2DataSet);
+            // Set new data and refresh the chart
+            LineData lineData = new LineData(dataSets);
             liveLineChart.setData(lineData);
             liveLineChart.invalidate(); // Refresh the chart
-
         } catch (JSONException e) {
             statusTextView.setText("Invalid data received.");
             Log.e("BLE", "JSON Parsing error: " + e.toString());
@@ -1529,7 +1682,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
-                    textViewStatus.setText("Connected to MQTT broker");
+                    statusTextView.setText("Connected to MQTT broker");
                     retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
                     subscribeToTopic(MQTT_TOPIC); // Subscribe to the topic on connection
                 }
@@ -1537,7 +1690,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
-                    textViewStatus.setText("Failed to connect: " + exception.getMessage());
+                    statusTextView.setText("Failed to connect: " + exception.getMessage());
 
                     // Retry connection logic with backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
@@ -1546,7 +1699,7 @@ public class HomeFragment extends Fragment {
                         retryInterval *= 2; // Exponential backoff
                     } else {
                         Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
-                        textViewStatus.setText("Max retry attempts reached. Unable to connect.");
+                        statusTextView.setText("Max retry attempts reached. Unable to connect.");
                     }
                 }
             });
@@ -1555,7 +1708,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void connectionLost(Throwable cause) {
                     Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                    textViewStatus.setText("Connection lost. Reconnecting...");
+                    statusTextView.setText("Connection lost. Reconnecting...");
                     // Try to reconnect if the connection is lost
                     setupMqttClient();
                 }
@@ -1576,7 +1729,7 @@ public class HomeFragment extends Fragment {
             });
         } catch (Exception e) {
             Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
-            textViewStatus.setText("Error setting up MQTT client.");
+            statusTextView.setText("Error setting up MQTT client.");
         }
     }
 
@@ -1587,13 +1740,13 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_TOPIC);
-                    textViewStatus.setText("Subscribed to topic: " + MQTT_TOPIC);
+                    statusTextView.setText("Subscribed to topic: " + MQTT_TOPIC);
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
-                    textViewStatus.setText("Failed to subscribe to topic.");
+                    statusTextView.setText("Failed to subscribe to topic.");
                 }
             });
         } catch (Exception e) {
@@ -1611,22 +1764,22 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onSuccess(IMqttToken asyncActionToken) {
                         Log.d("MQTT", "Message published successfully to topic: " + MQTT_TOPIC);
-                        textViewStatus.setText("Message published successfully.");
+                        statusTextView.setText("Message published successfully.");
                     }
 
                     @Override
                     public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                         Log.e("MQTT", "Failed to publish message to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
-                        textViewStatus.setText("Failed to publish message.");
+                        statusTextView.setText("Failed to publish message.");
                     }
                 });
             } catch (Exception e) {
                 Log.e("MQTT", "Error publishing message: " + e.getMessage());
-                textViewStatus.setText("Error publishing message.");
+                statusTextView.setText("Error publishing message.");
             }
         } else {
             Log.e("MQTT", "MQTT client is not connected.");
-            textViewStatus.setText("Not connected to MQTT broker.");
+            statusTextView.setText("Not connected to MQTT broker.");
         }
     }
 
@@ -1634,18 +1787,14 @@ public class HomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        mapView.onResume(); // Needed for compass, my location overlays, etc.
-        if (myLocationOverlay != null) {
-            myLocationOverlay.enableMyLocation(); // Re-enable location overlay
-        }
+
+
     }
     @Override
     public void onPause() {
         super.onPause();
-        mapView.onPause(); // Needed for compass, my location overlays, etc.
-        if (myLocationOverlay != null) {
-            myLocationOverlay.disableMyLocation(); // Disable location overlay when paused
-        }
+
+
     }
     private void requestPermissionsIfNecessary(String[] permissions) {
         for (String permission : permissions) {
@@ -1655,16 +1804,9 @@ public class HomeFragment extends Fragment {
             }
         }
     }
-    private void addMarkersToMap(MapView mapView, List<GeoPoint> coordinates) {
-        for (GeoPoint coord : coordinates) {
-            Marker marker = new Marker(mapView);
-            marker.setPosition(coord);
-            marker.setTitle("Sensor Location");
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            mapView.getOverlays().add(marker);
-        }
-        mapView.invalidate();
-    }
+
+
+
 
     public static class CSVParser {
         public static List<GeoPoint> parseSensorData(String filePath) {
