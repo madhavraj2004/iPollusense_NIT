@@ -48,6 +48,7 @@
             </intent-filter>
         </activity>
 
+
         <!-- Other Activities -->
         <activity android:name=".LoginActivity" android:exported="false"/>
         <activity android:name=".RegisterActivity" android:exported="false"/>
@@ -69,6 +70,10 @@
                 android:resource="@xml/file_paths"
                 tools:replace="android:resource"/>
         </provider>
+        <receiver
+            android:name=".ui.home.HomeFragment$myReceiver"
+            android:exported="false"/>
+
 
 
 

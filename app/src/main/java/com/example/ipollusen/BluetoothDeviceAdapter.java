@@ -33,10 +33,10 @@ public class BluetoothDeviceAdapter extends RecyclerView.Adapter<BluetoothDevice
     @Override
     public void onBindViewHolder(@NonNull DeviceViewHolder holder, int position) {
         RxBleDevice device = deviceList.get(position);
-        holder.deviceNameTextView.setText(device.getName());
+        holder.deviceNameTextView.setText(device.getName() != null ? device.getName() : "Unknown Device");
         holder.deviceMacTextView.setText(device.getMacAddress());
 
-        // Handle click event to update the selected device
+        // Handle click event to connect to the selected device
         holder.itemView.setOnClickListener(v -> {
             if (onDeviceClickListener != null) {
                 onDeviceClickListener.onDeviceClick(device);
@@ -64,4 +64,6 @@ public class BluetoothDeviceAdapter extends RecyclerView.Adapter<BluetoothDevice
     public interface OnDeviceClickListener {
         void onDeviceClick(RxBleDevice device);
     }
+
+
 }

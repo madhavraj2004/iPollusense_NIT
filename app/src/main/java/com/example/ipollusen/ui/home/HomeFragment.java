@@ -2,20 +2,21 @@ package com.example.ipollusen.ui.home;
 
 
 import static android.content.ContentValues.TAG;
+import static android.content.Context.RECEIVER_EXPORTED;
+import static android.content.Context.RECEIVER_NOT_EXPORTED;
 
 import static com.example.ipollusen.ui.home.SensorDataUtil.getAverage;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,7 +37,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
 import androidx.core.util.Pair;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -62,6 +62,7 @@ import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
@@ -91,7 +92,6 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -146,7 +146,7 @@ public class HomeFragment extends Fragment {
     private List<String> connectedDevicesList = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
     private String jsonString;
-    private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
+  //  private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
 
@@ -158,6 +158,9 @@ public class HomeFragment extends Fragment {
     private RxBleClient rxBleClient;
     private String targetDeviceMac;
 
+    private BluetoothDeviceAdapter bluetoothDeviceAdapter;
+    private RecyclerView deviceRecyclerView;
+    private List<RxBleDevice> scannedDevices = new ArrayList<>();
 
 
     private CheckBox liveCheckboxTemperature, liveCheckboxHumidity , liveCheckboxPressure , liveCheckboxPM1 , liveCheckboxPM2_5 , liveCheckboxPM10 , liveCheckboxCO , liveCheckboxVOC , liveCheckboxCO2 ;
@@ -170,6 +173,7 @@ public class HomeFragment extends Fragment {
     private LineData lineData;
     private List<LineDataSet> dataSetList;
 
+    private final MyMqttReceiver myReceiver = new MyMqttReceiver();
 
 
     private RxBleDevice selectedDevice;
@@ -194,7 +198,7 @@ public class HomeFragment extends Fragment {
         }
     };
     private CompositeDisposable disposables = new CompositeDisposable();
-    private File csvFile;
+  //  private File csvFile;
 
     private List<Float> liveDustData = new ArrayList<>();
     private List<Float> liveCOData = new ArrayList<>();
@@ -231,7 +235,6 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
         CheckBox liveCheckboxTemperature = view.findViewById(R.id.LivecheckboxTemperature);
         CheckBox liveCheckboxHumidity = view.findViewById(R.id.LivecheckboxHumidity);
         CheckBox liveCheckboxCO2 = view.findViewById(R.id.LivecheckboxCO2);
@@ -363,38 +366,38 @@ public class HomeFragment extends Fragment {
         });
 
         // Set up the location listener to update the TextView with current coordinates
-        LocationListener locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(@NonNull Location location) {
-                latitude = location.getLatitude();
-                longitude = location.getLongitude();
-
-                if (jsonObject != null && timestamp != null) {
-                    saveDataToCSV(jsonObject, timestamp, latitude, longitude);
-                } else {
-                    Log.e("LocationError", "JSON object or timestamp is not available.");
-                }
-
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-            }
-
-            @Override
-            public void onProviderEnabled(@NonNull String provider) {
-            }
-
-            @Override
-            public void onProviderDisabled(@NonNull String provider) {
-            }
-        };
-
-        // Request location updates (e.g., every 5 seconds or minimum distance change)
-        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, locationListener);
-        }
+//        LocationListener locationListener = new LocationListener() {
+//            @Override
+//            public void onLocationChanged(@NonNull Location location) {
+//                latitude = location.getLatitude();
+//                longitude = location.getLongitude();
+//
+//                if (jsonObject != null && timestamp != null) {
+//                    saveDataToCSV(jsonObject, timestamp, latitude, longitude);
+//                } else {
+//                    Log.e("LocationError", "JSON object or timestamp is not available.");
+//                }
+//
+//            }
+//
+//            @Override
+//            public void onStatusChanged(String provider, int status, Bundle extras) {
+//            }
+//
+//            @Override
+//            public void onProviderEnabled(@NonNull String provider) {
+//            }
+//
+//            @Override
+//            public void onProviderDisabled(@NonNull String provider) {
+//            }
+//        };
+//
+//        // Request location updates (e.g., every 5 seconds or minimum distance change)
+//        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION)
+//                == PackageManager.PERMISSION_GRANTED) {
+//            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, locationListener);
+//        }
         statusTextView = view.findViewById(R.id.statusTextView);
 
 
@@ -483,12 +486,12 @@ public class HomeFragment extends Fragment {
 
 
 
-        float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
+      //  float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
 
-        Log.d(TAG, "Live Dust Average: " + liveDustAverage);
+       // Log.d(TAG, "Live Dust Average: " + liveDustAverage);
 
-        float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
-        Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
+      //  float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
+      //  Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         setupliveChart();
         if (liveLineChart == null) {
@@ -505,7 +508,7 @@ public class HomeFragment extends Fragment {
 
         // Read data from the CSV and add markers
 
-        List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
+       // List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
 
 
         //Initialize the button and text view
@@ -562,16 +565,18 @@ public class HomeFragment extends Fragment {
     private void setupDeviceDropdown() {
         deviceList.add("Select Device");
         deviceList.add("Add New Device");
+
         if (deviceDropdown == null) {
             Log.e("HomeFragment", "deviceDropdown is NULL! Check fragment_home.xml ID.");
             return;
         }
+
         deviceAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, deviceList);
         deviceDropdown.setAdapter(deviceAdapter);
 
-        deviceDropdown.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+        deviceDropdown.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position == deviceList.size() - 1) { // "Add New Device" selected
                     addDeviceLayout.setVisibility(View.VISIBLE);
                 } else {
@@ -580,16 +585,15 @@ public class HomeFragment extends Fragment {
             }
 
             @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
     private void setupButtonListeners() {
-
         bluetoothOption.setOnClickListener(v -> {
             addDeviceLayout.setVisibility(View.GONE);
             bluetoothDeviceLayout.setVisibility(View.VISIBLE);
-
+            startScan();
         });
 
         mqttOption.setOnClickListener(v -> {
@@ -607,13 +611,16 @@ public class HomeFragment extends Fragment {
                 mqttDeviceLayout.setVisibility(View.GONE);
             }
         });
-        okButton.setOnClickListener(v -> mqttDeviceLayout.setVisibility(View.GONE));
+
         backButtonMqtt.setOnClickListener(v -> mqttDeviceLayout.setVisibility(View.GONE));
 
         scanButton.setOnClickListener(v -> startScan());
 
         backButtonBluetooth.setOnClickListener(v -> bluetoothDeviceLayout.setVisibility(View.GONE));
     }
+
+
+
 
     // Request Bluetooth permissions at runtime (for Android 12+)
     private void requestBluetoothPermissions() {
@@ -627,13 +634,95 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // for mqtt device data card
+
+    public class MyMqttReceiver extends BroadcastReceiver {
+        private static final String TAG = "MyMqttReceiver";
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "MQTT Broadcast received: " + intent.getAction());
+        }
+    }
+//    public class MyMqttReceiver extends BroadcastReceiver {
+//        @Override
+//        public void onReceive(Context context, Intent intent) {
+//            String action = intent.getAction();
+//            Log.d("MyMqttReceiver", "Received Broadcast: " + action);
+//
+//            if ("info.mqtt.android.service.MQTT_BROADCAST".equals(action)) {
+//                Log.d("MyMqttReceiver", "MQTT event received!");
+//            }
+//        }
+//    }
+    public static class myReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            Log.d("MyMqttReceiver", "Received Broadcast: " + action);
+
+            if ("info.mqtt.android.service.MQTT_BROADCAST".equals(action)) {
+                Log.d("MyMqttReceiver", "MQTT event received!");
+            }
+        }
+    }
     private void setupMqttDevice() {
         String clientId = UUID.randomUUID().toString();
+
+        // Register receiver with correct export settings
+        IntentFilter intentFilter = new IntentFilter("info.mqtt.android.service.MQTT_BROADCAST");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(myReceiver, intentFilter, Context.RECEIVER_EXPORTED);
+        } else {
+            requireContext().registerReceiver(myReceiver, intentFilter);
+        }
+
+
+
         mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
+        mqttClient.setCallback(new MqttCallbackExtended() {
+            @Override
+            public void connectComplete(boolean reconnect, String serverURI) {
+                Log.d("MQTT", "Connected. Reconnect: " + reconnect);
+                if (reconnect) {
+                    subscribeToDevice(MQTT_DEVICE);
+                }
+            }
+
+            @Override
+            public void connectionLost(Throwable cause) {
+                String errorMessage = (cause != null) ? cause.getMessage() : "Unknown error";
+                Log.e("MQTT", "Connection lost: " + errorMessage);
+                statusTextView.setText("Connection lost. Reconnecting...");
+                handler.postDelayed(() -> setupMqttDevice(), 2000);
+            }
+
+            @Override
+            public void messageArrived(String topic, MqttMessage message) throws Exception {
+                String receivedMessage = new String(message.getPayload());
+                Log.d("MQTT", "Message received: " + receivedMessage);
+                statusTextView.setText("Message received: " + receivedMessage);
+
+                try {
+                    JSONObject jsonObject = new JSONObject(receivedMessage);
+                    updatePredictionChart(jsonObject.toString());
+                    updateUIWithData(jsonObject.toString());
+                } catch (JSONException e) {
+                    Log.e("MQTT", "JSON parsing error: " + e.getMessage());
+                }
+            }
+
+            @Override
+            public void deliveryComplete(IMqttDeliveryToken token) {
+                Log.d("MQTT", "Message delivery completed");
+            }
+        });
+
+        // Set MQTT connection options
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
+        options.setAutomaticReconnect(true);
 
         try {
             mqttClient.connect(options, null, new IMqttActionListener() {
@@ -641,64 +730,50 @@ public class HomeFragment extends Fragment {
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
                     statusTextView.setText("Connected to MQTT broker");
-                    retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
-                    subscribeToDevice(MQTT_DEVICE); // Subscribe to the topic on connection
+                    retryInterval = RETRY_INTERVAL_MS;
+                    subscribeToDevice(MQTT_DEVICE);
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
-                    statusTextView.setText("Failed to connect: " + exception.getMessage());
+                    String errorMessage = exception != null ? exception.getMessage() : "Unknown error";
+                    Log.e("MQTT", "Failed to connect: " + errorMessage);
+                    statusTextView.setText("Failed to connect: " + errorMessage);
 
-                    // Retry connection logic with backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
                         Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
                         handler.postDelayed(() -> setupMqttDevice(), retryInterval);
-                        retryInterval *= 2; // Exponential backoff
+                        retryInterval *= 2;
                     } else {
-                        Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
+                        Log.e("MQTT", "Max retries reached.");
                         statusTextView.setText("Max retry attempts reached. Unable to connect.");
                     }
                 }
             });
 
-            mqttClient.setCallback(new MqttCallback() {
-                @Override
-                public void connectionLost(Throwable cause) {
-                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                    statusTextView.setText("Connection lost. Reconnecting...");
-                    // Try to reconnect if the connection is lost
-                    setupMqttDevice();
-                }
-
-                @Override
-                public void messageArrived(String MQTT_DEVICE, MqttMessage message) throws Exception {
-                    // When a message is received, update the UI or process the message as needed
-                    String receivedMessage = new String(message.getPayload());
-                    Log.d("MQTT", "Message received from topic " + MQTT_DEVICE + ": " + receivedMessage);
-                    statusTextView.setText("Message received: " + receivedMessage);
-
-                    // Process the message (example: parsing JSON, updating charts, etc.)
-                    JSONObject jsonObject = new JSONObject(receivedMessage);
-                    String jsonString = jsonObject.toString();
-
-                    // Update the UI with the parsed JSON string
-                    updatePredictionChart(jsonString);
-                    updateUIWithData(jsonString);
-
-                }
-
-                @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
-                    // Optional: Handle message delivery confirmation if necessary
-                    Log.d("MQTT", "Message delivery completed for token: " + token.getMessageId());
-                }
-            });
         } catch (Exception e) {
             Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
             statusTextView.setText("Error setting up MQTT client.");
         }
     }
+
+
+
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        requireContext().unregisterReceiver(myReceiver);
+    }
+
+
+
+
+
+
+
+
+
 
     // Method to subscribe to a topic
     private void subscribeToDevice(String MQTT_DEVICE) {
@@ -1224,23 +1299,23 @@ public class HomeFragment extends Fragment {
 
 
     // Helper method to create and add a LineDataSet with smooth lines
-    private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
-        ArrayList<Entry> entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", columnIndex, dataLimit);
-        LineDataSet dataSet = new LineDataSet(entries, label);
-
-        // Set chart properties for smoothness and style
-        dataSet.setColor(getResources().getColor(color));
-        dataSet.setLineWidth(2f);
-        dataSet.setDrawCircles(false); // Remove point markers for cleaner look
-
-        dataSet.setCubicIntensity(0.2f); // Smoothness intensity (adjust as needed)
-        dataSet.setDrawFilled(true); // Enable gradient fill
-        dataSet.setFillColor(getResources().getColor(fillColor));// Gradient fill color
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        dataSet.setDrawValues(false); // Remove value labels from data points
-
-        dataSets.add(dataSet);
-    }
+//    private void createAndAddDataSet(List<ILineDataSet> dataSets, String label, int columnIndex, int dataLimit, int color, int fillColor) {
+//        ArrayList<Entry> entries = SensorDataUtil.getSensorData(getContext(), "sensor_data.csv", columnIndex, dataLimit);
+//        LineDataSet dataSet = new LineDataSet(entries, label);
+//
+//        // Set chart properties for smoothness and style
+//        dataSet.setColor(getResources().getColor(color));
+//        dataSet.setLineWidth(2f);
+//        dataSet.setDrawCircles(false); // Remove point markers for cleaner look
+//
+//        dataSet.setCubicIntensity(0.2f); // Smoothness intensity (adjust as needed)
+//        dataSet.setDrawFilled(true); // Enable gradient fill
+//        dataSet.setFillColor(getResources().getColor(fillColor));// Gradient fill color
+//        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+//        dataSet.setDrawValues(false); // Remove value labels from data points
+//
+//        dataSets.add(dataSet);
+//    }
 
 
 
@@ -1259,12 +1334,15 @@ public class HomeFragment extends Fragment {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startScan();
-        } else {
-            statusTextView.setText("Permissions denied.");
+        if (requestCode == 1) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(requireContext(), "Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(requireContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
+            }
         }
     }
+
     // Code for scanning or updating the device list
     private void updateDeviceList(RxBleDevice device) {
         if (!discoveredDevices.contains(device)) {
@@ -1478,75 +1556,75 @@ public class HomeFragment extends Fragment {
     }
 
 
-    private void saveDataToCSV(JSONObject jsonObject, String timestamp, double latitude, double longitude) {
-        try {
-            if (csvFile == null) {
-                csvFile = new File(requireContext().getExternalFilesDir(null), "sensor_data.csv");
-            }
-
-            Log.d("CSV", "CSV file path: " + csvFile.getAbsolutePath());
-
-            boolean isNewFile = !csvFile.exists() || csvFile.length() == 0;
-
-            try (FileWriter writer = new FileWriter(csvFile, true)) {
-                if (isNewFile) {
-                    Log.d("CSV", "Writing headers to CSV...");
-                    writer.append("Timestamp,Temperature,Humidity,Pressure,PM1,PM2.5,PM10,CO,VOC,CO2,aqi_dust,aqi_co,aqi_voc,aqi_co2,aqi_dust_predicted,aqi_co_predicted,dust_status,co_status,Latitude,Longitude\n");
-                }
-
-                Log.d("CSV", "Parsing JSON object...");
-                JSONObject data = jsonObject.getJSONObject("data");
-                JSONObject calculated = jsonObject.getJSONObject("calculated");
-                JSONObject predicted = jsonObject.getJSONObject("predicted");
-                JSONObject status = jsonObject.getJSONObject("status");
-
-                Log.d("CSV", "Building row...");
-                String row = timestamp + "," +
-                        data.optDouble("temperature", 0) + "," +
-                        data.optDouble("humidity", 0) + "," +
-                        data.optDouble("pressure", 0) + "," +
-                        data.optInt("pm1", 0) + "," +
-                        data.optInt("pm2_5", 0) + "," +
-                        data.optInt("pm10", 0) + "," +
-                        data.optInt("co", 0) + "," +
-                        data.optInt("voc", 0) + "," +
-                        data.optInt("co2", 0) + "," +
-                        calculated.optInt("aqi_dust", 0) + "," +
-                        calculated.optInt("aqi_co", 0) + "," +
-                        calculated.optInt("aqi_voc", 0) + "," +
-                        calculated.optInt("aqi_co2", 0) + "," +
-                        predicted.optInt("aqi_dust", 0) + "," +
-                        predicted.optInt("aqi_co", 0) + "," +
-                        status.optInt("dust", 0) + "," +
-                        status.optInt("co", 0) + "," +
-                        latitude + "," +
-                        longitude + "\n";
-
-                Log.d("CSV", "Appending data row: " + row);
-                writer.append(row);
-                writer.flush();
-                Log.d("CSV", "Data successfully written to: " + csvFile.getAbsolutePath());
-            }
-
-        } catch (IOException | JSONException e) {
-            Log.e("CSV", "Error writing to CSV: ", e);
-        }
-    }
-
-
-
-    private void exportDataToCSV() {
-        if (csvFile != null && csvFile.exists()) {
-            Uri fileUri = FileProvider.getUriForFile(
-                    requireContext(), getContext().getPackageName() + ".provider", csvFile);
-            Intent intent = new Intent(Intent.ACTION_SEND);
-            intent.setType("text/csv");
-            intent.putExtra(Intent.EXTRA_STREAM, fileUri);
-            startActivity(Intent.createChooser(intent, "Share CSV File"));
-        } else {
-            Toast.makeText(requireContext(), "CSV file not available.", Toast.LENGTH_SHORT).show();
-        }
-    }
+//    private void saveDataToCSV(JSONObject jsonObject, String timestamp, double latitude, double longitude) {
+//        try {
+//            if (csvFile == null) {
+//                csvFile = new File(requireContext().getExternalFilesDir(null), "sensor_data.csv");
+//            }
+//
+//            Log.d("CSV", "CSV file path: " + csvFile.getAbsolutePath());
+//
+//            boolean isNewFile = !csvFile.exists() || csvFile.length() == 0;
+//
+//            try (FileWriter writer = new FileWriter(csvFile, true)) {
+//                if (isNewFile) {
+//                    Log.d("CSV", "Writing headers to CSV...");
+//                    writer.append("Timestamp,Temperature,Humidity,Pressure,PM1,PM2.5,PM10,CO,VOC,CO2,aqi_dust,aqi_co,aqi_voc,aqi_co2,aqi_dust_predicted,aqi_co_predicted,dust_status,co_status,Latitude,Longitude\n");
+//                }
+//
+//                Log.d("CSV", "Parsing JSON object...");
+//                JSONObject data = jsonObject.getJSONObject("data");
+//                JSONObject calculated = jsonObject.getJSONObject("calculated");
+//                JSONObject predicted = jsonObject.getJSONObject("predicted");
+//                JSONObject status = jsonObject.getJSONObject("status");
+//
+//                Log.d("CSV", "Building row...");
+//                String row = timestamp + "," +
+//                        data.optDouble("temperature", 0) + "," +
+//                        data.optDouble("humidity", 0) + "," +
+//                        data.optDouble("pressure", 0) + "," +
+//                        data.optInt("pm1", 0) + "," +
+//                        data.optInt("pm2_5", 0) + "," +
+//                        data.optInt("pm10", 0) + "," +
+//                        data.optInt("co", 0) + "," +
+//                        data.optInt("voc", 0) + "," +
+//                        data.optInt("co2", 0) + "," +
+//                        calculated.optInt("aqi_dust", 0) + "," +
+//                        calculated.optInt("aqi_co", 0) + "," +
+//                        calculated.optInt("aqi_voc", 0) + "," +
+//                        calculated.optInt("aqi_co2", 0) + "," +
+//                        predicted.optInt("aqi_dust", 0) + "," +
+//                        predicted.optInt("aqi_co", 0) + "," +
+//                        status.optInt("dust", 0) + "," +
+//                        status.optInt("co", 0) + "," +
+//                        latitude + "," +
+//                        longitude + "\n";
+//
+//                Log.d("CSV", "Appending data row: " + row);
+//                writer.append(row);
+//                writer.flush();
+//                Log.d("CSV", "Data successfully written to: " + csvFile.getAbsolutePath());
+//            }
+//
+//        } catch (IOException | JSONException e) {
+//            Log.e("CSV", "Error writing to CSV: ", e);
+//        }
+//    }
+//
+//
+//
+//    private void exportDataToCSV() {
+//        if (csvFile != null && csvFile.exists()) {
+//            Uri fileUri = FileProvider.getUriForFile(
+//                    requireContext(), getContext().getPackageName() + ".provider", csvFile);
+//            Intent intent = new Intent(Intent.ACTION_SEND);
+//            intent.setType("text/csv");
+//            intent.putExtra(Intent.EXTRA_STREAM, fileUri);
+//            startActivity(Intent.createChooser(intent, "Share CSV File"));
+//        } else {
+//            Toast.makeText(requireContext(), "CSV file not available.", Toast.LENGTH_SHORT).show();
+//        }
+//    }
 
     private void updateUIWithData(String jsonString) {
         if (jsonString == null || jsonString.trim().isEmpty()) {
@@ -1593,9 +1671,9 @@ public class HomeFragment extends Fragment {
 
 
 
-            timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+           // timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
-            saveDataToCSV(jsonObject, timestamp, latitude, longitude);
+            //saveDataToCSV(jsonObject, timestamp, latitude, longitude);
 
             // Scaling factors for each parameter (modify as needed)
             double scaledTemp = data.optDouble("temperature", 0) / 50.0;
@@ -1669,13 +1747,31 @@ public class HomeFragment extends Fragment {
 
 
 
-
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
+
+        // Ensure receiver and intent filter are defined
+        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d("MQTT", "Received broadcast: " + intent.getAction());
+            }
+        };
+        IntentFilter intentFilter = new IntentFilter("com.example.ipollusen.MQTT_EVENT");
+
+        // Register BroadcastReceiver with correct flags
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED);
+        } else {
+            requireContext().registerReceiver(broadcastReceiver, intentFilter);
+        }
+
+        // Create MQTT client with Ack.AUTO_ACK
         mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
+        options.setAutomaticReconnect(true);
 
         try {
             mqttClient.connect(options, null, new IMqttActionListener() {
@@ -1683,8 +1779,8 @@ public class HomeFragment extends Fragment {
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
                     statusTextView.setText("Connected to MQTT broker");
-                    retryInterval = RETRY_INTERVAL_MS; // Reset retry interval on successful connection
-                    subscribeToTopic(MQTT_TOPIC); // Subscribe to the topic on connection
+                    retryInterval = RETRY_INTERVAL_MS;
+                    subscribeToTopic(MQTT_TOPIC);
                 }
 
                 @Override
@@ -1692,13 +1788,13 @@ public class HomeFragment extends Fragment {
                     Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
                     statusTextView.setText("Failed to connect: " + exception.getMessage());
 
-                    // Retry connection logic with backoff
+                    // Retry with exponential backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
                         Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
                         handler.postDelayed(() -> setupMqttClient(), retryInterval);
-                        retryInterval *= 2; // Exponential backoff
+                        retryInterval *= 2;
                     } else {
-                        Log.e("MQTT", "Max retries reached. Unable to connect to MQTT broker.");
+                        Log.e("MQTT", "Max retries reached. Unable to connect.");
                         statusTextView.setText("Max retry attempts reached. Unable to connect.");
                     }
                 }
@@ -1709,22 +1805,28 @@ public class HomeFragment extends Fragment {
                 public void connectionLost(Throwable cause) {
                     Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
                     statusTextView.setText("Connection lost. Reconnecting...");
-                    // Try to reconnect if the connection is lost
-                    setupMqttClient();
+                    setupMqttClient(); // Reconnect on failure
                 }
 
                 @Override
-                public void messageArrived(String MQTT_TOPIC, MqttMessage message) throws Exception {
-                    // When a message is received, update the UI or process the message as needed
+                public void messageArrived(String topic, MqttMessage message) throws Exception {
                     String receivedMessage = new String(message.getPayload());
-                    Log.d("MQTT", "Message received from topic " + MQTT_TOPIC + ": " + receivedMessage);
+                    Log.d("MQTT", "Message received: " + receivedMessage);
+                    statusTextView.setText("Message: " + receivedMessage);
 
+                    // Update UI or process message
+                    try {
+                        JSONObject jsonObject = new JSONObject(receivedMessage);
+                        updatePredictionChart(jsonObject.toString());
+                        updateUIWithData(jsonObject.toString());
+                    } catch (JSONException e) {
+                        Log.e("MQTT", "JSON parsing error: " + e.getMessage());
+                    }
                 }
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
-                    // Optional: Handle message delivery confirmation if necessary
-                    Log.d("MQTT", "Message delivery completed for token: " + token.getMessageId());
+                    Log.d("MQTT", "Message delivery completed");
                 }
             });
         } catch (Exception e) {
@@ -1732,6 +1834,7 @@ public class HomeFragment extends Fragment {
             statusTextView.setText("Error setting up MQTT client.");
         }
     }
+
 
     // Method to subscribe to a topic
     private void subscribeToTopic(String MQTT_TOPIC) {
