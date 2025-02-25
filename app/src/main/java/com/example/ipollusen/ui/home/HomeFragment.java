@@ -207,7 +207,8 @@ public class HomeFragment extends Fragment {
 
 
 
-
+    private static final int MAX_DATA_POINTS = 100;
+    private static final String API_URL = "http://52.250.54.24:3500/api/node/filter";
     private ArrayList<Entry> tempData, humData, pressData;
     private ArrayList<Entry> pm1Data, pm2Data, pm10Data, coData, vocData, co2Data;
 
@@ -672,7 +673,7 @@ public class HomeFragment extends Fragment {
         IntentFilter intentFilter = new IntentFilter("info.mqtt.android.service.MQTT_BROADCAST");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requireContext().registerReceiver(myReceiver, intentFilter, Context.RECEIVER_EXPORTED);
+            requireContext().registerReceiver(myReceiver, intentFilter, RECEIVER_EXPORTED);
         } else {
             requireContext().registerReceiver(myReceiver, intentFilter);
         }
@@ -872,125 +873,6 @@ public class HomeFragment extends Fragment {
         Log.d("HomeFragment", "Chart setup completed");
     }
 
-    private void setupDatePicker() {
-        Log.d("HomeFragment", "Initializing date picker");
-        MaterialDatePicker.Builder<Pair<Long, Long>> materialDateBuilder = MaterialDatePicker.Builder.dateRangePicker();
-        materialDateBuilder.setTitleText("SELECT A DATE");
-        final MaterialDatePicker<Pair<Long, Long>> materialDatePicker = materialDateBuilder.build();
-
-        mPickDateButton.setOnClickListener(v -> materialDatePicker.show(getParentFragmentManager(), "MATERIAL_DATE_PICKER"));
-
-        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-            String startDate = sdf.format(new Date(selection.first));
-            String endDate = sdf.format(new Date(selection.second));
-
-            Log.d("HomeFragment", "Selected date range: " + startDate + " to " + endDate);
-
-            String selectedDate = "Selected Date is : " + materialDatePicker.getHeaderText();
-            mShowSelectedDateText.setText(selectedDate);
-
-            fetchData(startDate, endDate);
-        });
-    }
-
-    private void fetchData(String start, String end) {
-        String url = "http://52.250.54.24:3500/api/node/filter";
-        JSONObject jsonBody = new JSONObject();
-        try {
-            // Convert date format to expected "dd/MM/yyyy HH:mm:ss"
-            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-
-            Date startDate = inputFormat.parse(start);
-            Date endDate = inputFormat.parse(end);
-
-            String formattedStart = outputFormat.format(startDate);
-            String formattedEnd = outputFormat.format(endDate);
-
-            jsonBody.put("start", formattedStart);
-            jsonBody.put("end", formattedEnd);
-
-            // Ensure nodeValue only contains "1192"
-            String nodeId = MQTT_DEVICE.replace("data/", ""); // Remove "data/" prefix
-            jsonBody.put("nodeValue", nodeId);
-
-            Log.d("API_REQUEST", "Formatted JSON Body: " + jsonBody.toString());
-
-        } catch (JSONException | ParseException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        postData(url, jsonBody);
-    }
-
-
-    private void postData(String url, JSONObject jsonBody) {
-        Log.d("HomeFragment", "Sending POST request to: " + url);
-        OkHttpClient client = new OkHttpClient();
-
-        MediaType JSON = MediaType.get("application/json; charset=utf-8");
-        String json = jsonBody.toString();
-
-        RequestBody body = RequestBody.create(json, JSON);
-        Request request = new Request.Builder()
-                .url(url)
-                .post(body)
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                Log.e("API_ERROR", "Error sending POST request: " + e.getMessage());
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                Log.d("API_RESPONSE", "Response received with code: " + response.code());
-                if (response.isSuccessful()) {
-                    try {
-                        String responseString = response.body().string();
-                        Log.d("API_RESPONSE", "Response body: " + responseString);
-                        JSONObject jsonResponse = new JSONObject(responseString);
-                        parseAndDisplayData(jsonResponse);
-                    } catch (JSONException e) {
-                        Log.e("API_ERROR", "JSON Parsing error: " + e.getMessage());
-                    }
-                } else {
-                    Log.e("API_ERROR", "Error response: " + response.message());
-                }
-            }
-        });
-    }
-
-    private void parseAndDisplayData(JSONObject response) {
-        Log.d("HomeFragment", "Parsing response data");
-        List<Entry> entries = new ArrayList<>();
-        try {
-            JSONArray dataArray = response.getJSONArray("data");
-            Log.d("API_DATA", "Data array size: " + dataArray.length());
-            for (int i = 0; i < dataArray.length(); i++) {
-                JSONObject dataPoint = dataArray.getJSONObject(i);
-                float xValue = (float) i;
-                float yValue = (float) dataPoint.getDouble("value");
-                entries.add(new Entry(xValue, yValue));
-            }
-        } catch (JSONException e) {
-            Log.e("API_ERROR", "Error parsing JSON data: " + e.getMessage());
-            return;
-        }
-
-        Log.d("HomeFragment", "Updating chart with new data");
-        LineDataSet dataSet = new LineDataSet(entries, "Sensor Data");
-        dataSet.setColor(Color.BLUE);
-        dataSet.setValueTextColor(Color.BLACK);
-
-        LineData lineData = new LineData(dataSet);
-        lineChart.setData(lineData);
-        lineChart.invalidate();
-        Log.d("HomeFragment", "Chart updated successfully");
-    }
     private void initCheckBoxes(View view) {
         tempCheckbox = view.findViewById(R.id.checkboxTemperature);
         humCheckbox = view.findViewById(R.id.checkboxHumidity);
@@ -1015,39 +897,184 @@ public class HomeFragment extends Fragment {
 
     }
 
+    private void setupDatePicker() {
+        Log.d("HomeFragment", "Initializing date picker");
+
+        MaterialDatePicker.Builder<Pair<Long, Long>> materialDateBuilder = MaterialDatePicker.Builder.dateRangePicker();
+        materialDateBuilder.setTitleText("SELECT A DATE");
+
+        final MaterialDatePicker<Pair<Long, Long>> materialDatePicker = materialDateBuilder.build();
+
+        mPickDateButton.setOnClickListener(v -> materialDatePicker.show(getParentFragmentManager(), "MATERIAL_DATE_PICKER"));
+
+        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
+            if (selection.first != null && selection.second != null) {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+
+                // Append default time (Start of day and end of day)
+                String startDate = sdf.format(new Date(selection.first)).split(" ")[0] + " 00:00:00";
+                String endDate = sdf.format(new Date(selection.second)).split(" ")[0] + " 23:59:59";
+
+                Log.d("HomeFragment", "Selected date range: " + startDate + " to " + endDate);
+
+                String selectedDate = "Selected Date: " + materialDatePicker.getHeaderText();
+                mShowSelectedDateText.setText(selectedDate);
+
+                // Send formatted request
+                fetchData(startDate, endDate);
+            } else {
+                Log.e("HomeFragment", "Date selection was null");
+            }
+        });
+    }
+
+
+    private void fetchData(String startDate, String endDate) {
+        OkHttpClient client = new OkHttpClient();
+        JSONObject jsonBody = new JSONObject();
+
+        try {
+            jsonBody.put("start", startDate);
+            jsonBody.put("end", endDate);
+            jsonBody.put("nodeValue", "1192"); // Static node value as required
+            Log.d("API_REQUEST", "Sent JSON: " + jsonBody.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        RequestBody body = RequestBody.create(jsonBody.toString(), MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder()
+                .url(API_URL)
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e("API_ERROR", "Request failed: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        String responseString = response.body().string();
+                        Log.d("API_RESPONSE", "Received JSON: " + responseString);
+                        JSONObject jsonResponse = new JSONObject(responseString);
+                        parseAndStoreData(jsonResponse);
+                    } catch (JSONException e) {
+                        Log.e("API_ERROR", "JSON Parsing error: " + e.getMessage());
+                    }
+                } else {
+                    Log.e("API_ERROR", "Response unsuccessful: " + response.code());
+                }
+            }
+        });
+    }
+
+    private void parseAndStoreData(JSONObject response) {
+        sensorData.clear();
+        JSONArray dataArray = response.optJSONArray("data");
+
+        if (dataArray == null || dataArray.length() == 0) {
+            Log.e("API_ERROR", "No data received.");
+            return;
+        }
+
+        int dataSize = dataArray.length();
+        int targetSize = 100;  // Ensure at least 100 meaningful points
+        int step = Math.max(1, dataSize / targetSize);
+        Log.d("DATA_PROCESS", "Total received data points: " + dataSize + ", Step: " + step);
+
+        // Averaging nearby values
+        for (int i = 0; i < dataSize; i += step) {
+            double sumTemperature = 0, sumHumidity = 0, sumPressure = 0, sumPM1 = 0;
+            double sumPM2_5 = 0, sumPM10 = 0, sumCO = 0, sumVOC = 0, sumCO2 = 0;
+            int count = 0;
+
+            for (int j = i; j < i + step && j < dataSize; j++) {
+                JSONObject dataObject = dataArray.optJSONObject(j);
+                if (dataObject == null) continue;
+
+                JSONObject activityData = dataObject.optJSONObject("activityData");
+                if (activityData == null) continue;
+
+                JSONObject dataPoint = activityData.optJSONObject("data");
+                if (dataPoint == null) continue;
+
+                sumTemperature += dataPoint.optDouble("temperature", 0);
+                sumHumidity += dataPoint.optDouble("humidity", 0);
+                sumPressure += dataPoint.optDouble("pressure", 0);
+                sumPM1 += dataPoint.optDouble("pm1", 0);
+                sumPM2_5 += dataPoint.optDouble("pm2_5", 0);
+                sumPM10 += dataPoint.optDouble("pm10", 0);
+                sumCO += dataPoint.optDouble("co", 0);
+                sumVOC += dataPoint.optDouble("voc", 0);
+                sumCO2 += dataPoint.optDouble("co2", 0);
+                count++;
+            }
+
+            if (count > 0) {
+                float xValue = i / (float) step;  // Ensuring proper x-value spacing
+
+                addDataEntry("temperature", xValue, sumTemperature / count);
+                addDataEntry("humidity", xValue, sumHumidity / count);
+                addDataEntry("pressure", xValue, sumPressure / count);
+                addDataEntry("pm1", xValue, sumPM1 / count);
+                addDataEntry("pm2.5", xValue, sumPM2_5 / count);
+                addDataEntry("pm10", xValue, sumPM10 / count);
+                addDataEntry("co", xValue, sumCO / count);
+                addDataEntry("voc", xValue, sumVOC / count);
+                addDataEntry("co2", xValue, sumCO2 / count);
+            }
+        }
+
+        Log.d("HomeFragment", "Data successfully parsed and stored. Displaying " + sensorData.get("temperature").size() + " points.");
+    }
+    private void addDataEntry(String key, float x, double y) {
+        if (!sensorData.containsKey(key)) {
+            sensorData.put(key, new ArrayList<>());
+        }
+        sensorData.get(key).add(new Entry(x, (float) y));
+    }
+
     private void updateChart() {
         LineData data = new LineData();
-        if (tempCheckbox.isChecked() && sensorData.containsKey("temperature")) {
+
+        if (tempCheckbox.isChecked() && sensorData.containsKey("temperature") && !sensorData.get("temperature").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("temperature"), "Temperature", Color.RED));
         }
-        if (humCheckbox.isChecked() && sensorData.containsKey("humidity")) {
+        if (humCheckbox.isChecked() && sensorData.containsKey("humidity") && !sensorData.get("humidity").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("humidity"), "Humidity", Color.BLUE));
         }
-        if (co2Checkbox.isChecked() && sensorData.containsKey("co2")) {
+        if (co2Checkbox.isChecked() && sensorData.containsKey("co2") && !sensorData.get("co2").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("co2"), "CO2", Color.GREEN));
         }
-        if (pressCheckbox.isChecked() && sensorData.containsKey("pressure")) {
+        if (pressCheckbox.isChecked() && sensorData.containsKey("pressure") && !sensorData.get("pressure").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("pressure"), "Pressure", Color.YELLOW));
         }
-        if (vocCheckbox.isChecked() && sensorData.containsKey("voc")) {
+        if (vocCheckbox.isChecked() && sensorData.containsKey("voc") && !sensorData.get("voc").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("voc"), "VOC", Color.MAGENTA));
         }
-        if (coCheckbox.isChecked() && sensorData.containsKey("co")) {
+        if (coCheckbox.isChecked() && sensorData.containsKey("co") && !sensorData.get("co").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("co"), "CO", Color.CYAN));
         }
-        if (pm1Checkbox.isChecked() && sensorData.containsKey("pm1")) {
+        if (pm1Checkbox.isChecked() && sensorData.containsKey("pm1") && !sensorData.get("pm1").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("pm1"), "PM1", Color.DKGRAY));
         }
-        if (pm2Checkbox.isChecked() && sensorData.containsKey("pm2.5")) {
+        if (pm2Checkbox.isChecked() && sensorData.containsKey("pm2.5") && !sensorData.get("pm2.5").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("pm2.5"), "PM2.5", Color.LTGRAY));
         }
-        if (pm10Checkbox.isChecked() && sensorData.containsKey("pm10")) {
+        if (pm10Checkbox.isChecked() && sensorData.containsKey("pm10") && !sensorData.get("pm10").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("pm10"), "PM10", Color.BLACK));
         }
 
         lineChart.setData(data);
         lineChart.invalidate(); // Refresh chart
+        Log.d("ChartUpdate", "Updated chart with " + data.getDataSetCount() + " datasets.");
     }
+
 
     private LineDataSet createDataSet(List<Entry> values, String label, int color) {
         LineDataSet dataSet = new LineDataSet(values, label);
