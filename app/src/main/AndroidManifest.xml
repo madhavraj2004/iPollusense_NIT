@@ -70,9 +70,7 @@
                 android:resource="@xml/file_paths"
                 tools:replace="android:resource"/>
         </provider>
-        <receiver
-            android:name=".ui.home.HomeFragment$myReceiver"
-            android:exported="true" />
+
 
 
 

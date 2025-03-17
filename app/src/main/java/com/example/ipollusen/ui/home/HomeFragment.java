@@ -173,7 +173,7 @@ public class HomeFragment extends Fragment {
     private LineData lineData;
     private List<LineDataSet> dataSetList;
 
-    private final MyMqttReceiver myReceiver = new MyMqttReceiver();
+
 
 
     private RxBleDevice selectedDevice;
@@ -236,6 +236,16 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+
+        IntentFilter filter = new IntentFilter("your.mqtt.broadcast.ACTION");
+
+        // ✅ Register the BroadcastReceiver with NOT_EXPORTED flag
+        requireActivity().registerReceiver(mqttBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
+
+
+
+        deviceSpinner = view.findViewById(R.id.deviceDropdown);
+        deviceDropdown = view.findViewById(R.id.deviceDropdown);
         CheckBox liveCheckboxTemperature = view.findViewById(R.id.LivecheckboxTemperature);
         CheckBox liveCheckboxHumidity = view.findViewById(R.id.LivecheckboxHumidity);
         CheckBox liveCheckboxCO2 = view.findViewById(R.id.LivecheckboxCO2);
@@ -258,12 +268,11 @@ public class HomeFragment extends Fragment {
 
 
         // Initialize UI Elements
-        deviceDropdown = view.findViewById(R.id.deviceDropdown);
+
         addDeviceLayout = view.findViewById(R.id.addDeviceLayout);
         mqttDeviceLayout = view.findViewById(R.id.mqttDeviceLayout);
         bluetoothDeviceLayout = view.findViewById(R.id.bluetoothDeviceLayout);
         statusTextView = view.findViewById(R.id.statusTextView);
-        deviceSpinner = view.findViewById(R.id.deviceDropdown);
 
 
         bluetoothOption = view.findViewById(R.id.bluetoothOption);
@@ -280,7 +289,7 @@ public class HomeFragment extends Fragment {
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         requestBluetoothPermissions(); // Ensure permissions are granted at launch
-        setupDeviceDropdown();
+
         setupButtonListeners();
         Configuration.getInstance().setUserAgentValue("com.example.ipollusen");
         // Load connected devices from SharedPreferences
@@ -297,7 +306,8 @@ public class HomeFragment extends Fragment {
 
             // Hide RecyclerView once a device is selected
             bluetoothRecyclerView.setVisibility(View.GONE);
-
+            connectToDevice();
+            bluetoothDeviceLayout.setVisibility(View.GONE);
             // Add the selected device to the Spinner if not already present
             String deviceInfo = device.getName() + " (" + device.getMacAddress() + ")";
             if (!connectedDevicesList.contains(deviceInfo)) {
@@ -452,11 +462,12 @@ public class HomeFragment extends Fragment {
 
             // Setup MQTT for the specified device
             setupMqttDevice();
+            mqttDeviceLayout.setVisibility(View.GONE);
         });
 
         //exportButton.setOnClickListener(v -> exportDataToCSV());
         scanButton.setOnClickListener(v -> startScan());
-        okButton.setOnClickListener(v -> connectToDevice());
+
 
 
         rxBleClient = RxBleClient.create(requireContext());
@@ -562,6 +573,8 @@ public class HomeFragment extends Fragment {
         // Optionally call the update method initially if needed
         updatePredictionChart(jsonString);
     }
+
+
     //for ui setup for device connection
     private void setupDeviceDropdown() {
         deviceList.add("Select Device");
@@ -636,49 +649,30 @@ public class HomeFragment extends Fragment {
     }
 
 
-    public class MyMqttReceiver extends BroadcastReceiver {
-        private static final String TAG = "MyMqttReceiver";
-
+    private BroadcastReceiver mqttBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "MQTT Broadcast received: " + intent.getAction());
+            Log.d("MQTT", "Received broadcast: " + intent.getAction());
         }
-    }
-//    public class MyMqttReceiver extends BroadcastReceiver {
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            String action = intent.getAction();
-//            Log.d("MyMqttReceiver", "Received Broadcast: " + action);
-//
-//            if ("info.mqtt.android.service.MQTT_BROADCAST".equals(action)) {
-//                Log.d("MyMqttReceiver", "MQTT event received!");
-//            }
-//        }
-//    }
-    public static class myReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            Log.d("MyMqttReceiver", "Received Broadcast: " + action);
+    };
 
-            if ("info.mqtt.android.service.MQTT_BROADCAST".equals(action)) {
-                Log.d("MyMqttReceiver", "MQTT event received!");
-            }
-        }
-    }
+
     private void setupMqttDevice() {
         String clientId = UUID.randomUUID().toString();
 
-        // Register receiver with correct export settings
-        IntentFilter intentFilter = new IntentFilter("info.mqtt.android.service.MQTT_BROADCAST");
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requireContext().registerReceiver(myReceiver, intentFilter, RECEIVER_EXPORTED);
+        // ✅ Fix: Explicitly set RECEIVER_NOT_EXPORTED for Android 13+
+        IntentFilter filter = new IntentFilter("info.mqtt.android.service.MQTT_BROADCAST");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            requireActivity().registerReceiver(mqttBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
+
         } else {
-            requireContext().registerReceiver(myReceiver, intentFilter);
+            requireContext().registerReceiver(mqttBroadcastReceiver, filter);
         }
 
 
+        // ✅ Fix: Set correct MQTT Ping sender
+        System.setProperty("mqtt.ping.sender", "org.eclipse.paho.android.service.MqttService");
 
         mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
@@ -693,8 +687,7 @@ public class HomeFragment extends Fragment {
 
             @Override
             public void connectionLost(Throwable cause) {
-                String errorMessage = (cause != null) ? cause.getMessage() : "Unknown error";
-                Log.e("MQTT", "Connection lost: " + errorMessage);
+                Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
                 statusTextView.setText("Connection lost. Reconnecting...");
                 handler.postDelayed(() -> setupMqttDevice(), 2000);
             }
@@ -704,14 +697,6 @@ public class HomeFragment extends Fragment {
                 String receivedMessage = new String(message.getPayload());
                 Log.d("MQTT", "Message received: " + receivedMessage);
                 statusTextView.setText("Message received: " + receivedMessage);
-
-                try {
-                    JSONObject jsonObject = new JSONObject(receivedMessage);
-                    updatePredictionChart(jsonObject.toString());
-                    updateUIWithData(jsonObject.toString());
-                } catch (JSONException e) {
-                    Log.e("MQTT", "JSON parsing error: " + e.getMessage());
-                }
             }
 
             @Override
@@ -720,7 +705,6 @@ public class HomeFragment extends Fragment {
             }
         });
 
-        // Set MQTT connection options
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
         options.setAutomaticReconnect(true);
@@ -731,24 +715,13 @@ public class HomeFragment extends Fragment {
                 public void onSuccess(IMqttToken asyncActionToken) {
                     Log.d("MQTT", "Connected to MQTT broker");
                     statusTextView.setText("Connected to MQTT broker");
-                    retryInterval = RETRY_INTERVAL_MS;
                     subscribeToDevice(MQTT_DEVICE);
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    String errorMessage = exception != null ? exception.getMessage() : "Unknown error";
-                    Log.e("MQTT", "Failed to connect: " + errorMessage);
-                    statusTextView.setText("Failed to connect: " + errorMessage);
-
-                    if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
-                        Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
-                        handler.postDelayed(() -> setupMqttDevice(), retryInterval);
-                        retryInterval *= 2;
-                    } else {
-                        Log.e("MQTT", "Max retries reached.");
-                        statusTextView.setText("Max retry attempts reached. Unable to connect.");
-                    }
+                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
+                    statusTextView.setText("Failed to connect: " + exception.getMessage());
                 }
             });
 
@@ -761,11 +734,7 @@ public class HomeFragment extends Fragment {
 
 
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        requireContext().unregisterReceiver(myReceiver);
-    }
+
 
 
 
@@ -1777,23 +1746,20 @@ public class HomeFragment extends Fragment {
     private void setupMqttClient() {
         String clientId = UUID.randomUUID().toString();
 
-        // Ensure receiver and intent filter are defined
-        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        // Define the BroadcastReceiver
+        BroadcastReceiver mqttBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.d("MQTT", "Received broadcast: " + intent.getAction());
             }
         };
+
         IntentFilter intentFilter = new IntentFilter("com.example.ipollusen.MQTT_EVENT");
+        requireContext().registerReceiver(mqttBroadcastReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
 
-        // Register BroadcastReceiver with correct flags
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requireContext().registerReceiver(broadcastReceiver, intentFilter, RECEIVER_EXPORTED);
-        } else {
-            requireContext().registerReceiver(broadcastReceiver, intentFilter);
-        }
+        // ✅ Force MQTT to use ServicePingSender instead of AlarmPingSender
+        System.setProperty("mqtt.ping.sender", "org.eclipse.paho.android.service.MqttService");
 
-        // Create MQTT client with Ack.AUTO_ACK
         mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
 
         MqttConnectOptions options = new MqttConnectOptions();
@@ -1812,16 +1778,15 @@ public class HomeFragment extends Fragment {
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to connect to MQTT broker: " + exception.toString());
+                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
                     statusTextView.setText("Failed to connect: " + exception.getMessage());
 
-                    // Retry with exponential backoff
                     if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
                         Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
                         handler.postDelayed(() -> setupMqttClient(), retryInterval);
                         retryInterval *= 2;
                     } else {
-                        Log.e("MQTT", "Max retries reached. Unable to connect.");
+                        Log.e("MQTT", "Max retries reached.");
                         statusTextView.setText("Max retry attempts reached. Unable to connect.");
                     }
                 }
@@ -1832,7 +1797,7 @@ public class HomeFragment extends Fragment {
                 public void connectionLost(Throwable cause) {
                     Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
                     statusTextView.setText("Connection lost. Reconnecting...");
-                    setupMqttClient(); // Reconnect on failure
+                    handler.postDelayed(() -> setupMqttClient(), 2000);
                 }
 
                 @Override
@@ -1841,7 +1806,6 @@ public class HomeFragment extends Fragment {
                     Log.d("MQTT", "Message received: " + receivedMessage);
                     statusTextView.setText("Message: " + receivedMessage);
 
-                    // Update UI or process message
                     try {
                         JSONObject jsonObject = new JSONObject(receivedMessage);
                         updatePredictionChart(jsonObject.toString());
@@ -1856,11 +1820,14 @@ public class HomeFragment extends Fragment {
                     Log.d("MQTT", "Message delivery completed");
                 }
             });
+
         } catch (Exception e) {
             Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
             statusTextView.setText("Error setting up MQTT client.");
         }
     }
+
+
 
 
     // Method to subscribe to a topic
@@ -1973,6 +1940,8 @@ public class HomeFragment extends Fragment {
             return coordinates;
         }
     }
+
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
@@ -1986,6 +1955,7 @@ public class HomeFragment extends Fragment {
         if (mqttClient != null) {
             mqttClient.disconnect();
         }
+        requireActivity().unregisterReceiver(mqttBroadcastReceiver);
     }
 
 }

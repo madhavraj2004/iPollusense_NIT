@@ -156,10 +156,18 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content" />
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/bluetoothRecyclerView"
+                        <!-- NestedScrollView to make only the RecyclerView scrollable -->
+                        <androidx.core.widget.NestedScrollView
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="200dp"
+                            android:fillViewport="true">
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/bluetoothRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:nestedScrollingEnabled="true" />
+                        </androidx.core.widget.NestedScrollView>
 
                         <Button
                             android:id="@+id/scanButton"
