@@ -35,7 +35,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
+import com.example.ipollusen.R;
 public class MapsFragment extends Fragment {
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;

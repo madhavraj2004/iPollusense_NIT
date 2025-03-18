@@ -15,7 +15,7 @@ import androidx.fragment.app.Fragment;
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.firebase.auth.FirebaseAuth;
-
+import com.example.ipollusen.R;
 public class LogoutFragment extends Fragment {
 
     private Button logoutButton;

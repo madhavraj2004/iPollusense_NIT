@@ -41,7 +41,8 @@
         <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyDcZZGpOPfDWbhg4JiJ0CeQQfVNmKC45zM"/>
 
         <!-- SplashActivity as the launcher activity -->
-        <activity android:name=".SplashActivity" android:exported="true">
+        <activity android:name=".SplashActivity"
+                  android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

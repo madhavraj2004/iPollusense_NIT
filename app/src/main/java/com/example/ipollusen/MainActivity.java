@@ -1,5 +1,5 @@
 package com.example.ipollusen;
-
+import com.example.ipollusen.R;
 import static android.app.PendingIntent.getActivity;
 
 import android.app.NotificationChannel;

@@ -1,4 +1,4 @@
-package com.example.ipollusen;
+package com.example.ipollusense;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;

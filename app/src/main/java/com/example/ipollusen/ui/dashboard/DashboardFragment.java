@@ -16,7 +16,7 @@ import com.example.ipollusen.R;
 
 public class DashboardFragment extends Fragment {
 
-    private static final String GOOGLE_FORM_URL = "https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__QX0V2BUQ0RFOTBOOUkwMjQwSVczOFg0TDhBU1U1Vi4u";
+    private static final String WEBPAGE_URL = "https://ipollusense-annotate.web.app"; // Updated URL
 
     private WebView webView;
 
@@ -36,8 +36,8 @@ public class DashboardFragment extends Fragment {
             // Set WebViewClient to open links within the WebView
             webView.setWebViewClient(new WebViewClient());
 
-            // Load the Google Form
-            webView.loadUrl(GOOGLE_FORM_URL);
+            // Load the new webpage URL
+            webView.loadUrl(WEBPAGE_URL); // Updated URL
         } else {
             // Log or handle the case where WebView is not found
             throw new IllegalStateException("WebView with ID webViewGoogleForm not found in fragment_dashboard layout.");
