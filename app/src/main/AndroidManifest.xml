@@ -68,14 +68,6 @@
                 android:resource="@xml/file_paths"
                 tools:replace="android:resource"/>
         </provider>
-        <receiver
-            android:name=".CustomAlarmPingSender"
-            android:exported="false" />
-
-        <service
-            android:name="info.mqtt.android.service.MqttService"
-            android:enabled="true"
-            android:exported="false" />
 
 
 

@@ -1,18 +1,9 @@
 package com.example.ipollusen.ui.home;
 
 
-import static android.content.ContentValues.TAG;
-import static android.content.Context.RECEIVER_EXPORTED;
-import static android.content.Context.RECEIVER_NOT_EXPORTED;
-
-import static com.example.ipollusen.ui.home.SensorDataUtil.getAverage;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
-import android.content.BroadcastReceiver;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -44,7 +35,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 
 import com.example.ipollusen.BluetoothDeviceAdapter;
-import com.example.ipollusen.CustomAlarmPingSender;
 import com.example.ipollusen.R;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
 import com.github.mikephil.charting.charts.BarChart;
@@ -59,16 +49,6 @@ import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
 
-import org.eclipse.paho.client.mqttv3.IMqttActionListener;
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.IMqttToken;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-
 import android.widget.CheckBox;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -81,7 +61,6 @@ import java.io.FileReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -111,7 +90,6 @@ import java.util.UUID;
 import android.content.Context;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import info.mqtt.android.service.MqttAndroidClient;
-import info.mqtt.android.service.Ack;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
