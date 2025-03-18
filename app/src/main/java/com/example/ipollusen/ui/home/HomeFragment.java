@@ -44,6 +44,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 
 import com.example.ipollusen.BluetoothDeviceAdapter;
+import com.example.ipollusen.CustomAlarmPingSender;
 import com.example.ipollusen.R;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
 import com.github.mikephil.charting.charts.BarChart;
@@ -63,7 +64,9 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
+import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import android.widget.CheckBox;
@@ -75,10 +78,14 @@ import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -98,6 +105,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import android.content.Context;
@@ -127,20 +135,34 @@ public class HomeFragment extends Fragment {
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
     private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
     private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
-
+    private static final String HTTP_ENDPOINT = "https://nitdgp2.a.pinggy.link/mqtt-post";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
     //private static final String TARGET_DEVICE_MAC = "7C:DF:A1:EE:D4:96";
     private static String MQTT_TOPIC = ""; // Default topic
     private static final int MAX_RECORDS = 10; // Size of the data queue for each parameter
     private static final String SHARED_PREFS_NAME = "connected_devices_prefs";
     private static final String KEY_CONNECTED_DEVICES = "connected_devices";
-
+    private String lastSentData = null; // Store the last sent JSON data
     private static String MQTT_DEVICE = "";
     private MqttAndroidClient mqttClient;
-    private String currentTopic;
+    private LineChart lineChart;
+
     private Map<String, List<Entry>> currentData = new HashMap<>();
+    private boolean isHistoricalMode = false;
 
 
+    private static final long BUFFER_TIME_LIMIT = 20 * 60 * 1000; // 20 minutes in milliseconds
+
+    // Store sensor data lists for LineChart
+    private final HashMap<String, ArrayList<Entry>> sensorData = new HashMap<>();
+
+    // Initialize sensorData HashMap
+    private void initializeSensorData() {
+        String[] keys = {"temperature", "humidity", "co2", "pressure", "voc", "co", "pm1", "pm2.5", "pm10"};
+        for (String key : keys) {
+            sensorData.put(key, new ArrayList<>()); // Each sensor type gets its own list
+        }
+    }
 
     private Spinner deviceSpinner;
     private List<String> connectedDevicesList = new ArrayList<>();
@@ -166,9 +188,9 @@ public class HomeFragment extends Fragment {
     private CheckBox liveCheckboxTemperature, liveCheckboxHumidity , liveCheckboxPressure , liveCheckboxPM1 , liveCheckboxPM2_5 , liveCheckboxPM10 , liveCheckboxCO , liveCheckboxVOC , liveCheckboxCO2 ;
 
     private FragmentHomeBinding binding;
-    private LineChart lineChart;
+
     private CheckBox tempCheckbox, humCheckbox, co2Checkbox, pressCheckbox, vocCheckbox, coCheckbox, pm1Checkbox, pm2Checkbox, pm10Checkbox;
-    private HashMap<String, List<Entry>> sensorData = new HashMap<>();
+
 
     private LineData lineData;
     private List<LineDataSet> dataSetList;
@@ -192,8 +214,8 @@ public class HomeFragment extends Fragment {
         @Override
         public void run() {
             if (connection != null) {
-                readCharacteristic();
-                handler.postDelayed(this, 5000);
+
+                handler.postDelayed(this, 10000);
             }
         }
     };
@@ -206,7 +228,18 @@ public class HomeFragment extends Fragment {
 
 
 
+    private static final int BUFFER_SIZE = 20;
 
+    // Create a queue for storing the latest data
+    private Queue<Float> temperatureBuffer = new LinkedList<>();
+    private Queue<Float> humidityBuffer = new LinkedList<>();
+    private Queue<Float> pressureBuffer = new LinkedList<>();
+    private Queue<Float> pm1Buffer = new LinkedList<>();
+    private Queue<Float> pm2_5Buffer = new LinkedList<>();
+    private Queue<Float> pm10Buffer = new LinkedList<>();
+    private Queue<Float> coBuffer = new LinkedList<>();
+    private Queue<Float> vocBuffer = new LinkedList<>();
+    private Queue<Float> co2Buffer = new LinkedList<>();
     private static final int MAX_DATA_POINTS = 100;
     private static final String API_URL = "http://52.250.54.24:3500/api/node/filter";
     private ArrayList<Entry> tempData, humData, pressData;
@@ -237,10 +270,6 @@ public class HomeFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
-        IntentFilter filter = new IntentFilter("your.mqtt.broadcast.ACTION");
-
-        // ✅ Register the BroadcastReceiver with NOT_EXPORTED flag
-        requireActivity().registerReceiver(mqttBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
 
 
 
@@ -461,7 +490,7 @@ public class HomeFragment extends Fragment {
             }
 
             // Setup MQTT for the specified device
-            setupMqttDevice();
+           // setupMqttDevice();
             mqttDeviceLayout.setVisibility(View.GONE);
         });
 
@@ -472,18 +501,18 @@ public class HomeFragment extends Fragment {
 
         rxBleClient = RxBleClient.create(requireContext());
         // Automatically start scanning when the fragment is opened
-        setupMqttClient(); // Set up MQTT client
+
 
         // Initialize handler for periodic updates
         handler = new Handler();
-        setupMqttClient();
-        setupMqttDevice();
+
+        //setupMqttDevice();
         updateTask = new Runnable() {
             @Override
             public void run() {
                 if (connection != null) {
                     readCharacteristic();
-                    handler.postDelayed(this, 5000);
+                    handler.postDelayed(this, 10000);
                 }
             }
         };
@@ -516,15 +545,12 @@ public class HomeFragment extends Fragment {
         checkPermissions();
         rxBleClient = RxBleClient.create(requireContext());
         handler = new Handler();
-        setupMqttClient();
-
-        // Read data from the CSV and add markers
-
-       // List<GeoPoint> coordinates = CSVParser.parseSensorData(filePath);
 
 
-        //Initialize the button and text view
-//         Register the button and text view
+
+
+        // Initialize the button and text view
+        // Register the button and text view
         mPickDateButton = view.findViewById(R.id.pick_date_button);
         mShowSelectedDateText = view.findViewById(R.id.show_selected_date);
 
@@ -539,11 +565,32 @@ public class HomeFragment extends Fragment {
 
         // Handle the positive button click from the Material Date Range Picker
         materialDatePicker.addOnPositiveButtonClickListener(selection -> {
-            // Update the TextView with the selected date range
-            @SuppressLint("SetTextI18n")
-            String selectedDate = "Selected Date is : " + materialDatePicker.getHeaderText();
-            mShowSelectedDateText.setText(selectedDate);
+            // Check if both dates are selected
+            if (selection.first != null && selection.second != null) {
+                // Format the start and end date into a readable format
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+                String startDate = sdf.format(new Date(selection.first)).split(" ")[0] + " 00:00:00";
+                String endDate = sdf.format(new Date(selection.second)).split(" ")[0] + " 23:59:59";
+
+                // Log the selected date range
+                Log.d("HomeFragment", "Selected date range: " + startDate + " to " + endDate);
+
+                // Set the mode to historical mode
+                isHistoricalMode = true;
+
+                // Fetch data for the selected date range
+                fetchData(startDate, endDate);
+
+                // Optionally, show the selected date range on the UI
+                @SuppressLint("SetTextI18n")
+                String selectedDate = "Selected Date: " + startDate + " to " + endDate;
+                mShowSelectedDateText.setText(selectedDate);
+            } else {
+                Log.e("HomeFragment", "Date selection was null");
+            }
         });
+
+
         setupDatePicker();
         initCheckBoxes(view);
         setupChart();
@@ -563,7 +610,8 @@ public class HomeFragment extends Fragment {
         CheckBox checkboxPredicted = view.findViewById(R.id.checkboxPredicted);
         CheckBox checkboxDust = view.findViewById(R.id.checkboxpredictionDust);
         CheckBox checkboxCO = view.findViewById(R.id.checkboxpredictionCO);
-
+        checkboxDust.setChecked(true);
+        checkboxCO.setChecked(true);
         // Set listeners for checkboxes
         checkboxLive.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
         checkboxPredicted.setOnCheckedChangeListener((buttonView, isChecked) -> updatePredictionChart(jsonString));
@@ -649,122 +697,88 @@ public class HomeFragment extends Fragment {
     }
 
 
-    private BroadcastReceiver mqttBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d("MQTT", "Received broadcast: " + intent.getAction());
-        }
-    };
 
-
-    private void setupMqttDevice() {
-        String clientId = UUID.randomUUID().toString();
-
-
-        // ✅ Fix: Explicitly set RECEIVER_NOT_EXPORTED for Android 13+
-        IntentFilter filter = new IntentFilter("info.mqtt.android.service.MQTT_BROADCAST");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            requireActivity().registerReceiver(mqttBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
-
-        } else {
-            requireContext().registerReceiver(mqttBroadcastReceiver, filter);
-        }
-
-
-        // ✅ Fix: Set correct MQTT Ping sender
-        System.setProperty("mqtt.ping.sender", "org.eclipse.paho.android.service.MqttService");
-
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
-
-        mqttClient.setCallback(new MqttCallbackExtended() {
-            @Override
-            public void connectComplete(boolean reconnect, String serverURI) {
-                Log.d("MQTT", "Connected. Reconnect: " + reconnect);
-                if (reconnect) {
-                    subscribeToDevice(MQTT_DEVICE);
-                }
-            }
-
-            @Override
-            public void connectionLost(Throwable cause) {
-                Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                statusTextView.setText("Connection lost. Reconnecting...");
-                handler.postDelayed(() -> setupMqttDevice(), 2000);
-            }
-
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                String receivedMessage = new String(message.getPayload());
-                Log.d("MQTT", "Message received: " + receivedMessage);
-                statusTextView.setText("Message received: " + receivedMessage);
-            }
-
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {
-                Log.d("MQTT", "Message delivery completed");
-            }
-        });
-
-        MqttConnectOptions options = new MqttConnectOptions();
-        options.setCleanSession(true);
-        options.setAutomaticReconnect(true);
-
-        try {
-            mqttClient.connect(options, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Connected to MQTT broker");
-                    statusTextView.setText("Connected to MQTT broker");
-                    subscribeToDevice(MQTT_DEVICE);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
-                    statusTextView.setText("Failed to connect: " + exception.getMessage());
-                }
-            });
-
-        } catch (Exception e) {
-            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
-            statusTextView.setText("Error setting up MQTT client.");
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // Method to subscribe to a topic
-    private void subscribeToDevice(String MQTT_DEVICE) {
-        try {
-            mqttClient.subscribe(MQTT_DEVICE, 1, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
-                    statusTextView.setText("Subscribed to topic: " + MQTT_DEVICE);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
-                    statusTextView.setText("Failed to subscribe to topic.");
-                }
-            });
-        } catch (Exception e) {
-            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
-        }
-    }
+//    private void setupMqttDevice() {
+//        String clientId = UUID.randomUUID().toString();
+//
+//        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
+//
+//        mqttClient.setCallback(new MqttCallbackExtended() {
+//            @Override
+//            public void connectComplete(boolean reconnect, String serverURI) {
+//                Log.d("MQTT", "Connected. Reconnect: " + reconnect);
+//                if (reconnect) {
+//                    subscribeToDevice(MQTT_DEVICE);
+//                }
+//            }
+//
+//            @Override
+//            public void connectionLost(Throwable cause) {
+//                Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
+//                statusTextView.setText("Connection lost. Reconnecting...");
+//                handler.postDelayed(() -> setupMqttDevice(), 2000);
+//            }
+//
+//            @Override
+//            public void messageArrived(String topic, MqttMessage message) {
+//                String receivedMessage = new String(message.getPayload());
+//                Log.d("MQTT", "Message received: " + receivedMessage);
+//                statusTextView.setText("Message received: " + receivedMessage);
+//            }
+//
+//            @Override
+//            public void deliveryComplete(IMqttDeliveryToken token) {
+//                Log.d("MQTT", "Message delivery completed");
+//            }
+//        });
+//
+//        MqttConnectOptions options = new MqttConnectOptions();
+//        options.setCleanSession(true);
+//        options.setAutomaticReconnect(true);
+//        options.setKeepAliveInterval(60); // Ensure keep-alive interval is set
+//
+//        try {
+//            mqttClient.connect(options, null, new IMqttActionListener() {
+//                @Override
+//                public void onSuccess(IMqttToken asyncActionToken) {
+//                    Log.d("MQTT", "Connected to MQTT broker");
+//                    statusTextView.setText("Connected to MQTT broker");
+//                    subscribeToDevice(MQTT_DEVICE);
+//                }
+//
+//                @Override
+//                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+//                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
+//                    statusTextView.setText("Failed to connect: " + exception.getMessage());
+//                }
+//            });
+//
+//        } catch (Exception e) {
+//            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
+//            statusTextView.setText("Error setting up MQTT client.");
+//        }
+//    }
+//
+//    // Method to subscribe to a topic
+//    private void subscribeToDevice(String MQTT_DEVICE) {
+//        try {
+//            mqttClient.subscribe(MQTT_DEVICE, 1, null, new IMqttActionListener() {
+//                @Override
+//                public void onSuccess(IMqttToken asyncActionToken) {
+//                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
+//                    statusTextView.setText("Subscribed to topic: " + MQTT_DEVICE);
+//                }
+//
+//                @Override
+//                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+//                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
+//                    statusTextView.setText("Failed to subscribe to topic.");
+//                }
+//            });
+//        } catch (Exception e) {
+//            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
+//        }
+//    }
 
     // Setup the chart with smooth lines
     private void setupliveChart() {
@@ -815,56 +829,7 @@ public class HomeFragment extends Fragment {
         dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Enable smooth lines
         return dataSet;
     }
-    private void setupChart() {
-        if (lineChart == null) {
-            Log.e("HomeFragment", "setupChart: LineChart is NULL");
-            return;
-        }
-        Log.d("HomeFragment", "Initializing chart setup");
 
-        lineChart.setDragEnabled(true);
-        lineChart.setScaleEnabled(true);
-        lineChart.setPinchZoom(true);
-
-        XAxis xAxis = lineChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        YAxis leftAxis = lineChart.getAxisLeft();
-        leftAxis.setDrawGridLines(true);
-        YAxis rightAxis = lineChart.getAxisRight();
-        rightAxis.setEnabled(false);
-
-        lineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
-        lineChart.getXAxis().setAxisMinimum(0f);
-        lineChart.getXAxis().setAxisMaximum(10f);
-        lineChart.getAxisLeft().setAxisMinimum(0f);
-        lineChart.getAxisLeft().setAxisMaximum(100f);
-
-        Log.d("HomeFragment", "Chart setup completed");
-    }
-
-    private void initCheckBoxes(View view) {
-        tempCheckbox = view.findViewById(R.id.checkboxTemperature);
-        humCheckbox = view.findViewById(R.id.checkboxHumidity);
-        co2Checkbox = view.findViewById(R.id.checkboxCO2);
-        pressCheckbox = view.findViewById(R.id.checkboxPressure);
-        vocCheckbox = view.findViewById(R.id.checkboxVOC);
-        coCheckbox = view.findViewById(R.id.checkboxCO);
-        pm1Checkbox = view.findViewById(R.id.checkboxPM1);
-        pm2Checkbox = view.findViewById(R.id.checkboxPM2_5);
-        pm10Checkbox = view.findViewById(R.id.checkboxPM10);
-
-        tempCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        humCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        co2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pressCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        vocCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        coCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm1Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-        pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
-
-
-    }
 
     private void setupDatePicker() {
         Log.d("HomeFragment", "Initializing date picker");
@@ -899,6 +864,7 @@ public class HomeFragment extends Fragment {
 
 
     private void fetchData(String startDate, String endDate) {
+        isHistoricalMode = true;
         OkHttpClient client = new OkHttpClient();
         JSONObject jsonBody = new JSONObject();
 
@@ -1007,10 +973,8 @@ public class HomeFragment extends Fragment {
         }
         sensorData.get(key).add(new Entry(x, (float) y));
     }
-
-    private void updateChart() {
-        LineData data = new LineData();
-
+    // Adds datasets for historical data
+    private void addHistoricalDataSets(LineData data) {
         if (tempCheckbox.isChecked() && sensorData.containsKey("temperature") && !sensorData.get("temperature").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("temperature"), "Temperature", Color.RED));
         }
@@ -1038,24 +1002,184 @@ public class HomeFragment extends Fragment {
         if (pm10Checkbox.isChecked() && sensorData.containsKey("pm10") && !sensorData.get("pm10").isEmpty()) {
             data.addDataSet(createDataSet(sensorData.get("pm10"), "PM10", Color.BLACK));
         }
+    }
+    private void setupChart() {
+        if (lineChart == null) {
+            Log.e("HomeFragment", "setupChart: LineChart is NULL");
+            return;
+        }
+        Log.d("HomeFragment", "Initializing chart setup");
 
+        lineChart.setDragEnabled(true);
+        lineChart.setScaleEnabled(true);
+        lineChart.setPinchZoom(true);
+
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        YAxis leftAxis = lineChart.getAxisLeft();
+        leftAxis.setDrawGridLines(true);
+        YAxis rightAxis = lineChart.getAxisRight();
+        rightAxis.setEnabled(false);
+
+        lineChart.setViewPortOffsets(50f, 50f, 50f, 50f);
+        lineChart.getXAxis().setAxisMinimum(0f);
+        lineChart.getXAxis().setAxisMaximum(10f);
+        lineChart.getAxisLeft().setAxisMinimum(0f);
+        lineChart.getAxisLeft().setAxisMaximum(100f);
+
+        Log.d("HomeFragment", "Chart setup completed");
+    }
+
+    private void initCheckBoxes(View view) {
+        tempCheckbox = view.findViewById(R.id.checkboxTemperature);
+        humCheckbox = view.findViewById(R.id.checkboxHumidity);
+        co2Checkbox = view.findViewById(R.id.checkboxCO2);
+        pressCheckbox = view.findViewById(R.id.checkboxPressure);
+        vocCheckbox = view.findViewById(R.id.checkboxVOC);
+        coCheckbox = view.findViewById(R.id.checkboxCO);
+        pm1Checkbox = view.findViewById(R.id.checkboxPM1);
+        pm2Checkbox = view.findViewById(R.id.checkboxPM2_5);
+        pm10Checkbox = view.findViewById(R.id.checkboxPM10);
+
+        tempCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        humCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        co2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pressCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        vocCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        coCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm1Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm2Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+        pm10Checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> updateChart());
+
+
+    }
+    // Method to add new data to the buffer and update the chart
+    public void addDataToBuffer(String jsonString) {
+        try {
+            JSONObject jsonData = new JSONObject(jsonString);
+            JSONObject data = jsonData.getJSONObject("data");
+
+            // Extract sensor values from the JSON object
+            addToQueue(temperatureBuffer, (float) data.getDouble("temperature"));
+            addToQueue(humidityBuffer, (float) data.getDouble("humidity"));
+            addToQueue(pressureBuffer, (float) data.getDouble("pressure"));
+            addToQueue(pm1Buffer, (float) data.getDouble("pm1"));
+            addToQueue(pm2_5Buffer, (float) data.getDouble("pm2_5"));
+            addToQueue(pm10Buffer, (float) data.getDouble("pm10"));
+            addToQueue(coBuffer, (float) data.getDouble("co"));
+            addToQueue(vocBuffer, (float) data.getDouble("voc"));
+            addToQueue(co2Buffer, (float) data.getDouble("co2"));
+            logBufferSizes();
+            // Call the method to update the chart after adding new data
+            updateChart();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    private void logBufferSizes() {
+        Log.d("BufferSizes", "Temperature Buffer Size: " + temperatureBuffer.size());
+        Log.d("BufferSizes", "Humidity Buffer Size: " + humidityBuffer.size());
+        Log.d("BufferSizes", "Pressure Buffer Size: " + pressureBuffer.size());
+        Log.d("BufferSizes", "PM1 Buffer Size: " + pm1Buffer.size());
+        Log.d("BufferSizes", "PM2.5 Buffer Size: " + pm2_5Buffer.size());
+        Log.d("BufferSizes", "PM10 Buffer Size: " + pm10Buffer.size());
+        Log.d("BufferSizes", "CO Buffer Size: " + coBuffer.size());
+        Log.d("BufferSizes", "VOC Buffer Size: " + vocBuffer.size());
+        Log.d("BufferSizes", "CO2 Buffer Size: " + co2Buffer.size());
+    }
+    // Helper method to add data to a queue and maintain the buffer size
+    private void addToQueue(Queue<Float> buffer, float value) {
+        if (buffer.size() >= BUFFER_SIZE) {
+            buffer.poll();  // Remove the oldest entry if the buffer exceeds size
+        }
+        buffer.offer(value);  // Add the new value to the queue
+    }
+
+    // Method to update the chart with the latest data (called every time new data is added)
+    public void updateChart() {
+        LineData data = new LineData();
+
+        // Check if it's historical mode or buffer mode
+        if (isHistoricalMode) {
+            // For historical data
+            if (sensorData.isEmpty()) {
+                Log.e("ChartUpdate", "No historical data to display.");
+                return;
+            }
+            // Add logic for historical data - ensuring only valid data is shown
+            addHistoricalDataSets(data);
+        } else {
+            // For buffer data (dynamic, real-time)
+            addBufferDataSets(data);
+        }
+
+        // Set the data to the chart and invalidate it to refresh
         lineChart.setData(data);
         lineChart.invalidate(); // Refresh chart
         Log.d("ChartUpdate", "Updated chart with " + data.getDataSetCount() + " datasets.");
     }
 
+    // Adds datasets for real-time data (default buffer mode)
+    private void addBufferDataSets(LineData data) {
+        if (tempCheckbox.isChecked() && !temperatureBuffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(temperatureBuffer, "Temperature", Color.RED));
+        }
+        if (humCheckbox.isChecked() && !humidityBuffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(humidityBuffer, "Humidity", Color.BLUE));
+        }
+        if (co2Checkbox.isChecked() && !co2Buffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(co2Buffer, "CO2", Color.GREEN));
+        }
+        if (pressCheckbox.isChecked() && !pressureBuffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(pressureBuffer, "Pressure", Color.YELLOW));
+        }
+        if (vocCheckbox.isChecked() && !vocBuffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(vocBuffer, "VOC", Color.MAGENTA));
+        }
+        if (coCheckbox.isChecked() && !coBuffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(coBuffer, "CO", Color.CYAN));
+        }
+        if (pm1Checkbox.isChecked() && !pm1Buffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(pm1Buffer, "PM1", Color.DKGRAY));
+        }
+        if (pm2Checkbox.isChecked() && !pm2_5Buffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(pm2_5Buffer, "PM2.5", Color.LTGRAY));
+        }
+        if (pm10Checkbox.isChecked() && !pm10Buffer.isEmpty()) {
+            data.addDataSet(createDataSetFromBuffer(pm10Buffer, "PM10", Color.BLACK));
+        }
+    }
 
-    private LineDataSet createDataSet(List<Entry> values, String label, int color) {
-        LineDataSet dataSet = new LineDataSet(values, label);
+    // Convert the buffer into a list of Entries for the chart
+    private List<Entry> createEntriesFromBuffer(Queue<Float> buffer) {
+        List<Entry> entries = new ArrayList<>();
+        int index = 0;
+        for (Float value : buffer) {
+            entries.add(new Entry(index++, value));
+        }
+        return entries;
+    }
+
+    // Create a LineDataSet with entries and style it
+    private LineDataSet createDataSetFromBuffer(Queue<Float> buffer, String label, int color) {
+        List<Entry> entries = createEntriesFromBuffer(buffer);
+        return createDataSet(entries, label, color);
+    }
+
+    // Create a LineDataSet with entries and style it
+    private LineDataSet createDataSet(List<Entry> entries, String label, int color) {
+        LineDataSet dataSet = new LineDataSet(entries, label);
         dataSet.setColor(color);
         dataSet.setCircleColor(color);
         dataSet.setLineWidth(2f);
         dataSet.setCircleRadius(3f);
         dataSet.setDrawCircleHole(false);
         dataSet.setValueTextSize(10f);
+        dataSet.setValueTextColor(Color.BLACK);
         dataSet.setDrawFilled(false);
         return dataSet;
     }
+
 
 
 //    private void setupChart() {
@@ -1520,11 +1644,12 @@ public class HomeFragment extends Fragment {
                     }
 
                     // Convert the characteristic value to a JSON string
-                    String jsonString = new String(characteristicValue);
+                    jsonString = new String(characteristicValue);
                     Log.d("BLE", "Raw JSON string: " + jsonString);
 
                     updateUIWithData(jsonString);
                     updatePredictionChart(jsonString);
+                    addDataToBuffer(jsonString);
 
                     try {
                         jsonObject = new JSONObject(jsonString);
@@ -1533,11 +1658,10 @@ public class HomeFragment extends Fragment {
                         int deviceId = jsonObject.getInt("device_id");
                         Log.d("BLE", "Extracted device_id: " + deviceId);
 
-                        String MQTT_TOPIC = "data/" + deviceId;
+                         MQTT_TOPIC = "data/" + deviceId;
                         Log.d("BLE", "MQTT_TOPIC: " + MQTT_TOPIC);
 
-                        publishMessage(MQTT_TOPIC, jsonString);
-                        Log.d("BLE", "Published message to topic: " + MQTT_TOPIC + ", message: " + jsonString);
+                        setupHttpPostClient();
 
                     } catch (JSONException e) {
                         Log.e("JSON_ERROR", "Error parsing JSON string or extracting deviceId: " + e.getMessage());
@@ -1741,144 +1865,121 @@ public class HomeFragment extends Fragment {
     }
 
 
-
-
-    private void setupMqttClient() {
-        String clientId = UUID.randomUUID().toString();
-
-        // Define the BroadcastReceiver
-        BroadcastReceiver mqttBroadcastReceiver = new BroadcastReceiver() {
+    private void setupHttpPostClient() {
+        handler.postDelayed(new Runnable() {
             @Override
-            public void onReceive(Context context, Intent intent) {
-                Log.d("MQTT", "Received broadcast: " + intent.getAction());
+            public void run() {
+                Log.d("HTTP", "Running setupHttpPostClient: Simulating data reception...");
+                simulateDataReception();
+                handler.postDelayed(this, 10000);
             }
-        };
+        }, 10000);
+    }
 
-        IntentFilter intentFilter = new IntentFilter("com.example.ipollusen.MQTT_EVENT");
-        requireContext().registerReceiver(mqttBroadcastReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
+    private void simulateDataReception() {
+        Log.d("HTTP", "simulateDataReception: Checking jsonString...");
 
-        // ✅ Force MQTT to use ServicePingSender instead of AlarmPingSender
-        System.setProperty("mqtt.ping.sender", "org.eclipse.paho.android.service.MqttService");
-
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
-
-        MqttConnectOptions options = new MqttConnectOptions();
-        options.setCleanSession(true);
-        options.setAutomaticReconnect(true);
+        if (jsonString == null || jsonString.isEmpty()) {
+            Log.e("HTTP", "jsonString is null or empty. Skipping HTTP request.");
+            return;
+        }
 
         try {
-            mqttClient.connect(options, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Connected to MQTT broker");
-                    statusTextView.setText("Connected to MQTT broker");
-                    retryInterval = RETRY_INTERVAL_MS;
-                    subscribeToTopic(MQTT_TOPIC);
-                }
+            Log.d("HTTP", "simulateDataReception: Parsing JSON...");
+            JSONObject jsonObject = new JSONObject(jsonString);
 
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
-                    statusTextView.setText("Failed to connect: " + exception.getMessage());
+            // Extract device_id
+            int deviceId = jsonObject.optInt("device_id", -1);
 
-                    if (retryInterval <= (RETRY_INTERVAL_MS * MAX_RETRIES)) {
-                        Log.d("MQTT", "Retrying connection in " + retryInterval + "ms");
-                        handler.postDelayed(() -> setupMqttClient(), retryInterval);
-                        retryInterval *= 2;
-                    } else {
-                        Log.e("MQTT", "Max retries reached.");
-                        statusTextView.setText("Max retry attempts reached. Unable to connect.");
-                    }
-                }
-            });
+            // Generate timestamp
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
-            mqttClient.setCallback(new MqttCallback() {
-                @Override
-                public void connectionLost(Throwable cause) {
-                    Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                    statusTextView.setText("Connection lost. Reconnecting...");
-                    handler.postDelayed(() -> setupMqttClient(), 2000);
-                }
+            // Create new data object with device_id and timestamp
+            JSONObject newDataObject = new JSONObject();
+            newDataObject.put("device_id", deviceId);
+            newDataObject.put("timestamp", timestamp);
 
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    String receivedMessage = new String(message.getPayload());
-                    Log.d("MQTT", "Message received: " + receivedMessage);
-                    statusTextView.setText("Message: " + receivedMessage);
+            // Extract existing data structure dynamically
+            if (jsonObject.has("data")) {
+                newDataObject.put("data", jsonObject.getJSONObject("data"));
+            }
 
-                    try {
-                        JSONObject jsonObject = new JSONObject(receivedMessage);
-                        updatePredictionChart(jsonObject.toString());
-                        updateUIWithData(jsonObject.toString());
-                    } catch (JSONException e) {
-                        Log.e("MQTT", "JSON parsing error: " + e.getMessage());
-                    }
-                }
+            if (jsonObject.has("calculated")) {
+                newDataObject.put("calculated", jsonObject.getJSONObject("calculated"));
+            }
 
-                @Override
-                public void deliveryComplete(IMqttDeliveryToken token) {
-                    Log.d("MQTT", "Message delivery completed");
-                }
-            });
+            if (jsonObject.has("predicted")) {
+                newDataObject.put("predicted", jsonObject.getJSONObject("predicted"));
+            }
 
-        } catch (Exception e) {
-            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
-            statusTextView.setText("Error setting up MQTT client.");
+            if (jsonObject.has("status")) {
+                newDataObject.put("status", jsonObject.getJSONObject("status"));
+            }
+
+            // Convert newDataObject to a JSON string
+            String dataString = newDataObject.toString();
+
+            // Generate client and topic dynamically
+            String client = "client" + deviceId;
+            String topic = "data/" + deviceId;
+
+            // Construct the final JSON object
+            JSONObject newJson = new JSONObject();
+            newJson.put("data", dataString);  // Stringified JSON
+            newJson.put("client", client);
+            newJson.put("topic", topic);
+
+            Log.d("HTTP", "simulateDataReception: Final JSON: " + newJson.toString());
+
+            if (dataString.equals(lastSentData)) {
+                Log.d("HTTP", "Duplicate data detected, skipping HTTP POST.");
+                return; // Skip sending duplicate data
+            }
+
+            lastSentData = dataString; // Update last sent data reference
+
+            sendHttpPost(newJson.toString());
+        } catch (JSONException e) {
+            Log.e("HTTP", "JSON parsing error: " + e.getMessage());
         }
     }
 
-
-
-
-    // Method to subscribe to a topic
-    private void subscribeToTopic(String MQTT_TOPIC) {
-        try {
-            mqttClient.subscribe(MQTT_TOPIC, 1, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_TOPIC);
-                    statusTextView.setText("Subscribed to topic: " + MQTT_TOPIC);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
-                    statusTextView.setText("Failed to subscribe to topic.");
-                }
-            });
-        } catch (Exception e) {
-            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
-        }
-    }
-
-    // Method to publish a message to a topic
-    private void publishMessage(String MQTT_TOPIC, String message) {
-        if (mqttClient != null && mqttClient.isConnected()) {
+    private void sendHttpPost(String jsonPayload) {
+        new Thread(() -> {
             try {
-                MqttMessage mqttMessage = new MqttMessage(message.getBytes());
-                mqttMessage.setQos(1);  // Set the QoS level (1 for "at least once delivery")
-                mqttClient.publish(MQTT_TOPIC, mqttMessage, null, new IMqttActionListener() {
-                    @Override
-                    public void onSuccess(IMqttToken asyncActionToken) {
-                        Log.d("MQTT", "Message published successfully to topic: " + MQTT_TOPIC);
-                        statusTextView.setText("Message published successfully.");
-                    }
+                Log.d("HTTP", "sendHttpPost: Preparing HTTP POST request...");
+                URL url = new URL(HTTP_ENDPOINT);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json; utf-8");
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setDoOutput(true);
 
-                    @Override
-                    public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                        Log.e("MQTT", "Failed to publish message to topic: " + MQTT_TOPIC + ", " + exception.getMessage());
-                        statusTextView.setText("Failed to publish message.");
-                    }
-                });
+                Log.d("HTTP", "sendHttpPost: Sending JSON: " + jsonPayload);
+
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = jsonPayload.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = connection.getResponseCode();
+                Log.d("HTTP", "sendHttpPost: Server response code: " + responseCode);
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    Log.d("HTTP", "Data successfully sent to server.");
+                    handler.post(() -> statusTextView.setText("Data successfully sent."));
+                } else {
+                    Log.e("HTTP", "Failed to send data. Response Code: " + responseCode);
+                    handler.post(() -> statusTextView.setText("Failed to send data."));
+                }
+                connection.disconnect();
             } catch (Exception e) {
-                Log.e("MQTT", "Error publishing message: " + e.getMessage());
-                statusTextView.setText("Error publishing message.");
+                Log.e("HTTP", "Error in HTTP request: " + e.getMessage());
+                handler.post(() -> statusTextView.setText("Error in HTTP request."));
             }
-        } else {
-            Log.e("MQTT", "MQTT client is not connected.");
-            statusTextView.setText("Not connected to MQTT broker.");
-        }
+        }).start();
     }
+
 
 
     @Override
@@ -1955,7 +2056,7 @@ public class HomeFragment extends Fragment {
         if (mqttClient != null) {
             mqttClient.disconnect();
         }
-        requireActivity().unregisterReceiver(mqttBroadcastReceiver);
+
     }
 
 }
