@@ -13,6 +13,13 @@
             android:textColor="@color/black"
             android:textSize="18sp" />
 
+        <item
+            android:id="@+id/nav_rooms"
+            android:icon="@drawable/ic_rooms"
+            android:title="Manage Rooms"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+
         <!-- Advanced View -->
         <item
             android:id="@+id/nav_advanced_view"

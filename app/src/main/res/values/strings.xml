@@ -14,6 +14,13 @@
 
     <!-- Settings -->
     <string name="action_settings">Settings</string>
+    <string-array name="gender_options">
+        <item>Gender</item>  <!-- Default non-selectable item -->
+        <item>Male</item>
+        <item>Female</item>
+        <item>Other</item>
+    </string-array>
+
 
     <!-- Section Titles -->
     <string name="title_home">Home</string>
@@ -55,6 +62,7 @@
     <string name="ipollusen" />
     <string name="ipollusense" />
     <string name="add" />
+    <string name="rooms" />
 
     <string-array name="device_options">
         <item>Select a device</item>
