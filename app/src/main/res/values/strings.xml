@@ -12,6 +12,10 @@
     <string name="nav_header_desc">Navigation header</string>
     <string name="select_device">Select Device</string>
 
+    <string-array name="appliance_options">
+        <item>Fan</item>
+        <item>Window</item>
+    </string-array>
     <!-- Settings -->
     <string name="action_settings">Settings</string>
     <string-array name="gender_options">

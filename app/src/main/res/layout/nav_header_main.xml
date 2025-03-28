@@ -7,9 +7,6 @@
     android:gravity="center_vertical">
 
     <!-- Back Arrow Button to close the drawer -->
-
-    <!-- Profile Image -->
-
     <ImageButton
         android:id="@+id/backArrowButton"
         android:layout_width="48dp"
@@ -19,63 +16,49 @@
         android:contentDescription="Back Arrow"
         android:src="@drawable/ic_baseline_arrow_back_24" />
 
+    <!-- Profile Image (Dynamic) -->
     <ImageButton
-        android:id="@+id/avatarButton"
+        android:id="@+id/profileImageView"
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:layout_marginEnd="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Profile Picture Button"
+        android:contentDescription="Profile Picture"
         android:src="@drawable/ic_person"
-        android:scaleType="centerCrop"/>
-
+        android:scaleType="centerCrop" />
 
     <!-- Vertical layout for text -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="213dp"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Username -->
+        <!-- Greeting with Name -->
         <TextView
             android:id="@+id/greetingTextView"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Hi, Madhav"
+            android:gravity="start"
+            android:text="Hi, User"
             android:textColor="@color/blue"
             android:textSize="20sp"
-            android:textStyle="bold"
-            android:gravity="start" />
+            android:textStyle="bold" />
 
-        <!-- Admin/User Badge with light sky blue background -->
-        <LinearLayout
-            android:layout_width="wrap_content"
+        <!-- Email Address -->
+        <TextView
+            android:id="@+id/emailTextView"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:background="@color/light_sky_blue"
-            android:padding="4dp">
+            android:text="user@example.com"
+            android:textColor="@color/black"
+            android:textSize="14sp" />
 
-            <!-- Admin/User Text -->
-            <TextView
-                android:id="@+id/adminBadgeTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Admin"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:layout_gravity="center_vertical" />
-
-            <!-- Admin Icon beside Admin Text -->
-            <ImageView
-                android:id="@+id/adminBadgeIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_admin_badge"
-                android:layout_marginStart="8dp"
-                android:layout_gravity="center_vertical" />
-        </LinearLayout>
+        <!-- User ID -->
+        <TextView
+            android:id="@+id/userIdTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="User ID: 12345"
+            android:textColor="@color/gray"
+            android:textSize="12sp" />
     </LinearLayout>
 </LinearLayout>

@@ -1,7 +1,6 @@
 package com.example.ipollusen;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,10 +11,11 @@ import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Toast;
-import com.example.ipollusen.R;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -40,16 +40,17 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialButton buttonLogin, buttonRegister, buttonGoogleSignIn;
     private FirebaseAuth mAuth;
     private GoogleSignInClient mGoogleSignInClient;
+    private UserViewModel userViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // Initialize Firebase Auth
+        // Initialize Firebase and ViewModel
         FirebaseApp.initializeApp(this);
         mAuth = FirebaseAuth.getInstance();
-        FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+        userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
 
         // Initialize views
         editTextEmail = findViewById(R.id.editTextEmail);
@@ -87,27 +88,19 @@ public class LoginActivity extends AppCompatActivity {
         String email = editTextEmail.getText().toString().trim();
         String password = editTextPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(email)) {
-            Toast.makeText(getApplicationContext(), "Enter email address!", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+            Toast.makeText(getApplicationContext(), "Enter credentials!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (TextUtils.isEmpty(password)) {
-            Toast.makeText(getApplicationContext(), "Enter password!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Authenticate user with Firebase
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        Log.d(TAG, "signInWithEmail:success");
-                        Toast.makeText(LoginActivity.this, "Authentication succeeded.", Toast.LENGTH_SHORT).show();
-                        saveUserToken();
-                        checkAndNavigateToNextActivity();
+                        userViewModel.setUserEmail(email); // Store email in ViewModel
+                        startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                        finish();
                     } else {
-                        Log.w(TAG, "signInWithEmail:failure", task.getException());
-                        Toast.makeText(LoginActivity.this, "Authentication failed.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(LoginActivity.this, "Login failed.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -159,7 +152,7 @@ public class LoginActivity extends AppCompatActivity {
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
                 Log.d(TAG, "firebaseAuthWithGoogle:" + account.getId());
-                firebaseAuthWithGoogle(account.getIdToken());
+                firebaseAuthWithGoogle(account.getIdToken(), account.getEmail());
             } catch (ApiException e) {
                 Log.w(TAG, "Google sign in failed", e);
                 Toast.makeText(LoginActivity.this, "Google sign-in failed.", Toast.LENGTH_SHORT).show();
@@ -167,14 +160,13 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    private void firebaseAuthWithGoogle(String idToken) {
+    private void firebaseAuthWithGoogle(String idToken, String email) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
                         Log.d(TAG, "signInWithCredential:success");
-                        FirebaseUser user = mAuth.getCurrentUser();
-                        saveUserToken();
+                        userViewModel.setUserEmail(email); // Store email in ViewModel
                         checkAndNavigateToNextActivity();
                     } else {
                         Log.w(TAG, "signInWithCredential:failure", task.getException());
@@ -184,28 +176,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void checkAndNavigateToNextActivity() {
-        if (arePermissionsGranted()) {
-            startActivity(new Intent(LoginActivity.this, MainActivity.class));
-            finish(); // Close LoginActivity
-        } else {
-            requestPermissions(new String[]{
-                    android.Manifest.permission.ACCESS_FINE_LOCATION,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION}, 1001);
-        }
-    }
-
-    private boolean arePermissionsGranted() {
-        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void saveUserToken() {
-        FirebaseUser user = mAuth.getCurrentUser();
-        if (user != null) {
-            SharedPreferences sharedPreferences = getSharedPreferences("MyAppPrefs", MODE_PRIVATE);
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putString("user_token", user.getUid());
-            editor.apply();
-        }
+        startActivity(new Intent(LoginActivity.this, MainActivity.class));
+        finish();
     }
 }

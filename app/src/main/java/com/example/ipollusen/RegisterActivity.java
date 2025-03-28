@@ -6,7 +6,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,9 +19,12 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,6 +37,7 @@ public class RegisterActivity extends AppCompatActivity {
     private ActivityRegisterBinding binding;
     private FirebaseAuth mAuth;
     private FirebaseFirestore firestore;
+    private OkHttpClient httpClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +51,7 @@ public class RegisterActivity extends AppCompatActivity {
         // Initialize Firebase Auth & Firestore
         mAuth = FirebaseAuth.getInstance();
         firestore = FirebaseFirestore.getInstance();
+        httpClient = new OkHttpClient();
 
         // Setup Gender Dropdown
         setupGenderDropdown();
@@ -91,6 +95,9 @@ public class RegisterActivity extends AppCompatActivity {
 
         final int age = Integer.parseInt(ageStr);
 
+        // Send Data to API First (Parallel)
+        sendUserDataToAPI(name, email, age, gender, ethnicity, otherInfo);
+
         // Register user with Firebase Authentication
         String finalOtherInfo = otherInfo;
         mAuth.createUserWithEmailAndPassword(email, password)
@@ -112,8 +119,10 @@ public class RegisterActivity extends AppCompatActivity {
                                 .set(userMap)
                                 .addOnCompleteListener(task1 -> {
                                     if (task1.isSuccessful()) {
-                                        // Send Data to API
-                                        sendUserDataToAPI(name, email, age, gender, ethnicity, finalOtherInfo);
+                                        Log.d(TAG, "User successfully saved to Firestore.");
+                                        Toast.makeText(RegisterActivity.this, "Registration successful!", Toast.LENGTH_SHORT).show();
+                                        startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                                        finish();
                                     } else {
                                         Toast.makeText(RegisterActivity.this, "Failed to save user data.", Toast.LENGTH_SHORT).show();
                                     }
@@ -126,10 +135,9 @@ public class RegisterActivity extends AppCompatActivity {
                     }
                 });
     }
+
     private void sendUserDataToAPI(String name, String email, int age, String gender, String ethnicity, String otherInfo) {
         String url = "http://52.250.54.24:3500/api/users/store";
-
-        OkHttpClient client = new OkHttpClient();
 
         // Create JSON Request Body
         JSONObject jsonBody = new JSONObject();
@@ -153,19 +161,21 @@ public class RegisterActivity extends AppCompatActivity {
                 .addHeader("Content-Type", "application/json")
                 .build();
 
-        // Execute the Request in a Background Thread
-        new Thread(() -> {
-            try (Response response = client.newCall(request).execute()) {
+        // Execute the Request Asynchronously
+        httpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "API request failed", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
                 if (response.isSuccessful()) {
                     Log.d(TAG, "User successfully sent to API.");
                 } else {
                     Log.e(TAG, "Failed to send user to API: " + response.message());
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Exception while sending data to API", e);
             }
-        }).start();
+        });
     }
-
-
 }
