@@ -1,6 +1,7 @@
 package com.example.ipollusen;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.InputType;
@@ -11,12 +12,11 @@ import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Toast;
-
+import com.example.ipollusen.R;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -40,6 +40,7 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialButton buttonLogin, buttonRegister, buttonGoogleSignIn;
     private FirebaseAuth mAuth;
     private GoogleSignInClient mGoogleSignInClient;
+    // Declare the UserViewModel instance
     private UserViewModel userViewModel;
 
     @Override
@@ -47,9 +48,11 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // Initialize Firebase and ViewModel
+        // Initialize Firebase Auth
         FirebaseApp.initializeApp(this);
         mAuth = FirebaseAuth.getInstance();
+
+        // Initialize the ViewModel
         userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
 
         // Initialize views
@@ -78,7 +81,8 @@ public class LoginActivity extends AppCompatActivity {
             } else {
                 editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
             }
-            editTextPassword.setSelection(editTextPassword.getText().length()); // Set cursor to end
+            // Set cursor to end
+            editTextPassword.setSelection(editTextPassword.getText().length());
         });
 
         findViewById(R.id.textViewForgotPassword).setOnClickListener(v -> showForgotPasswordDialog());
@@ -88,19 +92,27 @@ public class LoginActivity extends AppCompatActivity {
         String email = editTextEmail.getText().toString().trim();
         String password = editTextPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
-            Toast.makeText(getApplicationContext(), "Enter credentials!", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(email)) {
+            Toast.makeText(getApplicationContext(), "Enter email address!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (TextUtils.isEmpty(password)) {
+            Toast.makeText(getApplicationContext(), "Enter password!", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // Authenticate user with Firebase
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        userViewModel.setUserEmail(email); // Store email in ViewModel
-                        startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                        finish();
+                        Log.d(TAG, "signInWithEmail:success");
+                        Toast.makeText(LoginActivity.this, "Authentication succeeded.", Toast.LENGTH_SHORT).show();
+                        FirebaseUser user = mAuth.getCurrentUser();
+
+                        checkAndNavigateToNextActivity();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Login failed.", Toast.LENGTH_SHORT).show();
+                        Log.w(TAG, "signInWithEmail:failure", task.getException());
+                        Toast.makeText(LoginActivity.this, "Authentication failed.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -117,7 +129,6 @@ public class LoginActivity extends AppCompatActivity {
         builder.setView(dialogView);
 
         final EditText editTextEmail = dialogView.findViewById(R.id.editTextEmail);
-
         builder.setTitle("Forgot Password")
                 .setPositiveButton("Send", (dialog, which) -> {
                     String email = editTextEmail.getText().toString().trim();
@@ -152,7 +163,7 @@ public class LoginActivity extends AppCompatActivity {
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
                 Log.d(TAG, "firebaseAuthWithGoogle:" + account.getId());
-                firebaseAuthWithGoogle(account.getIdToken(), account.getEmail());
+                firebaseAuthWithGoogle(account.getIdToken());
             } catch (ApiException e) {
                 Log.w(TAG, "Google sign in failed", e);
                 Toast.makeText(LoginActivity.this, "Google sign-in failed.", Toast.LENGTH_SHORT).show();
@@ -160,13 +171,14 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    private void firebaseAuthWithGoogle(String idToken, String email) {
+    private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
                         Log.d(TAG, "signInWithCredential:success");
-                        userViewModel.setUserEmail(email); // Store email in ViewModel
+                        FirebaseUser user = mAuth.getCurrentUser();
+
                         checkAndNavigateToNextActivity();
                     } else {
                         Log.w(TAG, "signInWithCredential:failure", task.getException());
@@ -176,7 +188,29 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void checkAndNavigateToNextActivity() {
-        startActivity(new Intent(LoginActivity.this, MainActivity.class));
-        finish();
+        if (arePermissionsGranted()) {
+            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+            finish(); // Close LoginActivity
+        } else {
+            requestPermissions(new String[]{
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+            }, 1001);
+        }
+    }
+
+    private boolean arePermissionsGranted() {
+        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void saveUserToken() {
+        FirebaseUser user = mAuth.getCurrentUser();
+        if (user != null) {
+            SharedPreferences sharedPreferences = getSharedPreferences("MyAppPrefs", MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putString("user_token", user.getUid());
+            editor.apply();
+        }
     }
 }

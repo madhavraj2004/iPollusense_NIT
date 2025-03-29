@@ -1,6 +1,8 @@
 package com.example.ipollusen.ui.home;
 
 
+import static android.content.ContentValues.TAG;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -30,12 +32,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.util.Pair;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.ipollusen.BluetoothDeviceAdapter;
 import com.example.ipollusen.R;
+import com.example.ipollusen.UserViewModel;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -100,6 +109,12 @@ import okhttp3.Response;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
+
+import com.android.volley.RequestQueue;
+
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 public class HomeFragment extends Fragment {
 
     private Button mPickDateButton;
@@ -128,7 +143,8 @@ public class HomeFragment extends Fragment {
     private Map<String, List<Entry>> currentData = new HashMap<>();
     private boolean isHistoricalMode = false;
 
-
+    private UserViewModel userViewModel;
+    private RequestQueue requestQueue;
     private static final long BUFFER_TIME_LIMIT = 20 * 60 * 1000; // 20 minutes in milliseconds
 
     // Store sensor data lists for LineChart
@@ -568,7 +584,22 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
 
+        // Observe user email
+        userViewModel.getUserEmail().observe(getViewLifecycleOwner(), new Observer<String>() {
+            @Override
+            public void onChanged(String userEmail) {
+                if (userEmail == null || userEmail.isEmpty()) {
+                    Log.e(TAG, "Email not found in ViewModel");
+                } else {
+                    Log.d(TAG, "User Email: " + userEmail);
+                }
+            }
+        });
+
+        // Fetch user ID when HomeFragment opens
+        fetchUserIdFromServer();
         setupDatePicker();
         initCheckBoxes(view);
         setupChart();
@@ -599,6 +630,55 @@ public class HomeFragment extends Fragment {
         // Optionally call the update method initially if needed
         updatePredictionChart(jsonString);
     }
+    private void fetchUserIdFromServer() {
+        // Get stored email from ViewModel
+        String userEmail = userViewModel.getUserEmail().getValue();
+
+        if (userEmail == null || userEmail.isEmpty()) {
+            Log.e(TAG, "Email not found in ViewModel");
+            return;
+        }
+
+        String url = "http://52.250.54.24:3500/api/users/search";
+
+        JSONObject requestBody = new JSONObject();
+        try {
+            requestBody.put("email", userEmail);
+        } catch (JSONException e) {
+            Log.e(TAG, "JSON Error: " + e.getMessage());
+            return;
+        }
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                com.android.volley.Request.Method.POST,  // 👈 Using full path to avoid OkHttp conflict
+                url,
+                requestBody,
+                response -> {
+                    try {
+                        if (response.has("data")) {
+                            JSONObject userData = response.getJSONObject("data");
+                            String userId = userData.getString("_id");
+
+                            // Store userId in ViewModel
+                            userViewModel.setUserId(userId);
+                            Log.d(TAG, "User ID fetched: " + userId);
+                        } else {
+                            Log.e(TAG, "Response does not contain user data");
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "JSON Parsing Error: " + e.getMessage());
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "Volley Error: " + (error.getMessage() != null ? error.getMessage() : "Unknown error"));
+                    Toast.makeText(getContext(), "Failed to fetch user ID", Toast.LENGTH_SHORT).show();
+                });
+
+        // Initialize the RequestQueue
+        RequestQueue requestQueue = Volley.newRequestQueue(requireContext());
+        requestQueue.add(request);
+    }
+
 
 
     //for ui setup for device connection
