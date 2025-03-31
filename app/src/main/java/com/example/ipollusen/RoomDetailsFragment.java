@@ -181,15 +181,13 @@ public class RoomDetailsFragment extends Fragment {
 
                         // Map node(s) to user. For this sample, we assume a single node ID.
                         // If nodeIdsText contains multiple IDs (comma-separated), you can split and iterate.
-                        try {
-                            int nodeId = Integer.parseInt(nodeIdsText);
-                            if (userId != null) {
-                                mapNodeToUser(userId, nodeId);
-                            }
-                        } catch (NumberFormatException e) {
-                            // Handle invalid node id format
-                            e.printStackTrace();
+                        if (userId != null && nodeIdsText != null && !nodeIdsText.isEmpty()) {
+                            mapNodeToUser(userId, nodeIdsText); // Directly pass as String
+                        } else {
+                            // Handle empty or null nodeIdsText
+                            Toast.makeText(requireContext(), "Invalid node ID", Toast.LENGTH_SHORT).show();
                         }
+
 
                         requireActivity().runOnUiThread(() -> {
                             Toast.makeText(requireContext(), "Room saved successfully!", Toast.LENGTH_SHORT).show();
@@ -236,7 +234,7 @@ public class RoomDetailsFragment extends Fragment {
         });
     }
 
-    private void mapNodeToUser(String userId, int nodeId) {
+    private void mapNodeToUser(String userId, String nodeId) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
@@ -244,7 +242,7 @@ public class RoomDetailsFragment extends Fragment {
 
                 JSONObject requestJson = new JSONObject();
                 requestJson.put("userId", userId);
-                requestJson.put("nodeId", nodeId);
+                requestJson.put("nodeId", nodeId); // Now supports String values
 
                 RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), requestJson.toString());
                 Request request = new Request.Builder()
@@ -253,10 +251,25 @@ public class RoomDetailsFragment extends Fragment {
                         .header("Content-Type", "application/json")
                         .build();
 
-                client.newCall(request).execute();
+                Response response = client.newCall(request).execute();
+                String responseBody = response.body() != null ? response.body().string() : null;
+
+                if (!response.isSuccessful() || responseBody == null) {
+                    throw new IOException("Unexpected response: " + response.code() + " - " + responseBody);
+                }
+
+                JSONObject jsonResponse = new JSONObject(responseBody);
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(), "Node mapped successfully!", Toast.LENGTH_SHORT).show();
+                });
+
             } catch (IOException | JSONException e) {
                 e.printStackTrace();
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(requireContext(), "Failed to map node: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
+
 }

@@ -23,7 +23,13 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:padding="8dp" />
-
+    <!-- RecyclerView for room cards -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewRoomCards"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp" />
     <!-- Add Room Button -->
     <ImageView
         android:id="@+id/btnAddRoom"

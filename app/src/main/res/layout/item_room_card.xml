@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardViewRoom"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    card_view:cardCornerRadius="8dp"
+    card_view:cardElevation="4dp"
+    android:layout_margin="8dp">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- Room Name -->
+        <TextView
+            android:id="@+id/txtRoomName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Room Name"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- Room Description -->
+        <TextView
+            android:id="@+id/txtRoomDesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Room Description"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp" />
+
+        <!-- Room Dimensions -->
+        <TextView
+            android:id="@+id/txtRoomDimensions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Length x Breadth"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp" />
+        <EditText
+            android:id="@+id/shownodeIds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Node IDs"
+            android:inputType="text"
+            android:minHeight="48dp" />
+        <!-- Nested RecyclerView for Appliances -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewAppliances"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

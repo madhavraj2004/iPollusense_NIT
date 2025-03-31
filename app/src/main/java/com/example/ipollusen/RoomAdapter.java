@@ -15,7 +15,6 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
     private final List<RoomModel> roomList;
     private final OnRoomClickListener listener;
 
-    // Updated interface for multiple actions
     public interface OnRoomClickListener {
         void onRoomClick(int position);
         void onEditRoom(int position);
@@ -30,8 +29,9 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // Inflate your simple room list item layout; ensure item_room.xml exists in res/layout.
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_room, parent, false);
-        return new ViewHolder(view);
+        return new ViewHolder(view, listener);
     }
 
     @Override
@@ -39,27 +39,24 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
         RoomModel room = roomList.get(position);
         holder.roomName.setText(room.getRoomName());
 
-        // Handle item click
         holder.itemView.setOnClickListener(v -> listener.onRoomClick(position));
-
-        // Assuming you have edit and delete buttons in `item_room.xml`
         holder.editRoom.setOnClickListener(v -> listener.onEditRoom(position));
         holder.deleteRoom.setOnClickListener(v -> listener.onDeleteRoom(position));
     }
 
     @Override
     public int getItemCount() {
-        return roomList.size();
+        return roomList != null ? roomList.size() : 0;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView roomName;
         ImageView editRoom, deleteRoom;
 
-        ViewHolder(View itemView) {
+        ViewHolder(View itemView, OnRoomClickListener listener) {
             super(itemView);
             roomName = itemView.findViewById(R.id.roomName);
-            editRoom = itemView.findViewById(R.id.editIcon);   // Ensure these IDs exist in item_room.xml
+            editRoom = itemView.findViewById(R.id.editIcon);     // Make sure these IDs exist in item_room.xml
             deleteRoom = itemView.findViewById(R.id.deleteIcon);
         }
     }
