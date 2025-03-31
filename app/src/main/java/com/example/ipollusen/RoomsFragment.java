@@ -37,13 +37,13 @@ import okhttp3.Response;
 public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickListener {
     // RecyclerViews for two display formats
     private RecyclerView recyclerViewRooms;       // List view using RoomAdapter & RoomModel
-    private RecyclerView recyclerViewRoomCards;     // Card view using RoomCardAdapter & RoomCardModel
+//    private RecyclerView recyclerViewRoomCards;     // Card view using RoomCardAdapter & RoomCardModel
 
     // Adapters and data lists
     private RoomAdapter roomAdapter;
     private List<RoomModel> roomList;
-    private RoomCardAdapter roomCardAdapter;
-    private List<RoomCardModel> roomCardList;
+    //private RoomCardAdapter roomCardAdapter;
+    //private List<RoomCardModel> roomCardList;
 
     // Other views
     private ImageView btnAddRoom;
@@ -51,7 +51,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
     // API endpoints
     private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
-    private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/";
+    private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/show/";
 
     // Networking
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -75,14 +75,14 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         recyclerViewRooms.setAdapter(roomAdapter);
 
         // Initialize card view RecyclerView and adapter
-        recyclerViewRoomCards = view.findViewById(R.id.recyclerViewRoomCards);
-        recyclerViewRoomCards.setLayoutManager(new LinearLayoutManager(requireContext()));
-        roomCardList = new ArrayList<>();
-        roomCardAdapter = new RoomCardAdapter(roomCardList);
-        recyclerViewRoomCards.setAdapter(roomCardAdapter);
+        //recyclerViewRoomCards = view.findViewById(R.id.recyclerViewRoomCards);
+        //recyclerViewRoomCards.setLayoutManager(new LinearLayoutManager(requireContext()));
+        //roomCardList = new ArrayList<>();
+        //roomCardAdapter = new RoomCardAdapter(roomCardList);
+        //recyclerViewRoomCards.setAdapter(roomCardAdapter);
 
         btnAddRoom = view.findViewById(R.id.btnAddRoom);
-        btnAddRoom.setOnClickListener(v -> showAddRoomDialog());
+        //btnAddRoom.setOnClickListener(v -> showAddRoomDialog());
 
         Log.d("RoomsFragment", "Initialized views, fetching user rooms...");
         fetchUserRooms();
@@ -158,7 +158,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                 if (responseBody != null) {
                     JSONArray roomsArray = new JSONArray(responseBody);
                     List<RoomModel> matchedRooms = new ArrayList<>();
-                    List<RoomCardModel> matchedCardRooms = new ArrayList<>();
+                    //List<RoomCardModel> matchedCardRooms = new ArrayList<>();
 
                     for (int i = 0; i < roomsArray.length(); i++) {
                         JSONObject roomJson = roomsArray.getJSONObject(i);
@@ -175,7 +175,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                             String nodeIds = "";
 
                             matchedRooms.add(new RoomModel(roomId, roomName, roomDesc, length, breadth));
-                            matchedCardRooms.add(new RoomCardModel(roomId, roomName, roomDesc, length, breadth, nodeIds));
+                            //matchedCardRooms.add(new RoomCardModel(roomId, roomName, roomDesc, length, breadth, nodeIds));
                         }
                     }
 
@@ -184,9 +184,9 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                         roomList.addAll(matchedRooms);
                         roomAdapter.notifyDataSetChanged();
 
-                        roomCardList.clear();
-                        roomCardList.addAll(matchedCardRooms);
-                        roomCardAdapter.notifyDataSetChanged();
+//                        roomCardList.clear();
+//                        roomCardList.addAll(matchedCardRooms);
+//                        roomCardAdapter.notifyDataSetChanged();
 
                         Log.d("RoomsFragment", "Updated UI with fetched room details.");
                     });
@@ -210,42 +210,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                 .navigate(R.id.action_roomsFragment_to_roomDetailsFragment, bundle);
     }
 
-    private void showAddRoomDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Add Room");
 
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_room, null);
-        EditText inputRoomName = dialogView.findViewById(R.id.inputRoomName);
-        EditText inputRoomDesc = dialogView.findViewById(R.id.inputRoomDesc);
-        builder.setView(dialogView);
-
-        builder.setPositiveButton("Add", (dialog, which) -> {
-            String roomName = inputRoomName.getText().toString().trim();
-            String roomDesc = inputRoomDesc.getText().toString().trim();
-
-            if (!roomName.isEmpty()) {
-                // Generate a dummy room ID
-                String dummyRoomId = "dummy_" + System.currentTimeMillis();
-                // Create new RoomModel for list view (dimensions default to 0)
-                RoomModel newRoom = new RoomModel(dummyRoomId, roomName, roomDesc, 0, 0);
-                roomList.add(newRoom);
-                roomAdapter.notifyItemInserted(roomList.size() - 1);
-
-                // Also create a corresponding RoomCardModel for card view
-                RoomCardModel newRoomCard = new RoomCardModel(dummyRoomId, roomName, roomDesc, 0, 0, "");
-                roomCardList.add(newRoomCard);
-                roomCardAdapter.notifyItemInserted(roomCardList.size() - 1);
-
-                Log.d("RoomsFragment", "Room Added: " + roomName);
-                showToast("Room Added");
-            } else {
-                showToast("Room name cannot be empty");
-            }
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
 
     @Override
     public void onEditRoom(int position) {
@@ -261,13 +226,13 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         roomAdapter.notifyItemRemoved(position);
 
         // Remove corresponding RoomCardModel from the card view list
-        for (int i = 0; i < roomCardList.size(); i++) {
-            if (roomCardList.get(i).getRoomId().equals(roomId)) {
-                roomCardList.remove(i);
-                roomCardAdapter.notifyItemRemoved(i);
-                break;
-            }
-        }
+//        for (int i = 0; i < roomCardList.size(); i++) {
+//            if (roomCardList.get(i).getRoomId().equals(roomId)) {
+//                roomCardList.remove(i);
+//                roomCardAdapter.notifyItemRemoved(i);
+//                break;
+//            }
+//        }
         showToast("Room Deleted");
     }
 
@@ -277,36 +242,24 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setTitle("Edit Room");
 
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_room, null);
-        EditText inputRoomName = dialogView.findViewById(R.id.inputRoomName);
-        EditText inputRoomDesc = dialogView.findViewById(R.id.inputRoomDesc);
 
-        inputRoomName.setText(room.getRoomName());
-        inputRoomDesc.setText(room.getRoomDesc());
-        builder.setView(dialogView);
+        // Also update the corresponding card model
+//        for (int i = 0; i < roomCardList.size(); i++) {
+//            if (roomCardList.get(i).getRoomId().equals(room.getRoomId())) {
+//                roomCardList.get(i).setRoomName(room.getRoomName());
+//                roomCardList.get(i).setRoomDesc(room.getRoomDesc());
+//                roomCardAdapter.notifyItemChanged(i);
+//                break;
+//            }
+//        }
 
-        builder.setPositiveButton("Save", (dialog, which) -> {
-            room.setRoomName(inputRoomName.getText().toString().trim());
-            room.setRoomDesc(inputRoomDesc.getText().toString().trim());
-            roomAdapter.notifyItemChanged(position);
-
-            // Also update the corresponding card model
-            for (int i = 0; i < roomCardList.size(); i++) {
-                if (roomCardList.get(i).getRoomId().equals(room.getRoomId())) {
-                    roomCardList.get(i).setRoomName(room.getRoomName());
-                    roomCardList.get(i).setRoomDesc(room.getRoomDesc());
-                    roomCardAdapter.notifyItemChanged(i);
-                    break;
-                }
-            }
-
-            Log.d("RoomsFragment", "Room updated: " + room.getRoomName());
-            showToast("Room Updated");
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
+        Log.d("RoomsFragment", "Room updated: " + room.getRoomName());
+        showToast("Room Updated");
     }
+
+
+
+
 
     private void showToast(String message) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
