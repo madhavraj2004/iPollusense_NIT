@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
+
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
@@ -56,6 +57,13 @@
         <activity android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.iPolluSen"/>
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
 
 
         <!-- FileProvider -->

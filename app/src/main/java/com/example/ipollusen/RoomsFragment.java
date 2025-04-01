@@ -2,6 +2,8 @@ package com.example.ipollusen;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -51,7 +53,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
     // API endpoints
     private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
-    private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/show/";
+    private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/";
 
     // Networking
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -83,7 +85,10 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
         btnAddRoom = view.findViewById(R.id.btnAddRoom);
         //btnAddRoom.setOnClickListener(v -> showAddRoomDialog());
-
+        btnAddRoom.setOnClickListener(v -> {
+            Log.d("RoomsFragment", "Navigating to RoomDetailsFragment");
+            Navigation.findNavController(v).navigate(R.id.action_roomsFragment_to_roomDetailsFragment);
+        });
         Log.d("RoomsFragment", "Initialized views, fetching user rooms...");
         fetchUserRooms();
 
@@ -262,6 +267,9 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
 
     private void showToast(String message) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show()
+        );
     }
+
 }
