@@ -2,6 +2,7 @@ package com.example.ipollusen;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -173,23 +174,25 @@ public class RoomDetailsFragment extends Fragment {
                         JSONObject roomData = responseJson.getJSONObject("room");
                         String roomId = roomData.getString("_id");
 
-                        // Map room to user
+                        // Fetch userId from ViewModel
                         String userId = userViewModel.getUserId().getValue();
+                        Log.d("UserID", "Received userId: " + userId); // Log userId to debug
+
                         if (userId != null) {
                             mapRoomToUser(userId, roomId);
                         }
 
-                        // Map node(s) to user. For this sample, we assume a single node ID.
-                        // If nodeIdsText contains multiple IDs (comma-separated), you can split and iterate.
+                        // Map node(s) to user. If nodeIdsText contains multiple IDs, split and iterate.
                         if (userId != null && nodeIdsText != null && !nodeIdsText.isEmpty()) {
-                            mapNodeToUser(userId, nodeIdsText); // Directly pass as String
+                            mapNodeToUser(userId, nodeIdsText);
                         } else {
-                            // Handle empty or null nodeIdsText
-                            Toast.makeText(requireContext(), "Invalid node ID", Toast.LENGTH_SHORT).show();
+                            Log.e("UserID", "Invalid node ID or userId is null");
+                            getActivity().runOnUiThread(() ->
+                                    Toast.makeText(requireContext(), "Invalid node ID", Toast.LENGTH_SHORT).show()
+                            );
                         }
 
-
-                        requireActivity().runOnUiThread(() -> {
+                        getActivity().runOnUiThread(() -> {
                             Toast.makeText(requireContext(), "Room saved successfully!", Toast.LENGTH_SHORT).show();
                             requireActivity().getSupportFragmentManager().popBackStack();
                         });
@@ -202,7 +205,8 @@ public class RoomDetailsFragment extends Fragment {
 
             } catch (IOException | JSONException e) {
                 e.printStackTrace();
-                requireActivity().runOnUiThread(() -> {
+                Log.e("SaveRoomError", "Error saving room: " + e.getMessage());
+                getActivity().runOnUiThread(() -> {
                     Toast.makeText(requireContext(), "Error saving room", Toast.LENGTH_SHORT).show();
                     btnSave.setEnabled(true);
                 });
@@ -221,15 +225,23 @@ public class RoomDetailsFragment extends Fragment {
                 requestJson.put("roomId", roomId);
 
                 RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), requestJson.toString());
+
                 Request request = new Request.Builder()
                         .url(API_URL_MAP_ROOM_USER)
                         .post(body)
                         .header("Content-Type", "application/json")
                         .build();
 
-                client.newCall(request).execute();
+                Log.d("API_CALL", "Sending request to: " + API_URL_MAP_ROOM_USER);
+                Log.d("API_CALL", "Request Body: " + requestJson.toString());
+
+                Response response = client.newCall(request).execute();
+
+                Log.d("API_CALL", "Response Code: " + response.code());
+                Log.d("API_CALL", "Response Body: " + (response.body() != null ? response.body().string() : "null"));
+
             } catch (IOException | JSONException e) {
-                e.printStackTrace();
+                Log.e("API_CALL", "Error in mapRoomToUser", e);
             }
         });
     }
@@ -242,34 +254,47 @@ public class RoomDetailsFragment extends Fragment {
 
                 JSONObject requestJson = new JSONObject();
                 requestJson.put("userId", userId);
-                requestJson.put("nodeId", nodeId); // Now supports String values
+                requestJson.put("nodeId", nodeId);
 
                 RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), requestJson.toString());
+
                 Request request = new Request.Builder()
                         .url(API_URL_MAP_NODE_USER)
                         .post(body)
                         .header("Content-Type", "application/json")
                         .build();
 
+                Log.d("API_CALL", "Sending request to: " + API_URL_MAP_NODE_USER);
+                Log.d("API_CALL", "Request Body: " + requestJson.toString());
+
                 Response response = client.newCall(request).execute();
-                String responseBody = response.body() != null ? response.body().string() : null;
 
-                if (!response.isSuccessful() || responseBody == null) {
-                    throw new IOException("Unexpected response: " + response.code() + " - " + responseBody);
+                Log.d("API_CALL", "Response Code: " + response.code());
+                Log.d("API_CALL", "Response Body: " + (response.body() != null ? response.body().string() : "null"));
+
+                if (response.isSuccessful()) {
+                    if (isAdded() && getActivity() != null) {
+                        getActivity().runOnUiThread(() ->
+                                Toast.makeText(getActivity(), "Node mapped successfully!", Toast.LENGTH_SHORT).show()
+                        );
+                    }
+                } else {
+                    if (isAdded() && getActivity() != null) {
+                        getActivity().runOnUiThread(() ->
+                                Toast.makeText(getActivity(), "Failed to map node", Toast.LENGTH_SHORT).show()
+                        );
+                    }
                 }
-
-                JSONObject jsonResponse = new JSONObject(responseBody);
-                requireActivity().runOnUiThread(() -> {
-                    Toast.makeText(requireContext(), "Node mapped successfully!", Toast.LENGTH_SHORT).show();
-                });
-
             } catch (IOException | JSONException e) {
-                e.printStackTrace();
-                requireActivity().runOnUiThread(() -> {
-                    Toast.makeText(requireContext(), "Failed to map node: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                Log.e("API_CALL", "Error in mapNodeToUser", e);
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() ->
+                            Toast.makeText(getActivity(), "Error mapping node", Toast.LENGTH_SHORT).show()
+                    );
+                }
             }
         });
     }
+
 
 }

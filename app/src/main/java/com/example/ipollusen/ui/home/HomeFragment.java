@@ -599,7 +599,7 @@ public class HomeFragment extends Fragment {
         });
 
         // Fetch user ID when HomeFragment opens
-        fetchUserIdFromServer();
+
         setupDatePicker();
         initCheckBoxes(view);
         setupChart();
@@ -630,54 +630,8 @@ public class HomeFragment extends Fragment {
         // Optionally call the update method initially if needed
         updatePredictionChart(jsonString);
     }
-    private void fetchUserIdFromServer() {
-        // Get stored email from ViewModel
-        String userEmail = userViewModel.getUserEmail().getValue();
 
-        if (userEmail == null || userEmail.isEmpty()) {
-            Log.e(TAG, "Email not found in ViewModel");
-            return;
-        }
 
-        String url = "http://52.250.54.24:3500/api/users/search";
-
-        JSONObject requestBody = new JSONObject();
-        try {
-            requestBody.put("email", userEmail);
-        } catch (JSONException e) {
-            Log.e(TAG, "JSON Error: " + e.getMessage());
-            return;
-        }
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                com.android.volley.Request.Method.POST,  // 👈 Using full path to avoid OkHttp conflict
-                url,
-                requestBody,
-                response -> {
-                    try {
-                        if (response.has("data")) {
-                            JSONObject userData = response.getJSONObject("data");
-                            String userId = userData.getString("_id");
-
-                            // Store userId in ViewModel
-                            userViewModel.setUserId(userId);
-                            Log.d(TAG, "User ID fetched: " + userId);
-                        } else {
-                            Log.e(TAG, "Response does not contain user data");
-                        }
-                    } catch (JSONException e) {
-                        Log.e(TAG, "JSON Parsing Error: " + e.getMessage());
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Volley Error: " + (error.getMessage() != null ? error.getMessage() : "Unknown error"));
-                    Toast.makeText(getContext(), "Failed to fetch user ID", Toast.LENGTH_SHORT).show();
-                });
-
-        // Initialize the RequestQueue
-        RequestQueue requestQueue = Volley.newRequestQueue(requireContext());
-        requestQueue.add(request);
-    }
 
 
 

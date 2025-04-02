@@ -1,5 +1,7 @@
 package com.example.ipollusen;
 
+import static android.content.ContentValues.TAG;
+
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
@@ -19,6 +21,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -90,11 +96,64 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
             Navigation.findNavController(v).navigate(R.id.action_roomsFragment_to_roomDetailsFragment);
         });
         Log.d("RoomsFragment", "Initialized views, fetching user rooms...");
+        fetchUserIdFromServer();
         fetchUserRooms();
 
         return view;
     }
+    private void fetchUserIdFromServer() {
+        // Get stored email from ViewModel
+        String userEmail = userViewModel.getUserEmail().getValue();
 
+        if (userEmail == null || userEmail.isEmpty()) {
+            Log.e(TAG, "Email not found in ViewModel. Cannot fetch user ID.");
+            return;
+        }
+
+        String url = "http://52.250.54.24:3500/api/users/search";
+
+        JSONObject requestBody = new JSONObject();
+        try {
+            requestBody.put("email", userEmail);
+        } catch (JSONException e) {
+            Log.e(TAG, "JSON Error: " + e.getMessage());
+            return;
+        }
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                com.android.volley.Request.Method.POST,
+                url,
+                requestBody,
+                response -> {
+                    try {
+                        if (response.has("data")) {
+                            JSONObject userData = response.getJSONObject("data");
+
+                            if (userData.has("_id")) {
+                                String fetchedUserId = userData.getString("_id");
+
+                                // Update ViewModel with the fetched user ID
+                                userViewModel.setUserId(fetchedUserId);
+                                Log.d(TAG, "User ID updated from API: " + fetchedUserId);
+                            } else {
+                                Log.e(TAG, "API Response does not contain _id field");
+                            }
+                        } else {
+                            Log.e(TAG, "API Response does not contain 'data' field");
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "JSON Parsing Error: " + e.getMessage());
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "Volley Error: " + (error.getMessage() != null ? error.getMessage() : "Unknown error"));
+                    Toast.makeText(getContext(), "Failed to fetch user ID from API", Toast.LENGTH_SHORT).show();
+                });
+
+        // Add request to the queue
+        RequestQueue requestQueue = Volley.newRequestQueue(requireContext());
+        requestQueue.add(request);
+    }
     // Fetch room mapping for the logged-in user (returns matching room IDs)
     private void fetchUserRooms() {
         String userId = userViewModel.getUserId().getValue();
