@@ -15,11 +15,7 @@
             app:destination="@id/navigation_notification" />
     </fragment>
 
-    <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.ipollusen.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+
 
     <fragment
         android:id="@+id/navigation_notification"
@@ -31,7 +27,21 @@
             app:destination="@id/navigation_home" />
     </fragment>
 
+    <fragment
+        android:id="@+id/navigation_dashboard"
+        android:name="com.example.ipollusen.ui.dashboard.DashboardFragment"
+        android:label="@string/title_dashboard"
+        tools:layout="@layout/fragment_dashboard" >
+        <action
+            android:id="@+id/action_navigation_dashboard_to_recommendationFragment"
+            app:destination="@id/navigation_recommend" />
+    </fragment>
 
+    <fragment
+        android:id="@+id/navigation_recommend"
+        android:name="com.example.ipollusen.RecommendationFragment"
+        android:label="Recommendations"
+        tools:layout="@layout/fragment_maps" />
 
 
 

@@ -17,8 +17,8 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
 
     public interface OnRoomClickListener {
         void onRoomClick(int position);
-        void onEditRoom(int position);
-        void onDeleteRoom(int position);
+        default void onEditRoom(int position) {}
+        default void onDeleteRoom(int position) {}
     }
 
     public RoomAdapter(List<RoomModel> roomList, OnRoomClickListener listener) {
@@ -29,9 +29,8 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // Inflate your simple room list item layout; ensure item_room.xml exists in res/layout.
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_room, parent, false);
-        return new ViewHolder(view, listener);
+        return new ViewHolder(view);
     }
 
     @Override
@@ -40,8 +39,14 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
         holder.roomName.setText(room.getRoomName());
 
         holder.itemView.setOnClickListener(v -> listener.onRoomClick(position));
-        holder.editRoom.setOnClickListener(v -> listener.onEditRoom(position));
-        holder.deleteRoom.setOnClickListener(v -> listener.onDeleteRoom(position));
+
+        if (holder.editRoom != null) {
+            holder.editRoom.setOnClickListener(v -> listener.onEditRoom(position));
+        }
+
+        if (holder.deleteRoom != null) {
+            holder.deleteRoom.setOnClickListener(v -> listener.onDeleteRoom(position));
+        }
     }
 
     @Override
@@ -53,10 +58,10 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.ViewHolder> {
         TextView roomName;
         ImageView editRoom, deleteRoom;
 
-        ViewHolder(View itemView, OnRoomClickListener listener) {
+        ViewHolder(View itemView) {
             super(itemView);
             roomName = itemView.findViewById(R.id.roomName);
-            editRoom = itemView.findViewById(R.id.editIcon);     // Make sure these IDs exist in item_room.xml
+            editRoom = itemView.findViewById(R.id.editIcon);
             deleteRoom = itemView.findViewById(R.id.deleteIcon);
         }
     }

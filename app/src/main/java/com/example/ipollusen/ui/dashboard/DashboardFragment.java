@@ -11,36 +11,43 @@ import android.webkit.WebViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
 
 import com.example.ipollusen.R;
+import com.google.android.material.card.MaterialCardView;
 
 public class DashboardFragment extends Fragment {
 
-    private static final String WEBPAGE_URL = "https://ipollusense-annotate.web.app"; // Updated URL
-
+    private static final String WEBPAGE_URL = "https://ipollusense-annotate.web.app";
     private WebView webView;
+    private MaterialCardView annotationCard, recommendationCard;
 
+    @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_dashboard, container, false);
 
-        // Initialize the WebView
+        // Initialize UI components safely
+        annotationCard = view.findViewById(R.id.annotationCard);
+        recommendationCard = view.findViewById(R.id.recommendationCard);
         webView = view.findViewById(R.id.webViewGoogleForm);
 
-        if (webView != null) {
-            // Enable JavaScript for the WebView
-            WebSettings webSettings = webView.getSettings();
-            webSettings.setJavaScriptEnabled(true);
+        if (annotationCard != null) {
+            annotationCard.setOnClickListener(v -> {
+                if (webView != null) {
+                    webView.setVisibility(View.VISIBLE);
+                    WebSettings webSettings = webView.getSettings();
+                    webSettings.setJavaScriptEnabled(true);
+                    webView.setWebViewClient(new WebViewClient());
+                    webView.loadUrl(WEBPAGE_URL);
+                }
+            });
+        }
 
-            // Set WebViewClient to open links within the WebView
-            webView.setWebViewClient(new WebViewClient());
-
-            // Load the new webpage URL
-            webView.loadUrl(WEBPAGE_URL); // Updated URL
-        } else {
-            // Log or handle the case where WebView is not found
-            throw new IllegalStateException("WebView with ID webViewGoogleForm not found in fragment_dashboard layout.");
+        if (recommendationCard != null) {
+            recommendationCard.setOnClickListener(v ->
+                    Navigation.findNavController(v).navigate(R.id.action_navigation_dashboard_to_recommendationFragment)
+            );
         }
 
         return view;
@@ -49,10 +56,8 @@ public class DashboardFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // Ensure proper WebView cleanup
         if (webView != null) {
             webView.destroy();
-            webView = null;
         }
     }
 }

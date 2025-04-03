@@ -67,9 +67,11 @@ import com.github.mikephil.charting.data.LineDataSet;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -586,7 +588,7 @@ public class HomeFragment extends Fragment {
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
 
-        // Observe user email
+// Observe user email
         userViewModel.getUserEmail().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String userEmail) {
@@ -594,16 +596,20 @@ public class HomeFragment extends Fragment {
                     Log.e(TAG, "Email not found in ViewModel");
                 } else {
                     Log.d(TAG, "User Email: " + userEmail);
+                    Log.d(TAG, "User ID: " + userViewModel.getUserId().getValue());
+
+                    // ✅ Call fetchUserIdFromServer() only when email is available
+                    fetchUserIdFromServer();
                 }
             }
         });
 
-        // Fetch user ID when HomeFragment opens
-
+// Other initializations
         setupDatePicker();
         initCheckBoxes(view);
         setupChart();
         setupDeviceDropdown();
+
         return view;
 
 
@@ -630,6 +636,87 @@ public class HomeFragment extends Fragment {
         // Optionally call the update method initially if needed
         updatePredictionChart(jsonString);
     }
+
+
+
+    private void fetchUserIdFromServer() {
+        Log.d(TAG, "fetchUserIdFromServer() called");
+
+        if (userViewModel == null) {
+            Log.e(TAG, "UserViewModel is null. Cannot fetch user ID.");
+            return;
+        }
+
+        String userEmail = userViewModel.getUserEmail().getValue();
+        if (userEmail == null || userEmail.isEmpty()) {
+            Log.e(TAG, "Email not found in ViewModel. Cannot fetch user ID.");
+            return;
+        }
+
+        Log.d(TAG, "Sending Email to API: " + userEmail);
+
+        new Thread(() -> {
+            try {
+                String urlString = "http://52.250.54.24:3500/api/users/search";
+                URL url = new URL(urlString);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                // Create JSON request
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("email", userEmail);
+
+                // Send request
+                OutputStream os = conn.getOutputStream();
+                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                    reader.close();
+
+                    Log.d(TAG, "API Response: " + response.toString());
+
+                    // Parse JSON Response
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    if (jsonResponse.has("data")) {
+                        JSONObject userData = jsonResponse.getJSONObject("data");
+                        if (userData.has("_id")) {
+                            String apiUserId = userData.getString("_id");
+
+                            Log.d(TAG, "Extracted User ID from API: " + apiUserId);
+
+                            // Update UI on main thread
+                            requireActivity().runOnUiThread(() -> {
+                                userViewModel.setUserId(apiUserId);
+                                Log.d(TAG, "User ID updated in ViewModel: " + userViewModel.getUserId().getValue());
+                            });
+                        } else {
+                            Log.e(TAG, "API Response does not contain '_id' field");
+                        }
+                    } else {
+                        Log.e(TAG, "API Response does not contain 'data' field");
+                    }
+                } else {
+                    Log.e(TAG, "Server Response Code: " + responseCode);
+                }
+
+                conn.disconnect();
+            } catch (Exception e) {
+                Log.e(TAG, "HTTP Request Error: " + e.getMessage());
+            }
+        }).start(); // Run in a background thread
+    }
+
 
 
 
