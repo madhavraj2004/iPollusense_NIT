@@ -14,6 +14,13 @@
             android:id="@+id/action_navigation_home_to_navigation_notification2"
             app:destination="@id/navigation_notification" />
     </fragment>
+    <fragment
+        android:id="@+id/navigation_appliance"
+        android:name="com.example.ipollusen.ApplianceFragment"
+        android:label="@string/menu_appliance"
+        tools:layout="@layout/fragment_appliances" >
+
+    </fragment>
 
 
 
@@ -41,16 +48,24 @@
         android:id="@+id/navigation_recommend"
         android:name="com.example.ipollusen.RecommendationFragment"
         android:label="Recommendations"
-        tools:layout="@layout/fragment_maps" />
-
-
-
+        tools:layout="@layout/fragment_recommendation" >
+        <action
+            android:id="@+id/action_navigation_recommend_to_navigation_reccomend_prompt"
+            app:destination="@id/navigation_reccomend_prompt" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_map"
         android:name="com.example.ipollusen.MapsFragment"
         android:label="@string/title_map"
         tools:layout="@layout/fragment_maps" />
+
+
+    <fragment
+        android:id="@+id/navigation_reccomend_prompt"
+        android:name="com.example.ipollusen.RecommendationPromptFragment"
+        android:label="@string/title_map"
+        tools:layout="@layout/fragment_recommendation_prompt" />
 
     <fragment
         android:id="@+id/nav_settings"
@@ -75,10 +90,9 @@
         android:name="com.example.ipollusen.RoomDetailsFragment"
         tools:layout="@layout/fragment_room_details">
 
-        <!-- 👇 ADD THIS ACTION -->
         <action
-            android:id="@+id/action_roomDetailsFragment_to_roomsFragment"
-            app:destination="@id/nav_rooms" />
+            android:id="@+id/action_roomDetailsFragment_to_applianceFragment"
+            app:destination="@id/navigation_appliance" />
     </fragment>
     <fragment
         android:id="@+id/fragment_profile"

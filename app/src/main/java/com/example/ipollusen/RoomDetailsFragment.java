@@ -1,21 +1,21 @@
 package com.example.ipollusen;
 
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentResultListener;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -25,11 +25,10 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.HashMap;
+import java.util.Map;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -41,8 +40,11 @@ public class RoomDetailsFragment extends Fragment {
     private EditText inputRoomName, inputRoomDesc, inputLength, inputBreadth, inputNodeIds;
     private Button btnAddAppliance, btnSave;
     private RecyclerView recyclerViewAppliances;
-    private ApplianceAdapter applianceAdapter;
-    private List<Appliance> appliancesList;
+
+    // We'll use ApplianceJsonAdapter to display the JSON data from ApplianceFragment.
+    private ApplianceJsonAdapter applianceJsonAdapter;
+    private ArrayList<JSONObject> applianceJsonList = new ArrayList<>();
+
     private UserViewModel userViewModel;
 
     private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/store";
@@ -50,11 +52,9 @@ public class RoomDetailsFragment extends Fragment {
     private static final String API_URL_MAP_NODE_USER = "http://52.250.54.24:3500/api/mapNodeUser/store";
 
     private static final Map<String, String> APPLIANCE_IDS = new HashMap<>();
-
-    static {
-        APPLIANCE_IDS.put("Fan", "67e414422ea35fe39a7d7cd0");
-        APPLIANCE_IDS.put("Window", "67e414532ea35fe39a7d7cd4");
-    }
+    private static final String TAG = "RoomDetailsFragment";
+    // This will hold the JSON string from ApplianceFragment.
+    private String applianceJsonData = null;
 
     public RoomDetailsFragment() {}
 
@@ -64,60 +64,56 @@ public class RoomDetailsFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_room_details, container, false);
 
-        // Initialize ViewModel
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
 
-        // Initialize input fields
         inputRoomName = view.findViewById(R.id.inputRoomName);
         inputRoomDesc = view.findViewById(R.id.inputRoomDesc);
         inputLength = view.findViewById(R.id.inputLength);
         inputBreadth = view.findViewById(R.id.inputBreadth);
-        inputNodeIds = view.findViewById(R.id.inputNodeIds); // New field for node IDs
+        inputNodeIds = view.findViewById(R.id.inputNodeIds);
 
         btnAddAppliance = view.findViewById(R.id.btnAddAppliance);
         btnSave = view.findViewById(R.id.btnSave);
         recyclerViewAppliances = view.findViewById(R.id.recyclerViewAppliances);
 
-        appliancesList = new ArrayList<>();
-        applianceAdapter = new ApplianceAdapter(appliancesList);
+        // Initialize adapter for appliance JSON display
+        applianceJsonAdapter = new ApplianceJsonAdapter(applianceJsonList);
         recyclerViewAppliances.setLayoutManager(new LinearLayoutManager(requireContext()));
-        recyclerViewAppliances.setAdapter(applianceAdapter);
+        recyclerViewAppliances.setAdapter(applianceJsonAdapter);
 
-        btnAddAppliance.setOnClickListener(v -> showAddApplianceDialog());
+        btnAddAppliance.setOnClickListener(v -> {
+            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_main);
+            navController.navigate(R.id.action_roomDetailsFragment_to_applianceFragment);
+        });
+
         btnSave.setOnClickListener(v -> saveRoom());
 
-        return view;
-    }
-
-    private void showAddApplianceDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_appliance, null);
-        builder.setView(dialogView);
-
-        Spinner spinnerApplianceType = dialogView.findViewById(R.id.spinnerApplianceType);
-        Button btnConfirmAdd = dialogView.findViewById(R.id.btnConfirmAdd);
-
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(requireContext(),
-                R.array.appliance_options, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerApplianceType.setAdapter(adapter);
-
-        AlertDialog dialog = builder.create();
-
-        btnConfirmAdd.setOnClickListener(v -> {
-            String selectedAppliance = spinnerApplianceType.getSelectedItem().toString();
-            String applianceId = APPLIANCE_IDS.get(selectedAppliance);
-
-            if (applianceId != null) {
-                appliancesList.add(new Appliance(applianceId, selectedAppliance, "OFF", true, false));
-                applianceAdapter.notifyDataSetChanged();
-                dialog.dismiss();
-            } else {
-                Toast.makeText(requireContext(), "Invalid appliance selection", Toast.LENGTH_SHORT).show();
+        // Listen for the appliance JSON result from ApplianceFragment.
+        getParentFragmentManager().setFragmentResultListener("appliance_data_result", this, new FragmentResultListener() {
+            @Override
+            public void onFragmentResult(@NonNull String requestKey, @NonNull Bundle bundle) {
+                applianceJsonData = bundle.getString("appliance_data");
+                Log.d(TAG, "Received appliance data: " + applianceJsonData);
+                // Parse and update the RecyclerView.
+                if (applianceJsonData != null) {
+                    try {
+                        JSONObject applianceDataObj = new JSONObject(applianceJsonData);
+                        JSONArray appliancesArray = applianceDataObj.optJSONArray("appliances");
+                        applianceJsonList.clear();
+                        if (appliancesArray != null) {
+                            for (int i = 0; i < appliancesArray.length(); i++) {
+                                applianceJsonList.add(appliancesArray.getJSONObject(i));
+                            }
+                        }
+                        applianceJsonAdapter.notifyDataSetChanged();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         });
 
-        dialog.show();
+        return view;
     }
 
     private void saveRoom() {
@@ -125,15 +121,15 @@ public class RoomDetailsFragment extends Fragment {
         String roomDesc = inputRoomDesc.getText().toString().trim();
         String length = inputLength.getText().toString().trim();
         String breadth = inputBreadth.getText().toString().trim();
-        String nodeIdsText = inputNodeIds.getText().toString().trim(); // New input for node IDs
+        String nodeIdsText = inputNodeIds.getText().toString().trim();
 
         if (roomName.isEmpty() || roomDesc.isEmpty() || length.isEmpty() || breadth.isEmpty() ||
-                appliancesList.isEmpty() || nodeIdsText.isEmpty()) {
+                applianceJsonData == null || applianceJsonData.isEmpty() || nodeIdsText.isEmpty()) {
             Toast.makeText(requireContext(), "Please fill all fields, add at least one appliance, and enter node IDs", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        btnSave.setEnabled(false); // Disable button to prevent multiple clicks
+        btnSave.setEnabled(false);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
@@ -146,17 +142,53 @@ public class RoomDetailsFragment extends Fragment {
                 roomJson.put("length", Integer.parseInt(length));
                 roomJson.put("breadth", Integer.parseInt(breadth));
 
-                JSONArray appliancesArray = new JSONArray();
-                for (Appliance appliance : appliancesList) {
-                    JSONObject applianceJson = new JSONObject();
-                    applianceJson.put("appliance_id", appliance.getApplianceId());
-                    applianceJson.put("is_smart", true);
-                    appliancesArray.put(applianceJson);
+                // Parse nodeIdsText (assumed comma-separated numbers)
+                JSONArray nodeIdsArr = new JSONArray();
+                String[] nodeIds = nodeIdsText.split(",");
+                for (String idStr : nodeIds) {
+                    try {
+                        nodeIdsArr.put(Integer.parseInt(idStr.trim()));
+                    } catch (NumberFormatException nfe) {
+                        Log.w(TAG, "Invalid node id: " + idStr);
+                    }
                 }
-                roomJson.put("appliances", appliancesArray);
-                roomJson.put("nodeIdsArr", new JSONArray()); // Can be adjusted if needed
-                roomJson.put("userIdsPresent", new JSONArray());
-                roomJson.put("isDeleted", false);
+                roomJson.put("nodeIdsArr", nodeIdsArr);
+                roomJson.put("is_smart", true);
+
+                // Build appliances JSON from the data received from ApplianceFragment.
+                JSONObject applianceDataObj = new JSONObject(applianceJsonData);
+                JSONArray originalAppliances = applianceDataObj.getJSONArray("appliances");
+                JSONArray finalApplianceArray = new JSONArray();
+
+                for (int i = 0; i < originalAppliances.length(); i++) {
+                    JSONObject applianceObj = originalAppliances.getJSONObject(i);
+                    JSONObject finalAppliance = new JSONObject();
+                    finalAppliance.put("_id", applianceObj.getString("_id"));
+                    finalAppliance.put("applianceName", applianceObj.getString("applianceName"));
+
+                    JSONArray originalStates = applianceObj.getJSONArray("appliancePrompts");
+                    JSONArray finalStates = new JSONArray();
+
+                    for (int j = 0; j < originalStates.length(); j++) {
+                        JSONObject prompt = originalStates.getJSONObject(j);
+                        JSONObject state = new JSONObject();
+                        state.put("name", prompt.getString("name"));
+                        state.put("description", prompt.optString("description", ""));
+                        state.put("type", prompt.optString("type", "String"));
+                        // Use optString so that if "value" isn't present, we supply a default (empty string)
+                        state.put("value", prompt.optString("value", ""));
+                        if (prompt.has("valid_range")) {
+                            state.put("valid_range", prompt.getJSONArray("valid_range"));
+                        }
+                        finalStates.put(state);
+                    }
+                    finalAppliance.put("appliancePrompts", finalStates);
+                    finalApplianceArray.put(finalAppliance);
+                }
+
+                roomJson.put("appliances", finalApplianceArray);
+
+                Log.d(TAG, "Final Room JSON: " + roomJson.toString(2));
 
                 RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), roomJson.toString());
                 Request request = new Request.Builder()
@@ -167,6 +199,7 @@ public class RoomDetailsFragment extends Fragment {
 
                 Response response = client.newCall(request).execute();
                 String responseBody = response.body() != null ? response.body().string() : null;
+                Log.d(TAG, "API Response: " + responseBody);
 
                 if (responseBody != null) {
                     JSONObject responseJson = new JSONObject(responseBody);
@@ -174,25 +207,13 @@ public class RoomDetailsFragment extends Fragment {
                         JSONObject roomData = responseJson.getJSONObject("room");
                         String roomId = roomData.getString("_id");
 
-                        // Fetch userId from ViewModel
                         String userId = userViewModel.getUserId().getValue();
-                        Log.d("UserID", "Received userId: " + userId); // Log userId to debug
-
                         if (userId != null) {
                             mapRoomToUser(userId, roomId);
-                        }
-
-                        // Map node(s) to user. If nodeIdsText contains multiple IDs, split and iterate.
-                        if (userId != null && nodeIdsText != null && !nodeIdsText.isEmpty()) {
                             mapNodeToUser(userId, nodeIdsText);
-                        } else {
-                            Log.e("UserID", "Invalid node ID or userId is null");
-                            getActivity().runOnUiThread(() ->
-                                    Toast.makeText(requireContext(), "Invalid node ID", Toast.LENGTH_SHORT).show()
-                            );
                         }
 
-                        getActivity().runOnUiThread(() -> {
+                        requireActivity().runOnUiThread(() -> {
                             Toast.makeText(requireContext(), "Room saved successfully!", Toast.LENGTH_SHORT).show();
                             requireActivity().getSupportFragmentManager().popBackStack();
                         });
@@ -202,17 +223,18 @@ public class RoomDetailsFragment extends Fragment {
                 } else {
                     throw new IOException("Empty response");
                 }
-
             } catch (IOException | JSONException e) {
-                e.printStackTrace();
-                Log.e("SaveRoomError", "Error saving room: " + e.getMessage());
-                getActivity().runOnUiThread(() -> {
+                Log.e(TAG, "Error saving room: " + e.getMessage(), e);
+                requireActivity().runOnUiThread(() -> {
                     Toast.makeText(requireContext(), "Error saving room", Toast.LENGTH_SHORT).show();
                     btnSave.setEnabled(true);
                 });
             }
         });
     }
+
+
+
 
     private void mapRoomToUser(String userId, String roomId) {
         ExecutorService executor = Executors.newSingleThreadExecutor();

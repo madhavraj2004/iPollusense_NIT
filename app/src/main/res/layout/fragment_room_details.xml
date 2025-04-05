@@ -45,12 +45,65 @@
         android:hint="Enter Node IDs"
         android:inputType="text"
         android:minHeight="48dp" />
+    <CheckBox
+        android:id="@+id/checkboxIsSmart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Is Smart?"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"/>
 
     <Button
         android:id="@+id/btnAddAppliance"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Add Appliance"/>
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/applianceName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:text="Appliance Name" />
+
+        <TextView
+            android:id="@+id/applianceState"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:text="State" />
+
+        <TextView
+            android:id="@+id/applianceRange"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:layout_gravity="left"
+            android:text="Valid Range" />
+
+        <TextView
+            android:id="@+id/applianceMode"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:layout_gravity="right"
+            android:text="Mode" />
+    </LinearLayout>
+
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewAppliances"

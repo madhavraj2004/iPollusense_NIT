@@ -2,5 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">52.250.54.24</domain>
+        <domain includeSubdomains="true">nitdgp2.a.pinggy.link</domain>
     </domain-config>
+
 </network-security-config>

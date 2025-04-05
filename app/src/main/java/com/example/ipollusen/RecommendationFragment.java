@@ -1,6 +1,11 @@
 package com.example.ipollusen;
 
+import static com.example.ipollusen.RoomsFragment.API_URL_ROOMS;
+
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -38,7 +44,9 @@ public class RecommendationFragment extends Fragment {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final OkHttpClient client = new OkHttpClient();
     private boolean isFetching = false;
+    private static final String TAG = "RecommendationFragment";
 
+    private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -48,17 +56,12 @@ public class RecommendationFragment extends Fragment {
         roomList = new ArrayList<>();
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
-        userViewModel.getUserId().observe(getViewLifecycleOwner(), userId -> {
-            if (!isFetching) {
-                isFetching = true;
-                fetchRoomIds(userId);
-            }
-        });
+
 
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
         roomAdapter = new RoomAdapter(roomList, position -> openRecommendationPrompt(roomList.get(position)));
         recyclerView.setAdapter(roomAdapter);
-
+        fetchUserRooms();
         return view;
     }
 
@@ -66,125 +69,122 @@ public class RecommendationFragment extends Fragment {
         RecommendationPromptFragment promptFragment = RecommendationPromptFragment.newInstance(
                 room.getRoomId(),
                 room.getRoomName(),
-                room.getRoomDesc()
+                room.getRoomDesc(),
+                room.getLength(),
+                room.getBreadth(),
+                room.getNodeIds()
         );
 
-        promptFragment.show(getParentFragmentManager(), "RecommendationPromptFragment");
+        // Replace current fragment with RecommendationPromptFragment
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.nav_host_fragment_activity_main, promptFragment) // Make sure this ID matches your container
+                .addToBackStack(null)
+                .commit();
     }
 
-    private void fetchRoomIds(String userId) {
-        Log.d("RecommendationFragment", "Fetching room IDs for userId: " + userId);
+
+    // Fetch room mapping for the logged-in user (returns matching room IDs)
+    private void fetchUserRooms() {
+        String userId = userViewModel.getUserId().getValue();
+        if (userId == null || userId.isEmpty()) {
+            showToast("User ID not found");
+            return;
+        }
+
         executorService.execute(() -> {
             try {
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("userId", userId);
+                JSONObject requestJson = new JSONObject();
+                requestJson.put("userId", userId);
+
+                RequestBody body = RequestBody.create(
+                        MediaType.get("application/json; charset=utf-8"),
+                        requestJson.toString());
 
                 Request request = new Request.Builder()
-                        .url("http://52.250.54.24:3500/api/mapRoomUser/search")
-                        .post(RequestBody.create(requestBody.toString(), MediaType.get("application/json")))
+                        .url(API_URL_ROOM_LIST)
+                        .post(body)
+                        .header("Content-Type", "application/json")
                         .build();
 
-                Response response = client.newCall(request).execute();
-                if (response.isSuccessful() && response.body() != null) {
-                    String responseData = response.body().string();
-                    Log.d("RecommendationFragment", "Room IDs Response: " + responseData);
-                    parseRoomIds(responseData);
-                } else {
-                    Log.e("RecommendationFragment", "Failed to fetch room IDs: " + response.code());
+                try (Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        throw new IOException("Unexpected code " + response);
+                    }
+
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    Log.d(TAG, "User rooms mapping response: " + responseBody);
+
+                    List<String> roomIds = new ArrayList<>();
+                    JSONObject jsonResponse = new JSONObject(responseBody);
+                    JSONArray dataArray = jsonResponse.getJSONArray("data");
+
+                    for (int i = 0; i < dataArray.length(); i++) {
+                        roomIds.add(dataArray.getJSONObject(i).getString("roomId"));
+                    }
+
+                    Log.d(TAG, "Fetched Room IDs: " + roomIds);
+                    fetchRoomDetails(roomIds);
                 }
             } catch (IOException | JSONException e) {
-                Log.e("RecommendationFragment", "Error fetching room IDs", e);
+                Log.e(TAG, "Error fetching user rooms", e);
+                showToast("Failed to fetch user rooms");
             }
         });
     }
 
-    private void parseRoomIds(String json) {
-        Log.d("RecommendationFragment", "Parsing room IDs from JSON: " + json);
-        try {
-            JSONObject jsonObject = new JSONObject(json);
-            JSONArray dataArray = jsonObject.optJSONArray("data");
-
-            if (dataArray == null || dataArray.length() == 0) {
-                Log.w("RecommendationFragment", "No rooms found.");
-                return;
-            }
-
-            List<String> roomIds = new ArrayList<>();
-            for (int i = 0; i < dataArray.length(); i++) {
-                roomIds.add(dataArray.getJSONObject(i).optString("roomId", ""));
-            }
-
-            fetchAllRoomDetails(roomIds);
-        } catch (JSONException e) {
-            Log.e("RecommendationFragment", "JSON Parsing Error", e);
-        }
-    }
-
-    private void fetchAllRoomDetails(List<String> roomIds) {
+    // Fetch all room details, filter based on mapped room IDs
+    private void fetchRoomDetails(List<String> roomIds) {
         executorService.execute(() -> {
-            List<RoomModel> newRooms = new ArrayList<>();
+            try {
+                Request request = new Request.Builder()
+                        .url(API_URL_ROOMS)
+                        .get()
+                        .build();
 
-            for (String roomId : roomIds) {
-                if (roomId.isEmpty()) {
-                    continue;
-                }
-
-                try {
-                    JSONObject requestBody = new JSONObject();
-                    requestBody.put("_id", roomId);
-
-                    Request request = new Request.Builder()
-                            .url("http://52.250.54.24:3500/api/room/show")
-                            .post(RequestBody.create(requestBody.toString(), MediaType.get("application/json")))
-                            .build();
-
-                    Response response = client.newCall(request).execute();
-                    if (response.isSuccessful() && response.body() != null) {
-                        String responseData = response.body().string();
-                        Log.d("RecommendationFragment", "Room Details Response for " + roomId + ": " + responseData);
-                        RoomModel room = parseRoomDetails(responseData);
-                        if (room != null) {
-                            newRooms.add(room);
-                        }
-                    } else {
-                        Log.e("RecommendationFragment", "Failed to fetch room details: " + response.code());
+                try (Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        throw new IOException("Unexpected code " + response);
                     }
-                } catch (IOException | JSONException e) {
-                    Log.e("RecommendationFragment", "Error fetching room details", e);
-                }
-            }
 
-            if (!newRooms.isEmpty()) {
-                requireActivity().runOnUiThread(() -> {
-                    roomList.clear();
-                    roomList.addAll(newRooms);
-                    roomAdapter.notifyDataSetChanged();
-                    isFetching = false;
-                });
-            } else {
-                isFetching = false;
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    Log.d(TAG, "All rooms response: " + responseBody);
+
+                    List<RoomModel> matchedRooms = new ArrayList<>();
+                    JSONArray roomsArray = new JSONArray(responseBody);
+
+                    for (int i = 0; i < roomsArray.length(); i++) {
+                        JSONObject roomJson = roomsArray.getJSONObject(i);
+                        String roomId = roomJson.getString("_id");
+
+                        if (roomIds.contains(roomId)) {
+                            String roomName = roomJson.getString("roomName");
+                            String roomDesc = roomJson.optString("roomDesc", "No description available");
+                            int length = roomJson.getInt("length");
+                            int breadth = roomJson.getInt("breadth");
+
+                            matchedRooms.add(new RoomModel(roomId, roomName, roomDesc, length, breadth));
+                        }
+                    }
+
+                    requireActivity().runOnUiThread(() -> {
+                        roomList.clear();
+                        roomList.addAll(matchedRooms);
+                        roomAdapter.notifyDataSetChanged();
+                        Log.d(TAG, "Updated UI with matched room details.");
+                    });
+                }
+            } catch (IOException | JSONException e) {
+                Log.e(TAG, "Error fetching room details", e);
+                showToast("Failed to fetch room details");
             }
         });
     }
 
-    private RoomModel parseRoomDetails(String json) {
-        Log.d("RecommendationFragment", "Parsing room details: " + json);
-        try {
-            JSONObject jsonObject = new JSONObject(json);
-
-            String roomId = jsonObject.optString("_id", "");
-            String roomName = jsonObject.optString("roomName", "Unnamed Room");
-            String roomDesc = jsonObject.optString("roomDesc", "No description available");
-
-            if (roomId.isEmpty() || roomName.equals("Unnamed Room")) {
-                Log.w("RecommendationFragment", "Invalid room details received.");
-                return null;
-            }
-
-            return new RoomModel(roomId, roomName, roomDesc);
-        } catch (JSONException e) {
-            Log.e("RecommendationFragment", "JSON Parsing Error", e);
-            return null;
-        }
+    // Display toast on UI thread
+    private void showToast(String message) {
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        );
     }
 }

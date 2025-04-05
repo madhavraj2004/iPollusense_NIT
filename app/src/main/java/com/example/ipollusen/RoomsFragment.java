@@ -58,8 +58,8 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
     private UserViewModel userViewModel;
 
     // API endpoints
-    private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
-    private static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/";
+    public static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
+    public static final String API_URL_ROOMS = "http://52.250.54.24:3500/api/room/";
 
     // Networking
     private final ExecutorService executor = Executors.newFixedThreadPool(2);

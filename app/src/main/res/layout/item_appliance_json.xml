@@ -11,7 +11,7 @@
         android:layout_weight="1"
         android:textSize="16sp"
         android:textColor="@android:color/black"
-        android:text="Appliance"/>
+        android:text="Appliance Name" />
 
     <TextView
         android:id="@+id/applianceState"
@@ -20,23 +20,23 @@
         android:layout_weight="1"
         android:textSize="16sp"
         android:textColor="@android:color/black"
-        android:text="State"/>
+        android:text="State" />
 
     <TextView
-        android:id="@+id/applianceStatus"
+        android:id="@+id/applianceRange"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textSize="16sp"
         android:textColor="@android:color/black"
-        android:text="On/Off"/>
+        android:text="Valid Range" />
 
     <TextView
-        android:id="@+id/applianceSmart"
+        android:id="@+id/applianceMode"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textSize="16sp"
         android:textColor="@android:color/black"
-        android:text="Smart"/>
+        android:text="Mode" />
 </LinearLayout>

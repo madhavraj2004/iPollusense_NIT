@@ -11,6 +11,11 @@
     <string name="nav_header_subtitle">android.studio@android.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="select_device">Select Device</string>
+    <string-array name="modifier_options">
+        <item>health</item>
+        <item>comfort</item>
+        <item>balanced</item>
+    </string-array>
 
     <string-array name="appliance_options">
         <item>Fan</item>
@@ -67,6 +72,7 @@
     <string name="ipollusense" />
     <string name="add" />
     <string name="rooms" />
+    <string name="menu_appliance" />
 
     <string-array name="device_options">
         <item>Select a device</item>
