@@ -14,6 +14,8 @@ import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -46,6 +48,12 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,6 +81,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             redirectToLoginActivity();
             return;
         }
+        // Find Navigation View
+        NavigationView navigationView = findViewById(R.id.nav_view);
+
+// Access header view of Navigation Drawer
+        View headerView = navigationView.getHeaderView(0);
+
+// Now find your backArrowButton from nav_header_main.xml
+        ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
+
+// Handle click to go back
+        backArrowButton.setOnClickListener(v -> {
+            onBackPressed(); // or NavController navigateUp()
+        });
+
+
+
+        backArrowButton.setOnClickListener(v -> {
+            onBackPressed();  // Or super.onBackPressed()
+        });
+
 
         // Set up Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -94,11 +122,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         requestNotificationPermission();
 
         // Fetch FCM Token
-        fetchFCMToken();
+
 
         // Handle battery optimization issues
         disableBatteryOptimizations();
     }
+
+
+
 
 
 
@@ -148,68 +179,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    // ✅ Step 3: Fetch and Store FCM Token
-    private void fetchFCMToken() {
-        Log.d("FCM_DEBUG", "Fetching FCM token...");
-
-        FirebaseMessaging.getInstance().getToken()
-                .addOnCompleteListener(task -> {
-                    if (!task.isSuccessful()) {
-                        Log.w("FCM_DEBUG", "Fetching FCM registration token failed", task.getException());
-                        return;
-                    }
-
-                    String newToken = task.getResult();
-                    Log.d("FCM_DEBUG", "New FCM Token: " + newToken);
-
-                    if (newToken == null || newToken.isEmpty()) {
-                        Log.e("FCM_DEBUG", "FCM Token is null or empty!");
-                        return;
-                    }
-
-                    // Fetch stored token
-                    String storedToken = getStoredFCMToken();
-                    Log.d("FCM_DEBUG", "Stored FCM Token: " + storedToken);
-
-                    if (!newToken.equals(storedToken)) {
-                        saveFCMToken(newToken);
-                        Log.d("FCM_DEBUG", "FCM Token updated and saved.");
-                    } else {
-                        Log.d("FCM_DEBUG", "FCM Token remains the same, not updating.");
-                    }
-                });
-    }
-
-    private void saveFCMToken(String token) {
-        // Save token locally in SharedPreferences
-        getSharedPreferences("FCM_PREF", MODE_PRIVATE)
-                .edit()
-                .putString("fcm_token", token)
-                .apply();
-
-        // Get the current user ID from ViewModel
-        String userId = userViewModel.getUserId().getValue();
-        if (userId != null) {
-            FirebaseFirestore db = FirebaseFirestore.getInstance();
-            DocumentReference userRef = db.collection("users").document(userId);
-
-            // Update only the FCM token field
-            Map<String, Object> updateData = new HashMap<>();
-            updateData.put("fcm_token", token);
-
-            // Update Firestore with the new FCM token
-            userRef.update(updateData)
-                    .addOnSuccessListener(aVoid -> Log.d("FCM_DEBUG", "FCM token updated in Firestore"))
-                    .addOnFailureListener(e -> Log.e("FCM_DEBUG", "Error updating FCM token", e));
-        } else {
-            Log.e("FCM_DEBUG", "User ID is null, cannot update FCM token in Firestore.");
-        }
-    }
-
-    private String getStoredFCMToken() {
-        return getSharedPreferences("FCM_PREF", MODE_PRIVATE)
-                .getString("fcm_token", "");
-    }
 
 
     // ✅ Step 4: Disable Battery Optimizations (Android 14+)

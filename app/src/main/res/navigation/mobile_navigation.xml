@@ -20,6 +20,9 @@
         android:label="@string/menu_appliance"
         tools:layout="@layout/fragment_appliances" >
 
+        <action
+            android:id="@+id/action_navigation_appliance_to_roomDetailsFragment"
+            app:destination="@id/roomDetailsFragment" />
     </fragment>
 
 
@@ -65,7 +68,11 @@
         android:id="@+id/navigation_reccomend_prompt"
         android:name="com.example.ipollusen.RecommendationPromptFragment"
         android:label="@string/title_map"
-        tools:layout="@layout/fragment_recommendation_prompt" />
+        tools:layout="@layout/fragment_recommendation_prompt" >
+        <action
+            android:id="@+id/action_navigation_reccomend_prompt_to_navigation_recommend"
+            app:destination="@id/navigation_recommend" />
+    </fragment>
 
     <fragment
         android:id="@+id/nav_settings"
@@ -93,6 +100,9 @@
         <action
             android:id="@+id/action_roomDetailsFragment_to_applianceFragment"
             app:destination="@id/navigation_appliance" />
+        <action
+            android:id="@+id/action_roomDetailsFragment_to_nav_rooms"
+            app:destination="@id/nav_rooms" />
     </fragment>
     <fragment
         android:id="@+id/fragment_profile"

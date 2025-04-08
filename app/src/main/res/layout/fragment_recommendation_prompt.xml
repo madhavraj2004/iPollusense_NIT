@@ -10,54 +10,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Room Name Input -->
-        <EditText
-            android:id="@+id/inputRoomName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:drawable/editbox_background"
-            android:hint="Enter Room Name"
-            android:minHeight="48dp"
-            android:padding="8dp" />
 
-        <!-- Room Description Input -->
-        <EditText
-            android:id="@+id/inputRoomDesc"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Enter Room Description"
-            android:minHeight="48dp"
-            android:padding="8dp" />
 
-        <!-- Room Length Input -->
-        <EditText
-            android:id="@+id/inputLength"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Room Length"
-            android:inputType="numberDecimal"
-            android:minHeight="48dp"
-            android:padding="8dp" />
-
-        <!-- Room Breadth Input -->
-        <EditText
-            android:id="@+id/inputBreadth"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Room Breadth"
-            android:inputType="numberDecimal"
-            android:minHeight="48dp"
-            android:padding="8dp" />
-
-        <!-- Node IDs Input -->
-        <EditText
-            android:id="@+id/inputNodeIds"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Enter Node IDs"
-            android:inputType="text"
-            android:minHeight="48dp"
-            android:padding="8dp" />
 
         <!-- Modifier Dropdown -->
         <TextView
@@ -85,51 +39,7 @@
             android:padding="8dp"
             android:layout_marginTop="8dp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="10dp">
 
-            <TextView
-                android:id="@+id/applianceName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:textColor="@android:color/black"
-                android:text="Appliance Name" />
-
-            <TextView
-                android:id="@+id/applianceState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_gravity="center"
-                android:text="     State"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/applianceRange"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:textColor="@android:color/black"
-                android:layout_gravity="left"
-                android:text="Valid Range" />
-
-            <TextView
-                android:id="@+id/applianceMode"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:textColor="@android:color/black"
-                android:layout_gravity="right"
-                android:text="Mode" />
-        </LinearLayout>
 
         <!-- RecyclerView for Appliances -->
         <androidx.recyclerview.widget.RecyclerView
@@ -160,7 +70,7 @@
         <TextView
             android:id="@+id/htmlResponseTextView"
             android:layout_width="match_parent"
-            android:layout_height="85dp"
+            android:layout_height="221dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:autoLink="all"
@@ -171,26 +81,6 @@
             android:textColor="@android:color/black"
             android:textIsSelectable="true" />
 
-        <!-- Feedback Input Box -->
-        <EditText
-            android:id="@+id/inputFeedback"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Write your feedback..."
-            android:minHeight="80dp"
-            android:gravity="top"
-            android:background="@android:drawable/edit_text"
-            android:padding="10dp"
-            android:layout_marginBottom="16dp"
-            android:inputType="textMultiLine"
-            android:maxLines="4" />
-        <!-- Send Prompt Button -->
-        <Button
-            android:id="@+id/btnSendFeedback"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Send Feedback"
-            android:layout_marginTop="10dp"/>
 
     </LinearLayout>
 </ScrollView>

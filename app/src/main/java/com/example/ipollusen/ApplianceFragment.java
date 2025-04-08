@@ -1,15 +1,19 @@
 package com.example.ipollusen;
 
 import android.os.Bundle;
+import android.text.InputType;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -135,99 +139,68 @@ public class ApplianceFragment extends Fragment {
                     String description = prompt.optString("description", "");
                     String type = prompt.optString("type", "").toLowerCase();
 
-                    switch (promptName.toLowerCase()) {
-                        case "state":
-                            TextView stateLabel = new TextView(getContext());
-                            stateLabel.setText("State - " + description);
-                            stateLabel.setPadding(0, 20, 0, 10);
-                            applianceLayout.addView(stateLabel);
+                    TextView promptLabel = new TextView(getContext());
+                    promptLabel.setPadding(0, 20, 0, 10);
 
-                            Spinner stateSpinner = new Spinner(getContext());
-                            ArrayAdapter<String> stateAdapter = new ArrayAdapter<>(getContext(),
-                                    android.R.layout.simple_spinner_item, new String[]{"ON", "OFF"});
-                            stateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                            stateSpinner.setAdapter(stateAdapter);
-                            stateSpinner.setTag("state_spinner");
-                            applianceLayout.addView(stateSpinner);
-                            break;
+                    if (promptName.equalsIgnoreCase("State")) {
+                        promptLabel.setText("State - " + description);
 
-                        case "range":
-                            TextView rangeLabel = new TextView(getContext());
-                            rangeLabel.setText("Range - " + description);
-                            rangeLabel.setPadding(0, 20, 0, 10);
-                            applianceLayout.addView(rangeLabel);
+                        Spinner stateSpinner = new Spinner(getContext());
+                        ArrayAdapter<String> stateAdapter = new ArrayAdapter<>(getContext(),
+                                android.R.layout.simple_spinner_item, new String[]{"ON", "OFF"});
+                        stateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                        stateSpinner.setAdapter(stateAdapter);
 
-                            TextView lowerText = new TextView(getContext());
-                            lowerText.setText("Lower Limit:");
-                            applianceLayout.addView(lowerText);
+                        applianceLayout.addView(promptLabel);
+                        applianceLayout.addView(stateSpinner);
 
-                            SeekBar lowerSeek = new SeekBar(getContext());
-                            lowerSeek.setMax(100);
-                            lowerSeek.setProgress(20);
-                            lowerSeek.setTag("lowerSeek_" + promptName);
-                            applianceLayout.addView(lowerSeek);
+                    } else if (type.equals("number")) {
+                        // For number type with range
+                        JSONArray range = prompt.optJSONArray("valid_range");
+                        String min = range != null ? String.valueOf(range.optInt(0)) : "N/A";
+                        String max = range != null ? String.valueOf(range.optInt(1)) : "N/A";
 
-                            TextView upperText = new TextView(getContext());
-                            upperText.setText("Upper Limit:");
-                            applianceLayout.addView(upperText);
+                        promptLabel.setText(promptName + " - " + description + " (" + min + " - " + max + ")");
 
-                            SeekBar upperSeek = new SeekBar(getContext());
-                            upperSeek.setMax(100);
-                            upperSeek.setProgress(80);
-                            upperSeek.setTag("upperSeek_" + promptName);
-                            applianceLayout.addView(upperSeek);
-                            break;
+                        EditText inputField = new EditText(getContext());
+                        inputField.setInputType(InputType.TYPE_CLASS_NUMBER);
+                        inputField.setHint("Enter " + promptName);
+                        inputField.setTag(promptName);
 
-                        default:
-                            if (type.equals("number")) {
-                                TextView numberLabel = new TextView(getContext());
-                                numberLabel.setText(promptName + " - " + description);
-                                numberLabel.setPadding(0, 20, 0, 10);
-                                applianceLayout.addView(numberLabel);
+                        applianceLayout.addView(promptLabel);
+                        applianceLayout.addView(inputField);
 
-                                SeekBar numberSeek = new SeekBar(getContext());
-                                numberSeek.setMax(100);
-                                numberSeek.setProgress(50);
-                                numberSeek.setTag("numberSeek_" + promptName);
-
-                                TextView numberValue = new TextView(getContext());
-                                numberValue.setText("Value: 50");
-                                numberValue.setPadding(0, 10, 0, 20);
-                                numberSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                                    @Override
-                                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                                        numberValue.setText("Value: " + progress);
-                                    }
-
-                                    @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-                                    @Override public void onStopTrackingTouch(SeekBar seekBar) {}
-                                });
-
-                                applianceLayout.addView(numberSeek);
-                                applianceLayout.addView(numberValue);
-                            } else if (prompt.has("valid_range")) {
-                                TextView modeLabel = new TextView(getContext());
-                                modeLabel.setText(promptName + " - " + description);
-                                modeLabel.setPadding(0, 20, 0, 10);
-                                applianceLayout.addView(modeLabel);
-
-                                Spinner modeSpinner = new Spinner(getContext());
-                                JSONArray options = prompt.getJSONArray("valid_range");
-                                List<String> optionList = new ArrayList<>();
-                                for (int k = 0; k < options.length(); k++) {
-                                    optionList.add(options.getString(k));
-                                }
-
-                                ArrayAdapter<String> modeAdapter = new ArrayAdapter<>(getContext(),
-                                        android.R.layout.simple_spinner_item, optionList);
-                                modeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                                modeSpinner.setAdapter(modeAdapter);
-                                modeSpinner.setTag("modeSpinner_" + promptName);
-                                applianceLayout.addView(modeSpinner);
+                    } else if (type.equals("list")) {
+                        JSONArray validOptions = prompt.optJSONArray("valid_range");
+                        List<String> options = new ArrayList<>();
+                        if (validOptions != null) {
+                            for (int k = 0; k < validOptions.length(); k++) {
+                                options.add(validOptions.getString(k));
                             }
-                            break;
+                        }
+
+                        promptLabel.setText(promptName + " - " + description);
+
+                        Spinner optionsSpinner = new Spinner(getContext());
+                        ArrayAdapter<String> listAdapter = new ArrayAdapter<>(getContext(),
+                                android.R.layout.simple_spinner_item, options);
+                        listAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                        optionsSpinner.setAdapter(listAdapter);
+
+                        applianceLayout.addView(promptLabel);
+                        applianceLayout.addView(optionsSpinner);
+
+                    } else if (type.equals("boolean")) {
+                        promptLabel.setText(promptName + " - " + description);
+
+                        Switch switchView = new Switch(getContext());
+                        switchView.setTag(promptName);
+
+                        applianceLayout.addView(promptLabel);
+                        applianceLayout.addView(switchView);
                     }
                 }
+
 
                 cardView.addView(applianceLayout);
                 applianceContainer.addView(cardView);
@@ -250,10 +223,12 @@ public class ApplianceFragment extends Fragment {
         applianceContainer.addView(saveButton);
     }
 
+
     private void saveApplianceData() {
         JSONArray appliancesArray = new JSONArray();
 
         int totalChildren = applianceContainer.getChildCount();
+        // Exclude the last child (Save Button)
         for (int i = 0; i < totalChildren - 1; i++) {
             View cardView = applianceContainer.getChildAt(i);
             if (cardView instanceof CardView) {
@@ -268,7 +243,7 @@ public class ApplianceFragment extends Fragment {
                     applianceObject.put("_id", originalAppliance.optString("_id", ""));
                     applianceObject.put("applianceName", originalAppliance.getString("applianceName"));
 
-                    JSONArray applianceStatesArray = new JSONArray();
+                    JSONArray appliancePromptsArray = new JSONArray();
                     JSONArray prompts = originalAppliance.getJSONArray("appliancePrompts");
 
                     for (int p = 0; p < prompts.length(); p++) {
@@ -278,9 +253,15 @@ public class ApplianceFragment extends Fragment {
 
                         JSONObject state = new JSONObject();
                         state.put("name", promptName);
-                        state.put("type", type);
                         state.put("description", prompt.optString("description", ""));
+                        state.put("type", type);
 
+                        // Copy valid_range if exists
+                        if (prompt.has("valid_range")) {
+                            state.put("valid_range", prompt.getJSONArray("valid_range"));
+                        }
+
+                        // Get value from UI based on type/prompt
                         switch (promptName.toLowerCase()) {
                             case "state":
                                 Spinner stateSpinner = innerLayout.findViewWithTag("state_spinner");
@@ -289,60 +270,49 @@ public class ApplianceFragment extends Fragment {
                                 break;
 
                             case "range":
-                                SeekBar lowerSeek = innerLayout.findViewWithTag("lowerSeek_" + promptName);
-                                SeekBar upperSeek = innerLayout.findViewWithTag("upperSeek_" + promptName);
-                                if (lowerSeek != null && upperSeek != null) {
-                                    JSONArray rangeArray = new JSONArray();
-                                    rangeArray.put(lowerSeek.getProgress());
-                                    rangeArray.put(upperSeek.getProgress());
-                                    state.put("valid_range", rangeArray);
-                                    state.put("value", upperSeek.getProgress());
+                                EditText lowerLimit = innerLayout.findViewWithTag("lowerLimit_" + promptName);
+                                EditText upperLimit = innerLayout.findViewWithTag("upperLimit_" + promptName);
+                                if (lowerLimit != null && upperLimit != null) {
+                                    String lowerText = lowerLimit.getText().toString().trim();
+                                    String upperText = upperLimit.getText().toString().trim();
+                                    state.put("value", lowerText + "-" + upperText);
                                 }
                                 break;
 
                             default:
                                 if (type.equals("number")) {
-                                    SeekBar numberSeek = innerLayout.findViewWithTag("numberSeek_" + promptName);
-                                    if (numberSeek != null) {
-                                        state.put("value", numberSeek.getProgress());
-                                    }
+                                    SeekBar numberSeek = innerLayout.findViewWithTag("seek_" + promptName);
+                                    if (numberSeek != null)
+                                        state.put("value", String.valueOf(numberSeek.getProgress()));
+                                } else if (type.equals("boolean")) {
+                                    CheckBox checkBox = innerLayout.findViewWithTag("check_" + promptName);
+                                    if (checkBox != null)
+                                        state.put("value", checkBox.isChecked() ? "true" : "");
+                                } else if (type.equals("list")) {
+                                    Spinner spinner = innerLayout.findViewWithTag("spinner_" + promptName);
+                                    if (spinner != null)
+                                        state.put("value", spinner.getSelectedItem().toString());
                                 } else {
-                                    Spinner modeSpinner = innerLayout.findViewWithTag("modeSpinner_" + promptName);
-                                    if (modeSpinner != null) {
-                                        state.put("value", modeSpinner.getSelectedItem().toString());
-                                        if (prompt.has("valid_range")) {
-                                            state.put("valid_range", prompt.getJSONArray("valid_range"));
-                                        }
-                                    }
+                                    EditText editText = innerLayout.findViewWithTag("edit_" + promptName);
+                                    if (editText != null)
+                                        state.put("value", editText.getText().toString().trim());
                                 }
                                 break;
                         }
 
-                        applianceStatesArray.put(state);
+                        appliancePromptsArray.put(state);
                     }
 
-                    applianceObject.put("appliancePrompts", applianceStatesArray);
+                    applianceObject.put("appliancePrompts", appliancePromptsArray);
                     appliancesArray.put(applianceObject);
 
-                } catch (JSONException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
-                    Toast.makeText(getContext(), "Error gathering appliance data", Toast.LENGTH_SHORT).show();
                 }
             }
         }
 
-        JSONObject finalJson = new JSONObject();
-        try {
-            finalJson.put("appliances", appliancesArray);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-        Bundle result = new Bundle();
-        result.putString("appliance_data", finalJson.toString());
-        getParentFragmentManager().setFragmentResult("appliance_data_result", result);
-
-        Toast.makeText(getContext(), "Appliance data saved", Toast.LENGTH_SHORT).show();
-        Navigation.findNavController(requireView()).navigateUp();
+        Log.d("FinalJSON", appliancesArray.toString());
     }
+
 }

@@ -5,15 +5,21 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.*;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.*;
 import android.widget.*;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 
 import com.android.volley.*;
 import com.android.volley.toolbox.*;
@@ -60,15 +66,24 @@ public class RecommendationPromptFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_recommendation_prompt, container, false);
 
-        EditText inputRoomName = view.findViewById(R.id.inputRoomName);
-        EditText inputRoomDesc = view.findViewById(R.id.inputRoomDesc);
-        EditText inputLength = view.findViewById(R.id.inputLength);
-        EditText inputBreadth = view.findViewById(R.id.inputBreadth);
-        EditText inputNodeIds = view.findViewById(R.id.inputNodeIds);
         inputCustomPrompt = view.findViewById(R.id.inputCustomPrompt);
         Spinner spinnerModifier = view.findViewById(R.id.spinnerModifier);
         htmlResponseTextView = view.findViewById(R.id.htmlResponseTextView);
         Button btnSendPrompt = view.findViewById(R.id.btnSendPrompt);
+        // Assume your toolbar contains the back arrow. If using a Toolbar:
+        // Toolbar toolbar = view.findViewById(R.id.toolbar);
+        // toolbar.setNavigationOnClickListener(v -> navigateBack());
+        // Or if you have a dedicated button for the back arrow:
+
+        // Also if you have a close button:
+        Button btnClose = view.findViewById(R.id.closeButton);
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> {
+                NavController navController = NavHostFragment.findNavController(this);
+                navController.navigate(R.id.action_navigation_reccomend_prompt_to_navigation_recommend);
+            });
+        }
+
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
 
@@ -90,11 +105,6 @@ public class RecommendationPromptFragment extends Fragment {
 
         String roomId = "";
         if (getArguments() != null) {
-            inputRoomName.setText(getArguments().getString(ARG_ROOM_NAME, ""));
-            inputRoomDesc.setText(getArguments().getString(ARG_ROOM_DESC, ""));
-            inputLength.setText(String.valueOf(getArguments().getInt(ARG_LENGTH, 0)));
-            inputBreadth.setText(String.valueOf(getArguments().getInt(ARG_BREADTH, 0)));
-            inputNodeIds.setText(getArguments().getString(ARG_NODE_IDS, ""));
             roomId = getArguments().getString(ARG_ROOM_ID, "");
         }
 
@@ -108,6 +118,26 @@ public class RecommendationPromptFragment extends Fragment {
         });
 
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        // Handle system back button press using the helper method
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        navigateBack();
+                    }
+                });
+    }
+
+    // Helper method: Try navigateUp; if that fails, pop back stack.
+    private void navigateBack() {
+        NavController navController = Navigation.findNavController(requireView());
+        if (!navController.navigateUp()) {
+            navController.popBackStack();
+        }
     }
 
     private void fetchLocation() {
@@ -157,7 +187,6 @@ public class RecommendationPromptFragment extends Fragment {
                                         mapRoomUserId = item.optString("_id");
                                         Log.d(TAG, "Matched mapRoomUserId: " + mapRoomUserId);
                                         sendInitialPrompt(customPrompt);
-                                        fetchPromptResponse();
                                         return;
                                     }
                                 }
@@ -206,9 +235,8 @@ public class RecommendationPromptFragment extends Fragment {
                         Toast.makeText(requireContext(), "Failed to send prompt.", Toast.LENGTH_SHORT).show();
                     }
             );
-            // Set a custom timeout if needed:
             promptRequest.setRetryPolicy(new DefaultRetryPolicy(
-                    15000,
+                    20000,
                     DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                     DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
             queue.add(promptRequest);
@@ -232,23 +260,36 @@ public class RecommendationPromptFragment extends Fragment {
                     json,
                     response -> {
                         Log.d(TAG, "Received prompt response: " + response.toString());
+
+                        StringBuilder builder = new StringBuilder();
+
+                        // Add Rationale (if exists)
+                        String rationale = response.optString("rationale", "");
+                        if (!rationale.isEmpty()) {
+                            builder.append("Rationale:\n").append(rationale).append("\n\n");
+                        }
+
+                        // Add Suggestions (if exists)
                         JSONArray promptsArray = response.optJSONArray("prompts");
                         if (promptsArray != null && promptsArray.length() > 0) {
-                            StringBuilder builder = new StringBuilder();
+                            builder.append("Suggestions:\n");
                             for (int i = 0; i < promptsArray.length(); i++) {
                                 builder.append("• ").append(promptsArray.optString(i, "")).append("\n\n");
                             }
-                            htmlResponseTextView.setText(builder.toString().trim());
-                        } else {
-                            htmlResponseTextView.setText("No recommendations received.");
                         }
+
+                        // Fallback to raw response if nothing found
+                        if (builder.length() == 0) {
+                            builder.append(response.toString());
+                        }
+
+                        htmlResponseTextView.setText(builder.toString().trim());
                     },
                     error -> {
                         htmlResponseTextView.setText("Failed to retrieve recommendations.");
                         Log.e(TAG, "Error fetching prompt response", error);
                     }
             );
-            // Set custom timeout if needed
             responseRequest.setRetryPolicy(new DefaultRetryPolicy(
                     15000,
                     DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
@@ -258,5 +299,4 @@ public class RecommendationPromptFragment extends Fragment {
             Log.e(TAG, "Error forming prompt response request", e);
         }
     }
-
 }

@@ -170,45 +170,44 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                 if (responseBody != null) {
                     JSONArray roomsArray = new JSONArray(responseBody);
                     List<RoomModel> matchedRooms = new ArrayList<>();
-                    //List<RoomCardModel> matchedCardRooms = new ArrayList<>();
 
                     for (int i = 0; i < roomsArray.length(); i++) {
                         JSONObject roomJson = roomsArray.getJSONObject(i);
                         String roomId = roomJson.getString("_id");
 
-                        // Only add rooms that are mapped to the user
                         if (roomIds.contains(roomId)) {
                             String roomName = roomJson.getString("roomName");
                             String roomDesc = roomJson.optString("roomDesc", "No description available");
                             int length = roomJson.getInt("length");
                             int breadth = roomJson.getInt("breadth");
 
-                            // For this example, nodeIds is not extracted from JSON so we pass an empty string.
-                            String nodeIds = "";
-
                             matchedRooms.add(new RoomModel(roomId, roomName, roomDesc, length, breadth));
-                            //matchedCardRooms.add(new RoomCardModel(roomId, roomName, roomDesc, length, breadth, nodeIds));
                         }
                     }
 
-                    requireActivity().runOnUiThread(() -> {
-                        roomList.clear();
-                        roomList.addAll(matchedRooms);
-                        roomAdapter.notifyDataSetChanged();
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        if (isAdded()) {
+                            roomList.clear();
+                            roomList.addAll(matchedRooms);
+                            roomAdapter.notifyDataSetChanged();
 
-//                        roomCardList.clear();
-//                        roomCardList.addAll(matchedCardRooms);
-//                        roomCardAdapter.notifyDataSetChanged();
-
-                        Log.d("RoomsFragment", "Updated UI with fetched room details.");
+                            Log.d("RoomsFragment", "Updated UI with fetched room details.");
+                        }
                     });
                 }
             } catch (IOException | JSONException e) {
                 Log.e("RoomsFragment", "Error fetching room details", e);
-                showToast("Failed to fetch room details");
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    if (isAdded()) {
+                        showToast("Failed to fetch room details");
+                    }
+                });
             }
         });
     }
+
 
     @Override
     public void onRoomClick(int position) {
@@ -231,22 +230,29 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
     @Override
     public void onDeleteRoom(int position) {
-        // Get the room ID before removal
-        String roomId = roomList.get(position).getRoomId();
-        Log.d("RoomsFragment", "Room deleted: " + roomList.get(position).getRoomName());
-        roomList.remove(position);
-        roomAdapter.notifyItemRemoved(position);
+        if (position >= 0 && position < roomList.size()) {
+            String roomId = roomList.get(position).getRoomId();
+            Log.d("RoomsFragment", "Room deleted: " + roomList.get(position).getRoomName());
 
-        // Remove corresponding RoomCardModel from the card view list
-//        for (int i = 0; i < roomCardList.size(); i++) {
-//            if (roomCardList.get(i).getRoomId().equals(roomId)) {
-//                roomCardList.remove(i);
-//                roomCardAdapter.notifyItemRemoved(i);
-//                break;
+            roomList.remove(position);
+            roomAdapter.notifyItemRemoved(position);
+
+            // Remove from card list too
+//            for (int i = 0; i < roomCardList.size(); i++) {
+//                if (roomCardList.get(i).getRoomId().equals(roomId)) {
+//                    roomCardList.remove(i);
+//                    roomCardAdapter.notifyItemRemoved(i);
+//                    break;
+//                }
 //            }
-//        }
-        showToast("Room Deleted");
+
+            showToast("Room Deleted");
+
+        } else {
+            Log.e("RoomsFragment", "Invalid delete position: " + position + ", size: " + roomList.size());
+        }
     }
+
 
     private void showEditRoomDialog(int position) {
         RoomModel room = roomList.get(position);

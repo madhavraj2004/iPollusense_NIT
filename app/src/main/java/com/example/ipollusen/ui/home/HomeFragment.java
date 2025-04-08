@@ -54,6 +54,11 @@ import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.polidea.rxandroidble3.RxBleClient;
 import com.polidea.rxandroidble3.RxBleDevice;
 import com.polidea.rxandroidble3.RxBleConnection;
@@ -596,10 +601,26 @@ public class HomeFragment extends Fragment {
                     Log.e(TAG, "Email not found in ViewModel");
                 } else {
                     Log.d(TAG, "User Email: " + userEmail);
-                    Log.d(TAG, "User ID: " + userViewModel.getUserId().getValue());
+                    FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+                    if (firebaseUser != null) {
+                        String firebaseUserId = firebaseUser.getUid();
+                        Log.d(TAG, "Firebase User ID: " + firebaseUserId);
 
-                    // ✅ Call fetchUserIdFromServer() only when email is available
-                    fetchUserIdFromServer();
+                        // Log the API user id from your ViewModel if available
+                        String apiUserId = userViewModel.getUserId().getValue();
+                        Log.d(TAG, "API User ID: " + apiUserId);
+
+                        // Retrieve the stored FCM token (if available)
+                        String storedToken = getStoredFCMToken();
+                        if (storedToken == null || storedToken.isEmpty()) {
+                            Log.d(TAG, "No stored FCM token available yet.");
+                        } else {
+                            Log.d(TAG, "Calling fetchUserIdFromServer() with FCM token: " + storedToken);
+                            fetchUserIdFromServer(storedToken);
+                        }
+                    } else {
+                        Log.e(TAG, "Firebase user is not signed in. Cannot fetch Firebase User ID.");
+                    }
                 }
             }
         });
@@ -609,7 +630,7 @@ public class HomeFragment extends Fragment {
         initCheckBoxes(view);
         setupChart();
         setupDeviceDropdown();
-
+        fetchFCMToken();
         return view;
 
 
@@ -637,69 +658,164 @@ public class HomeFragment extends Fragment {
         updatePredictionChart(jsonString);
     }
 
+     // Step 1: Fetch FCM token and update Firestore before doing the API requests
+    private void fetchFCMToken() {
+        Log.d("FCM_DEBUG", "Fetching FCM token...");
 
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Log.w("FCM_DEBUG", "Fetching FCM registration token failed", task.getException());
+                        return;
+                    }
 
-    private void fetchUserIdFromServer() {
-        Log.d(TAG, "fetchUserIdFromServer() called");
+                    String newToken = task.getResult();
+                    Log.d("FCM_DEBUG", "New FCM Token: " + newToken);
 
-        if (userViewModel == null) {
-            Log.e(TAG, "UserViewModel is null. Cannot fetch user ID.");
+                    if (newToken == null || newToken.isEmpty()) {
+                        Log.e("FCM_DEBUG", "FCM Token is null or empty!");
+                        return;
+                    }
+
+                    // Fetch stored token from SharedPreferences
+                    String storedToken = getStoredFCMToken();
+                    Log.d("FCM_DEBUG", "Stored FCM Token: " + storedToken);
+
+                    if (!newToken.equals(storedToken)) {
+                        // Save the new token locally
+                        saveFCMToken(newToken);
+                        Log.d("FCM_DEBUG", "FCM Token updated and saved.");
+
+                        // Update Firestore with FCM token using Firebase user's UID
+                        updateFirestoreWithToken(newToken);
+
+                        // Proceed with API calls only if email is available
+                        String userEmail = userViewModel.getUserEmail().getValue();
+                        if (userEmail == null || userEmail.isEmpty()) {
+                            Log.e(TAG, "User email is not found in ViewModel. Halting API requests.");
+                        } else {
+                            Log.d(TAG, "User email found: " + userEmail + ". Proceeding with API calls.");
+                            fetchUserIdFromServer(newToken);
+                        }
+                    } else {
+                        Log.d("FCM_DEBUG", "FCM Token remains the same, not updating.");
+                    }
+                });
+    }
+
+    // Update Firestore document using Firebase Authentication's user UID
+    private void updateFirestoreWithToken(String token) {
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            Log.e("FCM_DEBUG", "Firebase user is null. Cannot update Firestore.");
             return;
         }
 
+        String firebaseUserId = firebaseUser.getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        DocumentReference userRef = db.collection("users").document(firebaseUserId);
+
+        // Build update data with FCM token and firebaseUserId
+        Map<String, Object> updateData = new HashMap<>();
+        updateData.put("fcm_token", token);
+        updateData.put("firebaseUserId", firebaseUserId);
+
+        userRef.update(updateData)
+                .addOnSuccessListener(aVoid -> Log.d("FCM_DEBUG", "Firestore updated with FCM token"))
+                .addOnFailureListener(e -> Log.e("FCM_DEBUG", "Error updating Firestore", e));
+    }
+
+    // Save the FCM token locally using the Fragment's context
+    private void saveFCMToken(String token) {
+        requireContext().getSharedPreferences("FCM_PREF", Context.MODE_PRIVATE)
+                .edit()
+                .putString("fcm_token", token)
+                .apply();
+    }
+
+    // Retrieve the stored FCM token
+    private String getStoredFCMToken() {
+        return requireContext().getSharedPreferences("FCM_PREF", Context.MODE_PRIVATE)
+                .getString("fcm_token", "");
+    }
+
+    // Step 2: Call the API to search for the user by email and update the API with the FCM token
+    private void fetchUserIdFromServer(String newFcmToken) {
+        Log.d(TAG, "fetchUserIdFromServer() called");
+
+        // Get the user's email from the ViewModel
         String userEmail = userViewModel.getUserEmail().getValue();
         if (userEmail == null || userEmail.isEmpty()) {
             Log.e(TAG, "Email not found in ViewModel. Cannot fetch user ID.");
             return;
         }
-
         Log.d(TAG, "Sending Email to API: " + userEmail);
 
+        // Start a background thread to perform the network call
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                String urlString = "http://52.250.54.24:3500/api/users/search";
-                URL url = new URL(urlString);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
+                // STEP 1: Call the search API to get the user details by email
+                String searchUrlString = "http://52.250.54.24:3500/api/users/search";
+                URL searchUrl = new URL(searchUrlString);
+                conn = (HttpURLConnection) searchUrl.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
 
-                // Create JSON request
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("email", userEmail);
+                // Build the search JSON with the email
+                JSONObject searchRequest = new JSONObject();
+                searchRequest.put("email", userEmail);
+                Log.d(TAG, "Search Request JSON: " + searchRequest.toString());
 
-                // Send request
                 OutputStream os = conn.getOutputStream();
-                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
+                os.write(searchRequest.toString().getBytes(StandardCharsets.UTF_8));
                 os.close();
 
                 int responseCode = conn.getResponseCode();
+                Log.d(TAG, "Search API Response Code: " + responseCode);
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
+                    StringBuilder responseBuilder = new StringBuilder();
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        response.append(line);
+                        responseBuilder.append(line);
                     }
                     reader.close();
 
-                    Log.d(TAG, "API Response: " + response.toString());
+                    String responseString = responseBuilder.toString();
+                    Log.d(TAG, "API Response: " + responseString);
 
-                    // Parse JSON Response
-                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    // Parse the JSON response from the API
+                    JSONObject jsonResponse = new JSONObject(responseString);
                     if (jsonResponse.has("data")) {
                         JSONObject userData = jsonResponse.getJSONObject("data");
                         if (userData.has("_id")) {
                             String apiUserId = userData.getString("_id");
+                            Log.d(TAG, "Extracted API User ID: " + apiUserId);
 
-                            Log.d(TAG, "Extracted User ID from API: " + apiUserId);
-
-                            // Update UI on main thread
+                            // Update the ViewModel on the UI thread if needed
                             requireActivity().runOnUiThread(() -> {
                                 userViewModel.setUserId(apiUserId);
-                                Log.d(TAG, "User ID updated in ViewModel: " + userViewModel.getUserId().getValue());
+                                Log.d(TAG, "API User ID updated in ViewModel: " + userViewModel.getUserId().getValue());
                             });
+
+                            // STEP 2: Build the update request JSON with only the desired keys
+                            JSONObject updateRequest = new JSONObject();
+                            updateRequest.put("_id", apiUserId);
+                            updateRequest.put("name", userData.optString("name", ""));
+                            updateRequest.put("email", userData.optString("email", ""));
+                            updateRequest.put("age", userData.opt("age"));  // age as a number
+                            updateRequest.put("gender", userData.optString("gender", ""));
+                            updateRequest.put("ethnicity", userData.optString("ethnicity", ""));
+                            updateRequest.put("other_info", userData.optString("other_info", ""));
+                            // Use the new FCM token received from FCM
+                            updateRequest.put("fcm_token", newFcmToken);
+
+                            Log.d(TAG, "Update Request JSON: " + updateRequest.toString());
+
+                            // STEP 3: Call the API to update the user with the new FCM token
+                            updateUserWithToken(updateRequest);
                         } else {
                             Log.e(TAG, "API Response does not contain '_id' field");
                         }
@@ -707,20 +823,59 @@ public class HomeFragment extends Fragment {
                         Log.e(TAG, "API Response does not contain 'data' field");
                     }
                 } else {
-                    Log.e(TAG, "Server Response Code: " + responseCode);
+                    Log.e(TAG, "Search API Server Response Code: " + responseCode);
                 }
-
-                conn.disconnect();
             } catch (Exception e) {
-                Log.e(TAG, "HTTP Request Error: " + e.getMessage());
+                Log.e(TAG, "HTTP Request Error in search: " + e.getMessage(), e);
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
-        }).start(); // Run in a background thread
+        }).start();
     }
 
+    // Step 3: Update the API with the FCM token by sending the updated JSON
+    private void updateUserWithToken(JSONObject updateRequest) {
+        Log.d(TAG, "Starting updateUserWithToken with JSON: " + updateRequest.toString());
+        new Thread(() -> {
+            HttpURLConnection updateConn = null;
+            try {
+                String updateUrlString = "http://52.250.54.24:3500/api/users/update";
+                URL updateUrl = new URL(updateUrlString);
+                updateConn = (HttpURLConnection) updateUrl.openConnection();
+                updateConn.setRequestMethod("POST");
+                updateConn.setRequestProperty("Content-Type", "application/json");
+                updateConn.setDoOutput(true);
 
+                OutputStream os = updateConn.getOutputStream();
+                os.write(updateRequest.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
 
+                int updateResponseCode = updateConn.getResponseCode();
+                Log.d(TAG, "Update API Response Code: " + updateResponseCode);
 
-
+                if (updateResponseCode == HttpURLConnection.HTTP_OK) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(updateConn.getInputStream()));
+                    StringBuilder updateResponse = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        updateResponse.append(line);
+                    }
+                    reader.close();
+                    Log.d(TAG, "Update API Response: " + updateResponse.toString());
+                } else {
+                    Log.e(TAG, "Update API Error Response Code: " + updateResponseCode);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error in update API call: " + e.getMessage(), e);
+            } finally {
+                if (updateConn != null) {
+                    updateConn.disconnect();
+                }
+            }
+        }).start();
+    }
 
     //for ui setup for device connection
     private void setupDeviceDropdown() {
