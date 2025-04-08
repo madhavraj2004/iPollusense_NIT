@@ -31,7 +31,5 @@ public class Appliance {
         return isOn;
     }
 
-    public boolean isSmart() {
-        return isSmart;
-    }
+
 }

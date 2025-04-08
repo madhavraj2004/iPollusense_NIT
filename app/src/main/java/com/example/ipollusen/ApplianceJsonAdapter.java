@@ -4,16 +4,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.example.ipollusen.R;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.util.List;
 
 public class ApplianceJsonAdapter extends RecyclerView.Adapter<ApplianceJsonAdapter.ApplianceJsonViewHolder> {
@@ -34,49 +29,71 @@ public class ApplianceJsonAdapter extends RecyclerView.Adapter<ApplianceJsonAdap
     public void onBindViewHolder(@NonNull ApplianceJsonViewHolder holder, int position) {
         JSONObject appliance = applianceJsonList.get(position);
         try {
-            holder.applianceName.setText(appliance.optString("applianceName", "N/A"));
+            holder.applianceName.setText(appliance.optString("applianceName", ""));
 
             JSONObject stateObj = appliance.optJSONObject("applianceState");
+            JSONArray prompts = appliance.optJSONArray("appliancePrompts");
+
+            // --- APPLIANCE STATE ---
+            String state = "";
             if (stateObj != null) {
-                // 1. Appliance ON/OFF state
-                String state = stateObj.optString("state", "N/A");
-                holder.applianceState.setText(state);
+                state = stateObj.optString("state", "");
+            }
+            holder.applianceState.setText(state);
 
-                // 2. Get second prompt name
-                JSONArray prompts = appliance.optJSONArray("appliancePrompts");
-                if (prompts != null && prompts.length() > 1) {
-                    String secondPromptName = prompts.getJSONObject(1).optString("name", null);
-                    if (secondPromptName != null) {
-                        JSONObject promptObj = stateObj.optJSONObject(secondPromptName);
-                        if (promptObj != null) {
-                            // Get lower and upper limits
-                            int lower = promptObj.optInt("lowerLimit", -1);
-                            int upper = promptObj.optInt("upperLimit", -1);
-                            holder.applianceRange.setText(lower + " - " + upper);
+            // --- RANGE & MODE ---
+            if (prompts != null && prompts.length() > 0) {
+                // Prefer 2nd prompt if available, else use 1st
+                JSONObject selectedPrompt = prompts.getJSONObject(Math.min(1, prompts.length() - 1));
+                String promptName = selectedPrompt.optString("name");
 
-                            // Get selected mode from mode array
-                            JSONArray modes = promptObj.optJSONArray("mode");
-                            int selected = promptObj.optInt("selected", -1);
-                            if (modes != null && selected >= 0 && selected < modes.length()) {
-                                String selectedMode = modes.optString(selected, "N/A");
-                                holder.applianceMode.setText(selectedMode);
-                            } else {
-                                holder.applianceMode.setText("N/A");
-                            }
-                        } else {
-                            holder.applianceRange.setText("N/A");
-                            holder.applianceMode.setText("N/A");
+                JSONObject promptStateObj = stateObj != null ? stateObj.optJSONObject(promptName) : null;
+
+                // 1. RANGE
+                String rangeText = "";
+                if (promptStateObj != null && promptStateObj.has("lowerLimit") && promptStateObj.has("upperLimit")) {
+                    int lower = promptStateObj.optInt("lowerLimit", -1);
+                    int upper = promptStateObj.optInt("upperLimit", -1);
+                    if (lower != -1 && upper != -1) {
+                        rangeText = lower + " - " + upper;
+                    }
+                }
+
+                if (rangeText.isEmpty()) {
+                    JSONArray validRange = selectedPrompt.optJSONArray("valid_range");
+                    if (validRange != null && validRange.length() == 2) {
+                        int lower = validRange.optInt(0, -1);
+                        int upper = validRange.optInt(1, -1);
+                        if (lower != -1 && upper != -1) {
+                            rangeText = lower + " - " + upper;
                         }
                     }
-                } else {
-                    holder.applianceRange.setText("N/A");
-                    holder.applianceMode.setText("N/A");
                 }
+                holder.applianceRange.setText(rangeText);
+
+                // 2. MODE
+                String modeText = "";
+                if (promptStateObj != null) {
+                    JSONArray modes = promptStateObj.optJSONArray("mode");
+                    int selected = promptStateObj.optInt("selected", -1);
+                    if (modes != null && selected >= 0 && selected < modes.length()) {
+                        modeText = modes.optString(selected, "");
+                    }
+                }
+
+                if (modeText.isEmpty()) {
+                    JSONArray fallbackModes = selectedPrompt.optJSONArray("valid_range");
+                    if (fallbackModes != null && fallbackModes.length() > 0) {
+                        modeText = fallbackModes.optString(0, "");
+                    }
+                }
+
+                holder.applianceMode.setText(modeText);
             } else {
-                holder.applianceState.setText("N/A");
-                holder.applianceRange.setText("N/A");
-                holder.applianceMode.setText("N/A");
+                holder.applianceRange.setText("");
+                holder.applianceMode.setText("");
             }
+
         } catch (JSONException e) {
             e.printStackTrace();
         }

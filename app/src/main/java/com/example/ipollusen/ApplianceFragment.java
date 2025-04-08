@@ -11,7 +11,6 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -54,8 +53,31 @@ public class ApplianceFragment extends Fragment {
         btnSaveAppliance = view.findViewById(R.id.btnSaveAppliance);
         sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedViewModel.class);
 
-        btnSaveAppliance.setOnClickListener(v -> saveApplianceData());
+        // Fetch appliances from the API and build the UI
         fetchAppliances();
+
+        // Static Save button listener: generate JSON, pass result and navigate back.
+        btnSaveAppliance.setOnClickListener(v -> {
+            JSONArray finalAppliancesArray = generateFinalApplianceJSON();
+            if (finalAppliancesArray != null && finalAppliancesArray.length() > 0) {
+                try {
+                    JSONObject applianceWrapper = new JSONObject();
+                    applianceWrapper.put("appliances", finalAppliancesArray);
+
+                    Bundle result = new Bundle();
+                    result.putString("appliance_data", applianceWrapper.toString());
+
+                    // Share the result with the receiving fragment and navigate back
+                    getParentFragmentManager().setFragmentResult("appliance_data_result", result);
+                    Navigation.findNavController(v).navigate(R.id.action_navigation_appliance_to_roomDetailsFragment);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    Toast.makeText(requireContext(), "Error formatting appliance data", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(requireContext(), "Please enable at least one appliance to proceed.", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         return view;
     }
@@ -92,12 +114,14 @@ public class ApplianceFragment extends Fragment {
     private void populateUI(JSONArray appliances) {
         applianceContainer.removeAllViews();
 
+        // Loop through each appliance and create UI card.
         for (int i = 0; i < appliances.length(); i++) {
             try {
                 JSONObject appliance = appliances.getJSONObject(i);
                 String applianceName = appliance.getString("applianceName");
                 JSONArray prompts = appliance.getJSONArray("appliancePrompts");
 
+                // Create CardView container.
                 CardView cardView = new CardView(getContext());
                 LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -107,17 +131,20 @@ public class ApplianceFragment extends Fragment {
                 cardView.setCardElevation(8);
                 cardView.setRadius(20);
                 cardView.setUseCompatPadding(true);
+                // Save the original appliance JSON in the card's tag.
                 cardView.setTag(appliance);
 
+                // Inner layout for appliance details.
                 LinearLayout applianceLayout = new LinearLayout(getContext());
                 applianceLayout.setOrientation(LinearLayout.VERTICAL);
                 applianceLayout.setPadding(30, 30, 30, 30);
 
+                // Top row with a main switch and title.
                 LinearLayout topRow = new LinearLayout(getContext());
                 topRow.setOrientation(LinearLayout.HORIZONTAL);
 
                 CheckBox mainSwitch = new CheckBox(getContext());
-                mainSwitch.setTag("mainSwitch");
+                mainSwitch.setTag("mainSwitch"); // determines if the appliance is enabled.
 
                 TextView title = new TextView(getContext());
                 title.setText(applianceName);
@@ -128,11 +155,13 @@ public class ApplianceFragment extends Fragment {
                 topRow.addView(title);
                 applianceLayout.addView(topRow);
 
+                // Divider.
                 View divider = new View(getContext());
                 divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
                 divider.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
                 applianceLayout.addView(divider);
 
+                // Loop through each prompt and build appropriate input UI.
                 for (int j = 0; j < prompts.length(); j++) {
                     JSONObject prompt = prompts.getJSONObject(j);
                     String promptName = prompt.getString("name");
@@ -142,6 +171,7 @@ public class ApplianceFragment extends Fragment {
                     TextView promptLabel = new TextView(getContext());
                     promptLabel.setPadding(0, 20, 0, 10);
 
+                    // Handle "State" specially for boolean type using a Spinner.
                     if (promptName.equalsIgnoreCase("State")) {
                         promptLabel.setText("State - " + description);
 
@@ -150,27 +180,57 @@ public class ApplianceFragment extends Fragment {
                                 android.R.layout.simple_spinner_item, new String[]{"ON", "OFF"});
                         stateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                         stateSpinner.setAdapter(stateAdapter);
+                        // Tag set to the prompt name for later retrieval.
+                        stateSpinner.setTag(promptName);
 
                         applianceLayout.addView(promptLabel);
                         applianceLayout.addView(stateSpinner);
-
-                    } else if (type.equals("number")) {
-                        // For number type with range
+                    }
+                    // For number-type fields: if a valid_range array exists, create two input fields for min and max.
+                    else if (type.equals("number")) {
                         JSONArray range = prompt.optJSONArray("valid_range");
-                        String min = range != null ? String.valueOf(range.optInt(0)) : "N/A";
-                        String max = range != null ? String.valueOf(range.optInt(1)) : "N/A";
+                        if (range != null && range.length() == 2) {
+                            String minValue = String.valueOf(range.optInt(0));
+                            String maxValue = String.valueOf(range.optInt(1));
+                            promptLabel.setText(promptName + " - " + description + " (" + minValue + " - " + maxValue + ")");
 
-                        promptLabel.setText(promptName + " - " + description + " (" + min + " - " + max + ")");
+                            LinearLayout numberLayout = new LinearLayout(getContext());
+                            numberLayout.setOrientation(LinearLayout.HORIZONTAL);
 
-                        EditText inputField = new EditText(getContext());
-                        inputField.setInputType(InputType.TYPE_CLASS_NUMBER);
-                        inputField.setHint("Enter " + promptName);
-                        inputField.setTag(promptName);
+                            // EditText for lower value.
+                            EditText minEditText = new EditText(getContext());
+                            minEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
+                            minEditText.setHint("Min " + promptName);
+                            minEditText.setLayoutParams(new LinearLayout.LayoutParams(
+                                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                            minEditText.setTag(promptName + "_min");
 
-                        applianceLayout.addView(promptLabel);
-                        applianceLayout.addView(inputField);
+                            // EditText for upper value.
+                            EditText maxEditText = new EditText(getContext());
+                            maxEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
+                            maxEditText.setHint("Max " + promptName);
+                            maxEditText.setLayoutParams(new LinearLayout.LayoutParams(
+                                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                            maxEditText.setTag(promptName + "_max");
 
-                    } else if (type.equals("list")) {
+                            numberLayout.addView(minEditText);
+                            numberLayout.addView(maxEditText);
+
+                            applianceLayout.addView(promptLabel);
+                            applianceLayout.addView(numberLayout);
+                        } else {
+                            // Fallback: single input if no range is provided.
+                            promptLabel.setText(promptName + " - " + description);
+                            EditText inputField = new EditText(getContext());
+                            inputField.setInputType(InputType.TYPE_CLASS_NUMBER);
+                            inputField.setHint("Enter " + promptName);
+                            inputField.setTag(promptName);
+                            applianceLayout.addView(promptLabel);
+                            applianceLayout.addView(inputField);
+                        }
+                    }
+                    // For list type inputs.
+                    else if (type.equals("list")) {
                         JSONArray validOptions = prompt.optJSONArray("valid_range");
                         List<String> options = new ArrayList<>();
                         if (validOptions != null) {
@@ -178,7 +238,6 @@ public class ApplianceFragment extends Fragment {
                                 options.add(validOptions.getString(k));
                             }
                         }
-
                         promptLabel.setText(promptName + " - " + description);
 
                         Spinner optionsSpinner = new Spinner(getContext());
@@ -186,11 +245,13 @@ public class ApplianceFragment extends Fragment {
                                 android.R.layout.simple_spinner_item, options);
                         listAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                         optionsSpinner.setAdapter(listAdapter);
+                        optionsSpinner.setTag(promptName);
 
                         applianceLayout.addView(promptLabel);
                         applianceLayout.addView(optionsSpinner);
-
-                    } else if (type.equals("boolean")) {
+                    }
+                    // For boolean types (other than "State" which we handled above).
+                    else if (type.equals("boolean")) {
                         promptLabel.setText(promptName + " - " + description);
 
                         Switch switchView = new Switch(getContext());
@@ -201,7 +262,6 @@ public class ApplianceFragment extends Fragment {
                     }
                 }
 
-
                 cardView.addView(applianceLayout);
                 applianceContainer.addView(cardView);
             } catch (JSONException e) {
@@ -209,6 +269,7 @@ public class ApplianceFragment extends Fragment {
             }
         }
 
+        // (Optional) Dynamically add a Save button at the bottom. (You can remove this if you have a static one.)
         Button saveButton = new Button(getContext());
         saveButton.setText("Save Appliances");
         saveButton.setTextSize(16);
@@ -218,101 +279,206 @@ public class ApplianceFragment extends Fragment {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         saveParams.setMargins(40, 60, 40, 100);
         saveButton.setLayoutParams(saveParams);
-        saveButton.setOnClickListener(v -> saveApplianceData());
+        saveButton.setOnClickListener(v -> {
+            saveApplianceData();
+            // After saving, share the result and navigate back.
+            JSONArray finalArray = generateFinalApplianceJSON();
+            if (finalArray != null && finalArray.length() > 0) {
+                try {
+                    JSONObject applianceWrapper = new JSONObject();
+                    applianceWrapper.put("appliances", finalArray);
 
+                    Bundle result = new Bundle();
+                    result.putString("appliance_data", applianceWrapper.toString());
+                    getParentFragmentManager().setFragmentResult("appliance_data_result", result);
+
+                    Navigation.findNavController(v).navigate(R.id.action_navigation_appliance_to_roomDetailsFragment);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
         applianceContainer.addView(saveButton);
     }
 
+    /**
+     * This method loops through each enabled appliance (where mainSwitch is checked)
+     * and updates each prompt with its UI value.
+     */
+    private JSONArray generateFinalApplianceJSON() {
+        JSONArray finalArray = new JSONArray();
 
-    private void saveApplianceData() {
-        JSONArray appliancesArray = new JSONArray();
+        // Loop through all direct children (CardViews) of applianceContainer.
+        for (int i = 0; i < applianceContainer.getChildCount(); i++) {
+            View child = applianceContainer.getChildAt(i);
+            if (!(child instanceof CardView)) continue;  // Skip non-card views.
+            CardView card = (CardView) child;
+            JSONObject appliance = (JSONObject) card.getTag();
 
-        int totalChildren = applianceContainer.getChildCount();
-        // Exclude the last child (Save Button)
-        for (int i = 0; i < totalChildren - 1; i++) {
-            View cardView = applianceContainer.getChildAt(i);
-            if (cardView instanceof CardView) {
+            // Check if this appliance is enabled.
+            CheckBox mainSwitch = card.findViewWithTag("mainSwitch");
+            if (mainSwitch != null && mainSwitch.isChecked()) {
                 try {
-                    JSONObject originalAppliance = (JSONObject) cardView.getTag();
-                    LinearLayout innerLayout = (LinearLayout) ((CardView) cardView).getChildAt(0);
+                    // Create a copy of the original appliance JSON to update its prompts.
+                    JSONObject applianceCopy = new JSONObject(appliance.toString());
+                    JSONArray prompts = applianceCopy.getJSONArray("appliancePrompts");
 
-                    CheckBox mainSwitch = innerLayout.findViewWithTag("mainSwitch");
-                    if (mainSwitch != null && !mainSwitch.isChecked()) continue;
-
-                    JSONObject applianceObject = new JSONObject();
-                    applianceObject.put("_id", originalAppliance.optString("_id", ""));
-                    applianceObject.put("applianceName", originalAppliance.getString("applianceName"));
-
-                    JSONArray appliancePromptsArray = new JSONArray();
-                    JSONArray prompts = originalAppliance.getJSONArray("appliancePrompts");
-
-                    for (int p = 0; p < prompts.length(); p++) {
-                        JSONObject prompt = prompts.getJSONObject(p);
+                    for (int j = 0; j < prompts.length(); j++) {
+                        JSONObject prompt = prompts.getJSONObject(j);
                         String promptName = prompt.getString("name");
-                        String type = prompt.optString("type", "String");
+                        String promptType = prompt.getString("type").toLowerCase();
 
-                        JSONObject state = new JSONObject();
-                        state.put("name", promptName);
-                        state.put("description", prompt.optString("description", ""));
-                        state.put("type", type);
-
-                        // Copy valid_range if exists
-                        if (prompt.has("valid_range")) {
-                            state.put("valid_range", prompt.getJSONArray("valid_range"));
+                        String value = "";
+                        // For boolean: check if UI input is a Switch or Spinner.
+                        if (promptType.equals("boolean")) {
+                            View inputView = card.findViewWithTag(promptName);
+                            if (inputView instanceof Switch) {
+                                value = ((Switch) inputView).isChecked() ? "true" : "false";
+                            } else if (inputView instanceof Spinner) {
+                                // Convert spinner selection "ON"/"OFF" to "true"/"false"
+                                String selected = ((Spinner) inputView).getSelectedItem().toString();
+                                value = selected.equalsIgnoreCase("ON") ? "true" : "false";
+                            }
                         }
-
-                        // Get value from UI based on type/prompt
-                        switch (promptName.toLowerCase()) {
-                            case "state":
-                                Spinner stateSpinner = innerLayout.findViewWithTag("state_spinner");
-                                if (stateSpinner != null)
-                                    state.put("value", stateSpinner.getSelectedItem().toString());
-                                break;
-
-                            case "range":
-                                EditText lowerLimit = innerLayout.findViewWithTag("lowerLimit_" + promptName);
-                                EditText upperLimit = innerLayout.findViewWithTag("upperLimit_" + promptName);
-                                if (lowerLimit != null && upperLimit != null) {
-                                    String lowerText = lowerLimit.getText().toString().trim();
-                                    String upperText = upperLimit.getText().toString().trim();
-                                    state.put("value", lowerText + "-" + upperText);
+                        // For number type, support range input.
+                        else if (promptType.equals("number")) {
+                            View minView = card.findViewWithTag(promptName + "_min");
+                            View maxView = card.findViewWithTag(promptName + "_max");
+                            if (minView instanceof EditText && maxView instanceof EditText) {
+                                String minVal = ((EditText) minView).getText().toString().trim();
+                                String maxVal = ((EditText) maxView).getText().toString().trim();
+                                if (!minVal.isEmpty() && !maxVal.isEmpty()) {
+                                    value = minVal + "-" + maxVal;
                                 }
-                                break;
-
-                            default:
-                                if (type.equals("number")) {
-                                    SeekBar numberSeek = innerLayout.findViewWithTag("seek_" + promptName);
-                                    if (numberSeek != null)
-                                        state.put("value", String.valueOf(numberSeek.getProgress()));
-                                } else if (type.equals("boolean")) {
-                                    CheckBox checkBox = innerLayout.findViewWithTag("check_" + promptName);
-                                    if (checkBox != null)
-                                        state.put("value", checkBox.isChecked() ? "true" : "");
-                                } else if (type.equals("list")) {
-                                    Spinner spinner = innerLayout.findViewWithTag("spinner_" + promptName);
-                                    if (spinner != null)
-                                        state.put("value", spinner.getSelectedItem().toString());
+                            } else {
+                                // Fallback for single input scenario.
+                                View inputView = card.findViewWithTag(promptName);
+                                if (inputView instanceof EditText) {
+                                    value = ((EditText) inputView).getText().toString();
+                                }
+                            }
+                        }
+                        // For list type.
+                        else if (promptType.equals("list")) {
+                            View inputView = card.findViewWithTag(promptName);
+                            if (inputView instanceof Spinner) {
+                                // For "State" in some cases, convert "ON"/"OFF" if needed.
+                                String selected = ((Spinner) inputView).getSelectedItem().toString();
+                                if (promptName.equalsIgnoreCase("State")) {
+                                    value = selected.equalsIgnoreCase("ON") ? "true" : "false";
                                 } else {
-                                    EditText editText = innerLayout.findViewWithTag("edit_" + promptName);
-                                    if (editText != null)
-                                        state.put("value", editText.getText().toString().trim());
+                                    value = selected;
                                 }
-                                break;
+                            }
                         }
-
-                        appliancePromptsArray.put(state);
+                        // For other types (fallback).
+                        else {
+                            View inputView = card.findViewWithTag(promptName);
+                            if (inputView instanceof EditText) {
+                                value = ((EditText) inputView).getText().toString();
+                            }
+                        }
+                        prompt.put("value", value);
                     }
-
-                    applianceObject.put("appliancePrompts", appliancePromptsArray);
-                    appliancesArray.put(applianceObject);
-
-                } catch (Exception e) {
+                    finalArray.put(applianceCopy);
+                } catch (JSONException e) {
                     e.printStackTrace();
                 }
             }
         }
-
-        Log.d("FinalJSON", appliancesArray.toString());
+        Log.d("FinalApplianceJSON", finalArray.toString());
+        return finalArray;
     }
 
+    /**
+     * Alternative method to create JSON from UI inputs.
+     * This is similar to generateFinalApplianceJSON().
+     */
+    private void saveApplianceData() {
+        JSONArray appliancesArray = new JSONArray();
+
+        int totalChildren = applianceContainer.getChildCount();
+        for (int i = 0; i < totalChildren; i++) {
+            View view = applianceContainer.getChildAt(i);
+            if (!(view instanceof CardView)) continue;
+            CardView cardView = (CardView) view;
+            JSONObject originalAppliance = (JSONObject) cardView.getTag();
+            LinearLayout innerLayout = (LinearLayout) cardView.getChildAt(0);
+
+            CheckBox mainSwitch = innerLayout.findViewWithTag("mainSwitch");
+            if (mainSwitch == null || !mainSwitch.isChecked()) continue;
+
+            try {
+                JSONObject applianceObject = new JSONObject();
+                applianceObject.put("_id", originalAppliance.optString("_id", ""));
+                applianceObject.put("applianceName", originalAppliance.getString("applianceName"));
+
+                JSONArray appliancePromptsArray = new JSONArray();
+                JSONArray prompts = originalAppliance.getJSONArray("appliancePrompts");
+
+                for (int p = 0; p < prompts.length(); p++) {
+                    JSONObject prompt = prompts.getJSONObject(p);
+                    String promptName = prompt.getString("name");
+                    String type = prompt.optString("type", "string").toLowerCase();
+
+                    JSONObject state = new JSONObject();
+                    state.put("name", promptName);
+                    state.put("description", prompt.optString("description", ""));
+                    state.put("type", type);
+
+                    if (prompt.has("valid_range")) {
+                        state.put("valid_range", prompt.getJSONArray("valid_range"));
+                    }
+
+                    String value = "";
+                    if (type.equals("boolean")) {
+                        View inputView = innerLayout.findViewWithTag(promptName);
+                        if (inputView instanceof Switch) {
+                            value = ((Switch) inputView).isChecked() ? "true" : "false";
+                        } else if (inputView instanceof Spinner) {
+                            String selected = ((Spinner) inputView).getSelectedItem().toString();
+                            value = selected.equalsIgnoreCase("ON") ? "true" : "false";
+                        }
+                    } else if (type.equals("number")) {
+                        View minView = innerLayout.findViewWithTag(promptName + "_min");
+                        View maxView = innerLayout.findViewWithTag(promptName + "_max");
+                        if (minView instanceof EditText && maxView instanceof EditText) {
+                            String minVal = ((EditText) minView).getText().toString().trim();
+                            String maxVal = ((EditText) maxView).getText().toString().trim();
+                            if (!minVal.isEmpty() && !maxVal.isEmpty()) {
+                                value = minVal + "-" + maxVal;
+                            }
+                        } else {
+                            View inputView = innerLayout.findViewWithTag(promptName);
+                            if (inputView instanceof EditText) {
+                                value = ((EditText) inputView).getText().toString();
+                            }
+                        }
+                    } else if (type.equals("list")) {
+                        View inputView = innerLayout.findViewWithTag(promptName);
+                        if (inputView instanceof Spinner) {
+                            String selected = ((Spinner) inputView).getSelectedItem().toString();
+                            if (promptName.equalsIgnoreCase("State")) {
+                                value = selected.equalsIgnoreCase("ON") ? "true" : "false";
+                            } else {
+                                value = selected;
+                            }
+                        }
+                    } else {
+                        View inputView = innerLayout.findViewWithTag(promptName);
+                        if (inputView instanceof EditText) {
+                            value = ((EditText) inputView).getText().toString().trim();
+                        }
+                    }
+                    state.put("value", value);
+                    appliancePromptsArray.put(state);
+                }
+                applianceObject.put("appliancePrompts", appliancePromptsArray);
+                appliancesArray.put(applianceObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        Log.d("FinalJSON", appliancesArray.toString());
+    }
 }
