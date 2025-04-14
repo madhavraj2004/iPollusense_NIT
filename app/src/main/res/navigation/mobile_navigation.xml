@@ -25,6 +25,15 @@
             app:destination="@id/roomDetailsFragment" />
     </fragment>
 
+    <fragment
+        android:id="@+id/feedbackFragment"
+        android:name="com.example.ipollusen.FeedbackFragment"
+        android:label="Feedback"
+        tools:layout="@layout/fragment_feedback" >
+        <action
+            android:id="@+id/action_feedbackFragment_to_navigation_recommend"
+            app:destination="@id/navigation_recommend" />
+    </fragment>
 
 
     <fragment
@@ -53,8 +62,11 @@
         android:label="Recommendations"
         tools:layout="@layout/fragment_recommendation" >
         <action
-            android:id="@+id/action_navigation_recommend_to_navigation_reccomend_prompt"
-            app:destination="@id/navigation_reccomend_prompt" />
+            android:id="@+id/action_navigation_recommend_to_feedbackFragment"
+            app:destination="@id/feedbackFragment" />
+        <action
+            android:id="@+id/action_navigation_recommend_to_navigation_dashboard"
+            app:destination="@id/navigation_dashboard" />
     </fragment>
 
     <fragment
@@ -63,16 +75,6 @@
         android:label="@string/title_map"
         tools:layout="@layout/fragment_maps" />
 
-
-    <fragment
-        android:id="@+id/navigation_reccomend_prompt"
-        android:name="com.example.ipollusen.RecommendationPromptFragment"
-        android:label="@string/title_map"
-        tools:layout="@layout/fragment_recommendation_prompt" >
-        <action
-            android:id="@+id/action_navigation_reccomend_prompt_to_navigation_recommend"
-            app:destination="@id/navigation_recommend" />
-    </fragment>
 
     <fragment
         android:id="@+id/nav_settings"

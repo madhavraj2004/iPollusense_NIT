@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- When button is in the "selected" state, show the pause icon -->
+    <item android:state_selected="true" android:drawable="@android:drawable/ic_media_pause" />
+    <!-- Default state shows the play icon -->
+    <item android:drawable="@android:drawable/ic_media_play" />
+</selector>

@@ -1,112 +1,115 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:fillViewport="true">
 
-
-    <EditText
-        android:id="@+id/inputRoomName"
+    <LinearLayout
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:drawable/editbox_background"
-        android:hint="Enter Room Name"
-        android:minHeight="48dp"
-        android:padding="8dp" />
+        android:padding="16dp">
 
-    <EditText
-        android:id="@+id/inputRoomDesc"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter Room Description"
-        android:minHeight="48dp" />
-
-
-    <EditText
-        android:id="@+id/inputLength"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Room Length"
-        android:inputType="numberDecimal"
-        android:minHeight="48dp" />
-
-    <EditText
-        android:id="@+id/inputBreadth"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Room Breadth"
-        android:inputType="numberDecimal"
-        android:minHeight="48dp" />
-
-    <EditText
-        android:id="@+id/inputNodeIds"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter Node IDs"
-        android:inputType="text"
-        android:minHeight="48dp" />
-
-    <Button
-        android:id="@+id/btnAddAppliance"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Add Appliance"/>
-
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="10dp">
-
-        <TextView
-            android:id="@+id/applianceName"
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/inputRoomName"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:text="Appliance Name" />
+            android:background="@android:drawable/editbox_background"
+            android:hint="Enter Room Name"
+            android:minHeight="48dp"
+            android:padding="8dp" />
 
-        <TextView
-            android:id="@+id/applianceState"
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/inputRoomDesc"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:text="State" />
+            android:hint="Enter Room Description"
+            android:minHeight="48dp" />
 
-        <TextView
-            android:id="@+id/applianceRange"
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/inputLength"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:layout_gravity="left"
-            android:text="Valid Range" />
+            android:hint="Room Length"
+            android:inputType="numberDecimal"
+            android:minHeight="48dp" />
 
-        <TextView
-            android:id="@+id/applianceMode"
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/inputBreadth"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:layout_gravity="right"
-            android:text="Mode" />
+            android:hint="Room Breadth"
+            android:inputType="numberDecimal"
+            android:minHeight="48dp" />
+
+        <EditText
+            android:id="@+id/inputNodeIds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Node IDs"
+            android:inputType="text"
+            android:minHeight="48dp" />
+
+        <Button
+            android:id="@+id/btnAddAppliance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Appliance" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/applianceName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:text="Appliance Name" />
+
+            <TextView
+                android:id="@+id/applianceState"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:text="State" />
+
+            <TextView
+                android:id="@+id/applianceRange"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:layout_gravity="left"
+                android:text="Valid Range" />
+
+            <TextView
+                android:id="@+id/applianceMode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:layout_gravity="right"
+                android:text="Mode" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewAppliances"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp" />
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save Room" />
     </LinearLayout>
-
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewAppliances"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="10dp"/>
-
-    <Button
-        android:id="@+id/btnSave"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Save Room"/>
-</LinearLayout>
+</ScrollView>

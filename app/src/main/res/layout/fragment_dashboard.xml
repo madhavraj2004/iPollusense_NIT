@@ -18,8 +18,7 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="@android:color/white"
-            android:gravity="center"
-            android:layout_centerInParent="true" />
+            android:gravity="center" />
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
@@ -38,10 +37,27 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="@android:color/white"
-            android:gravity="center"
-            android:layout_centerInParent="true" />
+            android:gravity="center" />
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/websiteCard"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_below="@id/recommendationCard"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/purple_500"
+        app:cardCornerRadius="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Website"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:gravity="center" />
+    </com.google.android.material.card.MaterialCardView>
 
     <WebView
         android:id="@+id/webViewGoogleForm"

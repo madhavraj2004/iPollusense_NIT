@@ -10,4 +10,5 @@
     <item name="edit_publish_topic" type="id" />
     <item name="text_title" type="id" />
     <item name="webview" type="id" />
+    <item name="seekbar_min_value" type="id" />
 </resources>

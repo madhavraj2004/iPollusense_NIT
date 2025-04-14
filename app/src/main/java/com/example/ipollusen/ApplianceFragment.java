@@ -11,6 +11,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -111,6 +112,11 @@ public class ApplianceFragment extends Fragment {
         });
     }
 
+
+
+    // Remove or comment out the custom TAG_MIN_VALUE definition.
+// private static final int TAG_MIN_VALUE = 1001;
+
     private void populateUI(JSONArray appliances) {
         applianceContainer.removeAllViews();
 
@@ -186,50 +192,115 @@ public class ApplianceFragment extends Fragment {
                         applianceLayout.addView(promptLabel);
                         applianceLayout.addView(stateSpinner);
                     }
-                    // For number-type fields: if a valid_range array exists, create two input fields for min and max.
+                    // For number-type fields.
                     else if (type.equals("number")) {
-                        JSONArray range = prompt.optJSONArray("valid_range");
-                        if (range != null && range.length() == 2) {
-                            String minValue = String.valueOf(range.optInt(0));
-                            String maxValue = String.valueOf(range.optInt(1));
-                            promptLabel.setText(promptName + " - " + description + " (" + minValue + " - " + maxValue + ")");
+                        // For prompts related to speed or temperature.
+                        if (promptName.equalsIgnoreCase("speed")
+                                || promptName.equalsIgnoreCase("temp")
+                                || promptName.equalsIgnoreCase("temperature")) {
+                            JSONArray range = prompt.optJSONArray("valid_range");
+                            if (range != null && range.length() == 2) {
+                                int minValue = range.optInt(0);
+                                int maxValue = range.optInt(1);
+                                promptLabel.setText(promptName + " - " + description
+                                        + " (" + minValue + " - " + maxValue + ")");
+                                applianceLayout.addView(promptLabel);
 
-                            LinearLayout numberLayout = new LinearLayout(getContext());
-                            numberLayout.setOrientation(LinearLayout.HORIZONTAL);
+                                // Create a horizontal layout to contain the SeekBar and a TextView.
+                                LinearLayout seekbarLayout = new LinearLayout(getContext());
+                                seekbarLayout.setOrientation(LinearLayout.HORIZONTAL);
 
-                            // EditText for lower value.
-                            EditText minEditText = new EditText(getContext());
-                            minEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
-                            minEditText.setHint("Min " + promptName);
-                            minEditText.setLayoutParams(new LinearLayout.LayoutParams(
-                                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-                            minEditText.setTag(promptName + "_min");
+                                // Create a SeekBar.
+                                SeekBar seekBar = new SeekBar(getContext());
+                                // Set maximum progress as the difference between max and min.
+                                seekBar.setMax(maxValue - minValue);
+                                // Start at 0 progress (displaying the min value).
+                                seekBar.setProgress(0);
+                                // Save the minimum value in the SeekBar's tag using the resource ID.
+                                seekBar.setTag(R.id.seekbar_min_value, minValue);
+                                // Also tag the SeekBar with its prompt name.
+                                seekBar.setTag(promptName);
 
-                            // EditText for upper value.
-                            EditText maxEditText = new EditText(getContext());
-                            maxEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
-                            maxEditText.setHint("Max " + promptName);
-                            maxEditText.setLayoutParams(new LinearLayout.LayoutParams(
-                                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-                            maxEditText.setTag(promptName + "_max");
+                                // Create a TextView to display the current value.
+                                TextView valueDisplay = new TextView(getContext());
+                                valueDisplay.setText(String.valueOf(minValue));
+                                valueDisplay.setPadding(20, 0, 0, 0);
+                                valueDisplay.setTag(promptName + "_value");
 
-                            numberLayout.addView(minEditText);
-                            numberLayout.addView(maxEditText);
+                                // Listen for SeekBar changes to update the current value display.
+                                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                                    @Override
+                                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                                        int minVal = (Integer) seekBar.getTag(R.id.seekbar_min_value);
+                                        int currentValue = minVal + progress;
+                                        valueDisplay.setText(String.valueOf(currentValue));
+                                    }
+                                    @Override
+                                    public void onStartTrackingTouch(SeekBar seekBar) { }
+                                    @Override
+                                    public void onStopTrackingTouch(SeekBar seekBar) { }
+                                });
 
-                            applianceLayout.addView(promptLabel);
-                            applianceLayout.addView(numberLayout);
+                                // Add the SeekBar and the value display to the layout.
+                                seekbarLayout.addView(seekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                                seekbarLayout.addView(valueDisplay, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+                                applianceLayout.addView(seekbarLayout);
+                            } else {
+                                // Fallback: single EditText if no valid_range exists.
+                                promptLabel.setText(promptName + " - " + description);
+                                EditText inputField = new EditText(getContext());
+                                inputField.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                                inputField.setHint("Enter " + promptName);
+                                inputField.setTag(promptName);
+                                applianceLayout.addView(promptLabel);
+                                applianceLayout.addView(inputField);
+                            }
                         } else {
-                            // Fallback: single input if no range is provided.
-                            promptLabel.setText(promptName + " - " + description);
-                            EditText inputField = new EditText(getContext());
-                            inputField.setInputType(InputType.TYPE_CLASS_NUMBER);
-                            inputField.setHint("Enter " + promptName);
-                            inputField.setTag(promptName);
-                            applianceLayout.addView(promptLabel);
-                            applianceLayout.addView(inputField);
+                            // For other number fields with a valid range (min and max) that are not speed/temperature.
+                            JSONArray range = prompt.optJSONArray("valid_range");
+                            if (range != null && range.length() == 2) {
+                                String minValue = String.valueOf(range.optInt(0));
+                                String maxValue = String.valueOf(range.optInt(1));
+                                promptLabel.setText(promptName + " - " + description + " (" + minValue + " - " + maxValue + ")");
+
+                                LinearLayout numberLayout = new LinearLayout(getContext());
+                                numberLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+                                // EditText for lower value.
+                                EditText minEditText = new EditText(getContext());
+                                minEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                                minEditText.setHint("Min " + promptName);
+                                minEditText.setLayoutParams(new LinearLayout.LayoutParams(
+                                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                                minEditText.setTag(promptName + "_min");
+
+                                // EditText for upper value.
+                                EditText maxEditText = new EditText(getContext());
+                                maxEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                                maxEditText.setHint("Max " + promptName);
+                                maxEditText.setLayoutParams(new LinearLayout.LayoutParams(
+                                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                                maxEditText.setTag(promptName + "_max");
+
+                                numberLayout.addView(minEditText);
+                                numberLayout.addView(maxEditText);
+
+                                applianceLayout.addView(promptLabel);
+                                applianceLayout.addView(numberLayout);
+                            } else {
+                                // Fallback: single EditText if no valid_range is provided.
+                                promptLabel.setText(promptName + " - " + description);
+                                EditText inputField = new EditText(getContext());
+                                inputField.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                                inputField.setHint("Enter " + promptName);
+                                inputField.setTag(promptName);
+                                applianceLayout.addView(promptLabel);
+                                applianceLayout.addView(inputField);
+                            }
                         }
                     }
-                    // For list type inputs.
+                    // For list-type inputs.
                     else if (type.equals("list")) {
                         JSONArray validOptions = prompt.optJSONArray("valid_range");
                         List<String> options = new ArrayList<>();
@@ -250,7 +321,7 @@ public class ApplianceFragment extends Fragment {
                         applianceLayout.addView(promptLabel);
                         applianceLayout.addView(optionsSpinner);
                     }
-                    // For boolean types (other than "State" which we handled above).
+                    // For boolean types.
                     else if (type.equals("boolean")) {
                         promptLabel.setText(promptName + " - " + description);
 
@@ -259,6 +330,14 @@ public class ApplianceFragment extends Fragment {
 
                         applianceLayout.addView(promptLabel);
                         applianceLayout.addView(switchView);
+                    }
+                    // Fallback for any other types.
+                    else {
+                        promptLabel.setText(promptName + " - " + description);
+                        EditText inputField = new EditText(getContext());
+                        inputField.setTag(promptName);
+                        applianceLayout.addView(promptLabel);
+                        applianceLayout.addView(inputField);
                     }
                 }
 
@@ -269,7 +348,7 @@ public class ApplianceFragment extends Fragment {
             }
         }
 
-        // (Optional) Dynamically add a Save button at the bottom. (You can remove this if you have a static one.)
+        // (Optional) Dynamically add a Save button at the bottom.
         Button saveButton = new Button(getContext());
         saveButton.setText("Save Appliances");
         saveButton.setTextSize(16);
@@ -335,26 +414,39 @@ public class ApplianceFragment extends Fragment {
                             if (inputView instanceof Switch) {
                                 value = ((Switch) inputView).isChecked() ? "true" : "false";
                             } else if (inputView instanceof Spinner) {
-                                // Convert spinner selection "ON"/"OFF" to "true"/"false"
                                 String selected = ((Spinner) inputView).getSelectedItem().toString();
                                 value = selected.equalsIgnoreCase("ON") ? "true" : "false";
                             }
                         }
-                        // For number type, support range input.
+                        // For number type.
                         else if (promptType.equals("number")) {
-                            View minView = card.findViewWithTag(promptName + "_min");
-                            View maxView = card.findViewWithTag(promptName + "_max");
-                            if (minView instanceof EditText && maxView instanceof EditText) {
-                                String minVal = ((EditText) minView).getText().toString().trim();
-                                String maxVal = ((EditText) maxView).getText().toString().trim();
-                                if (!minVal.isEmpty() && !maxVal.isEmpty()) {
-                                    value = minVal + "-" + maxVal;
+                            // For single-value speed or temperature inputs.
+                            if (promptName.equalsIgnoreCase("speed")
+                                    || promptName.equalsIgnoreCase("temp")
+                                    || promptName.equalsIgnoreCase("temperature")) {
+                                View inputView = card.findViewWithTag(promptName);
+                                if (inputView instanceof SeekBar) {
+                                    SeekBar seekBar = (SeekBar) inputView;
+                                    int minValue = (Integer) seekBar.getTag(R.id.seekbar_min_value);
+                                    int actualValue = minValue + seekBar.getProgress();
+                                    value = String.valueOf(actualValue);
+                                } else if (inputView instanceof EditText) {
+                                    value = ((EditText) inputView).getText().toString().trim();
                                 }
                             } else {
-                                // Fallback for single input scenario.
-                                View inputView = card.findViewWithTag(promptName);
-                                if (inputView instanceof EditText) {
-                                    value = ((EditText) inputView).getText().toString();
+                                View minView = card.findViewWithTag(promptName + "_min");
+                                View maxView = card.findViewWithTag(promptName + "_max");
+                                if (minView instanceof EditText && maxView instanceof EditText) {
+                                    String minVal = ((EditText) minView).getText().toString().trim();
+                                    String maxVal = ((EditText) maxView).getText().toString().trim();
+                                    if (!minVal.isEmpty() && !maxVal.isEmpty()) {
+                                        value = minVal + "-" + maxVal;
+                                    }
+                                } else {
+                                    View inputView = card.findViewWithTag(promptName);
+                                    if (inputView instanceof EditText) {
+                                        value = ((EditText) inputView).getText().toString().trim();
+                                    }
                                 }
                             }
                         }
@@ -362,7 +454,6 @@ public class ApplianceFragment extends Fragment {
                         else if (promptType.equals("list")) {
                             View inputView = card.findViewWithTag(promptName);
                             if (inputView instanceof Spinner) {
-                                // For "State" in some cases, convert "ON"/"OFF" if needed.
                                 String selected = ((Spinner) inputView).getSelectedItem().toString();
                                 if (promptName.equalsIgnoreCase("State")) {
                                     value = selected.equalsIgnoreCase("ON") ? "true" : "false";
@@ -440,18 +531,32 @@ public class ApplianceFragment extends Fragment {
                             value = selected.equalsIgnoreCase("ON") ? "true" : "false";
                         }
                     } else if (type.equals("number")) {
-                        View minView = innerLayout.findViewWithTag(promptName + "_min");
-                        View maxView = innerLayout.findViewWithTag(promptName + "_max");
-                        if (minView instanceof EditText && maxView instanceof EditText) {
-                            String minVal = ((EditText) minView).getText().toString().trim();
-                            String maxVal = ((EditText) maxView).getText().toString().trim();
-                            if (!minVal.isEmpty() && !maxVal.isEmpty()) {
-                                value = minVal + "-" + maxVal;
+                        if (promptName.equalsIgnoreCase("speed")
+                                || promptName.equalsIgnoreCase("temp")
+                                || promptName.equalsIgnoreCase("temperature")) {
+                            View inputView = innerLayout.findViewWithTag(promptName);
+                            if (inputView instanceof SeekBar) {
+                                SeekBar seekBar = (SeekBar) inputView;
+                                int minValue = (Integer) seekBar.getTag(R.id.seekbar_min_value);
+                                int actualValue = minValue + seekBar.getProgress();
+                                value = String.valueOf(actualValue);
+                            } else if (inputView instanceof EditText) {
+                                value = ((EditText) inputView).getText().toString().trim();
                             }
                         } else {
-                            View inputView = innerLayout.findViewWithTag(promptName);
-                            if (inputView instanceof EditText) {
-                                value = ((EditText) inputView).getText().toString();
+                            View minView = innerLayout.findViewWithTag(promptName + "_min");
+                            View maxView = innerLayout.findViewWithTag(promptName + "_max");
+                            if (minView instanceof EditText && maxView instanceof EditText) {
+                                String minVal = ((EditText) minView).getText().toString().trim();
+                                String maxVal = ((EditText) maxView).getText().toString().trim();
+                                if (!minVal.isEmpty() && !maxVal.isEmpty()) {
+                                    value = minVal + "-" + maxVal;
+                                }
+                            } else {
+                                View inputView = innerLayout.findViewWithTag(promptName);
+                                if (inputView instanceof EditText) {
+                                    value = ((EditText) inputView).getText().toString().trim();
+                                }
                             }
                         }
                     } else if (type.equals("list")) {
@@ -481,4 +586,7 @@ public class ApplianceFragment extends Fragment {
         }
         Log.d("FinalJSON", appliancesArray.toString());
     }
+
+
+
 }

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/feedbackScrollView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="?android:attr/windowBackground">
+
+    <LinearLayout
+        android:id="@+id/feedbackRootLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Title (can be used as a summary header) -->
+        <TextView
+            android:id="@+id/applianceStatesText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Appliance States"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"
+            android:layout_gravity="center_horizontal"/>
+
+        <!-- Container for dynamically generated appliance cards -->
+        <LinearLayout
+            android:id="@+id/applianceStateContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Rationale section -->
+        <TextView
+            android:id="@+id/rationaleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Rationale: "
+            android:textSize="16sp"
+            android:textStyle="italic"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Other suggestions section -->
+        <TextView
+            android:id="@+id/otherSuggestionsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Other Suggestions: "
+            android:textSize="16sp"
+            android:textStyle="italic"
+            android:layout_marginBottom="24dp"/>
+
+        <Button
+            android:id="@+id/sendRecommendationButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send Recommendation"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/design_default_color_primary"
+            android:textColor="@android:color/white"/>
+    </LinearLayout>
+</ScrollView>

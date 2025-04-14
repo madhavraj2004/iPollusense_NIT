@@ -1,17 +1,18 @@
 package com.example.ipollusen;
 
-public class RoomModel {
+public class RoomRecommendModel {
     private final String roomId;
     private String roomName;
     private String roomDesc;
     private int length;
     private int breadth;
     private String nodeIds;
+    private boolean hasNewRecommendation = false;
     // New field to store appliance JSON data.
     private String applianceData;
 
     // Full constructor including applianceData.
-    public RoomModel(String roomId, String roomName, String roomDesc, int length, int breadth, String nodeIds, String applianceData) {
+    public RoomRecommendModel(String roomId, String roomName, String roomDesc, int length, int breadth, String nodeIds, String applianceData) {
         this.roomId = roomId;
         this.roomName = roomName;
         this.roomDesc = roomDesc;
@@ -22,12 +23,12 @@ public class RoomModel {
     }
 
     // Constructor without nodeIds and applianceData.
-    public RoomModel(String roomId, String roomName, String roomDesc, int length, int breadth) {
+    public RoomRecommendModel(String roomId, String roomName, String roomDesc, int length, int breadth) {
         this(roomId, roomName, roomDesc, length, breadth, "", "");
     }
 
     // Constructor without dimensions, nodeIds, and applianceData.
-    public RoomModel(String roomId, String roomName, String roomDesc) {
+    public RoomRecommendModel(String roomId, String roomName, String roomDesc) {
         this(roomId, roomName, roomDesc, 0, 0, "", "");
     }
 
@@ -96,5 +97,15 @@ public class RoomModel {
                 ", nodeIds='" + nodeIds + '\'' +
                 ", applianceData='" + applianceData + '\'' +
                 '}';
+    }
+
+
+    public boolean isHasNewRecommendation() {
+        return hasNewRecommendation;
+    }
+
+    // Setter
+    public void setHasNewRecommendation(boolean hasNewRecommendation) {
+        this.hasNewRecommendation = hasNewRecommendation;
     }
 }

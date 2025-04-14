@@ -26,6 +26,8 @@
     <color name="md_theme_light_onSurface">#1A1C1E</color>
     <color name="blue">#0000FF</color>
     <color name="light_sky_blue">#87CEFA</color>
+    <color name="play_pause_color">#000000</color>   <!-- Dark Black -->
+    <color name="chat_bubble_color">#2196F3</color> <!-- Sky Blue -->
 
     <!-- Custom Colors -->
     <color name="good_status">#3A86FF</color> <!-- Blue for "GOOD" status -->

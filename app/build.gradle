@@ -5,7 +5,8 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath("com.google.gms:google-services:4.4.2") // Use the latest version
+        classpath("com.google.gms:google-services:4.4.2")
+        classpath("com.android.tools.build:gradle:8.6.0")// Use the latest version
     }
 }
 
@@ -18,7 +19,7 @@ apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace 'com.example.ipollusen'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.example.ipollusen"
@@ -64,6 +65,7 @@ dependencies {
     implementation libs.play.services.location
     implementation libs.navigation.runtime
     implementation libs.databinding.runtime
+    implementation libs.media3.common
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
