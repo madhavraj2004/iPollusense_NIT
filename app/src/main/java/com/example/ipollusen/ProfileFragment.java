@@ -16,6 +16,8 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import org.json.JSONObject;
+
 public class ProfileFragment extends Fragment {
 
     private TextView nameTextView, emailTextView, ageTextView, genderTextView, ethnicityTextView, otherInfoTextView;

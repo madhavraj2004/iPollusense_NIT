@@ -91,15 +91,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
 
 // Handle click to go back
-        backArrowButton.setOnClickListener(v -> {
-            onBackPressed(); // or NavController navigateUp()
-        });
+//        backArrowButton.setOnClickListener(v -> {
+//            onBackPressed(); // or NavController navigateUp()
+//        });
 
 
-
-        backArrowButton.setOnClickListener(v -> {
-            onBackPressed();  // Or super.onBackPressed()
-        });
 
 
         // Set up Toolbar
@@ -129,10 +125,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
 
-
-
-
-
     private void setupNavigation() {
         drawerLayout = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
@@ -152,6 +144,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_nav_view);
         NavigationUI.setupWithNavController(bottomNavigationView, navController);
+        View headerView = navigationView.getHeaderView(0);
+
+        // Find backArrowButton in the header
+        ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
+
+        // Handle backArrowButton click to navigate back
+        backArrowButton.setOnClickListener(v -> {
+            if (!navController.popBackStack()) {
+                // If no fragments to pop, navigate to the home fragment or close the app
+                finish();
+            }
+        });
     }
 
     // ✅ Step 1: Request Notification Permission (Android 13+)
@@ -240,6 +244,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         if (item.getItemId() == R.id.nav_logout) {
             handleLogout();
+        } else if (item.getItemId() == R.id.nav_wifi) {
+            openWifiConfigureFragment(); // Open WiFi Configure Fragment
         } else {
             navController.navigate(item.getItemId());
         }
@@ -250,5 +256,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void openNotificationFragment() {
         Navigation.findNavController(this, R.id.nav_host_fragment_activity_main)
                 .navigate(R.id.navigation_notification);
+    }
+    private void openWifiConfigureFragment() {
+        // Navigate to WiFi Configure Fragment
+        Navigation.findNavController(this, R.id.nav_host_fragment_activity_main)
+                .navigate(R.id.nav_wifi);
     }
 }

@@ -169,7 +169,7 @@ public class HomeFragment extends Fragment {
     private List<String> connectedDevicesList = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
     private String jsonString;
-  //  private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
+    //  private String filePath = "/storage/emulated/0/Android/data/com.example.ipollusen/files/sensor_data.csv";
     private Map<String, ArrayBlockingQueue<Entry>> dataQueues; // Data queues for each sensor parameter
     private LineChart liveLineChart;
 
@@ -221,7 +221,7 @@ public class HomeFragment extends Fragment {
         }
     };
     private CompositeDisposable disposables = new CompositeDisposable();
-  //  private File csvFile;
+    //  private File csvFile;
 
     private List<Float> liveDustData = new ArrayList<>();
     private List<Float> liveCOData = new ArrayList<>();
@@ -471,7 +471,7 @@ public class HomeFragment extends Fragment {
 
 
 
-       // Button exportButton = view.findViewById(R.id.exportButton);
+        // Button exportButton = view.findViewById(R.id.exportButton);
         Button scanButton = view.findViewById(R.id.scanButton);
 
         statusTextView = view.findViewById(R.id.statusTextView);
@@ -491,7 +491,7 @@ public class HomeFragment extends Fragment {
             }
 
             // Setup MQTT for the specified device
-           // setupMqttDevice();
+            // setupMqttDevice();
             mqttDeviceLayout.setVisibility(View.GONE);
         });
 
@@ -528,12 +528,12 @@ public class HomeFragment extends Fragment {
 
 
 
-      //  float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
+        //  float liveDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust", true);
 
-       // Log.d(TAG, "Live Dust Average: " + liveDustAverage);
+        // Log.d(TAG, "Live Dust Average: " + liveDustAverage);
 
-      //  float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
-      //  Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
+        //  float predictedDustAverage = getAverage(getContext(), "sensor_data.csv", "aqi_dust_predicted", false);
+        //  Log.d(TAG, "Predicted Dust Average: " + predictedDustAverage);
         liveLineChart = view.findViewById(R.id.LiveLineChart);
         setupliveChart();
         if (liveLineChart == null) {
@@ -658,7 +658,7 @@ public class HomeFragment extends Fragment {
         updatePredictionChart(jsonString);
     }
 
-     // Step 1: Fetch FCM token and update Firestore before doing the API requests
+    // Step 1: Fetch FCM token and update Firestore before doing the API requests
     private void fetchFCMToken() {
         Log.d("FCM_DEBUG", "Fetching FCM token...");
 
@@ -1912,7 +1912,7 @@ public class HomeFragment extends Fragment {
                         int deviceId = jsonObject.getInt("device_id");
                         Log.d("BLE", "Extracted device_id: " + deviceId);
 
-                         MQTT_TOPIC = "data/" + deviceId;
+                        MQTT_TOPIC = "data/" + deviceId;
                         Log.d("BLE", "MQTT_TOPIC: " + MQTT_TOPIC);
 
                         setupHttpPostClient();
@@ -2045,7 +2045,7 @@ public class HomeFragment extends Fragment {
 
 
 
-           // timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+            // timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
             //saveDataToCSV(jsonObject, timestamp, latitude, longitude);
 

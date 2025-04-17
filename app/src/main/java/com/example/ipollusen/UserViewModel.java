@@ -11,11 +11,13 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 public class UserViewModel extends ViewModel {
-    private final MutableLiveData<String> userEmail = new MutableLiveData<>();
-    private final MutableLiveData<String> userId = new MutableLiveData<>();
+
     private final FirebaseAuth mAuth = FirebaseAuth.getInstance();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+    private final MutableLiveData<String> userName = new MutableLiveData<>();
+    private final MutableLiveData<String> userEmail = new MutableLiveData<>();
+    private final MutableLiveData<String> userId = new MutableLiveData<>();
     public UserViewModel() {
         fetchUserData();
     }
@@ -36,9 +38,7 @@ public class UserViewModel extends ViewModel {
         }
     }
 
-    public LiveData<String> getUserEmail() {
-        return userEmail;
-    }
+
 
     public void setUserId(String id) {
         userId.setValue(id);
@@ -61,5 +61,20 @@ public class UserViewModel extends ViewModel {
                 }
             });
         }
+    }
+    public LiveData<String> getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String email) {
+        userEmail.setValue(email);
+    }
+
+    public LiveData<String> getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String name) {
+        userName.setValue(name);
     }
 }

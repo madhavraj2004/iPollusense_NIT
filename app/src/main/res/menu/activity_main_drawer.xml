@@ -27,7 +27,12 @@
             android:title="Advanced View"
             android:textColor="@color/black"
             android:textSize="18sp" />
-
+        <item
+            android:id="@+id/nav_wifi"
+            android:icon="@drawable/ic_settings"
+            android:title="wifi configure"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
         <!-- Logout -->
         <item
             android:id="@+id/nav_logout"

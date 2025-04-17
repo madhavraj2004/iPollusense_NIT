@@ -8,6 +8,25 @@
     android:background="@android:color/background_light">
 
 
+    <!-- Progress Bar for Loading Animation -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- No Data TextView -->
+    <TextView
+        android:id="@+id/noDataTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:text="No room data available"
+        android:textSize="16sp"
+        android:textColor="@android:color/black"
+        android:gravity="center" />
 
     <!-- RecyclerView for Recommendations -->
     <androidx.recyclerview.widget.RecyclerView

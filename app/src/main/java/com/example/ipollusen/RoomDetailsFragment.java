@@ -44,7 +44,7 @@ public class RoomDetailsFragment extends Fragment {
     // We'll use ApplianceJsonAdapter to display the JSON data from ApplianceFragment.
     private ApplianceJsonAdapter applianceJsonAdapter;
     private ArrayList<JSONObject> applianceJsonList = new ArrayList<>();
-
+    private RoomDetailsViewModel roomDetailsViewModel;
     private UserViewModel userViewModel;
     // If you also want to persist room details across navigation, you might add a dedicated ViewModel.
     // For this example, we still use onSaveInstanceState to restore UI fields.
@@ -73,6 +73,7 @@ public class RoomDetailsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_room_details, container, false);
+        roomDetailsViewModel = new ViewModelProvider(requireActivity()).get(RoomDetailsViewModel.class);
 
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
 
@@ -100,8 +101,9 @@ public class RoomDetailsFragment extends Fragment {
         applianceJsonAdapter = new ApplianceJsonAdapter(applianceJsonList);
         recyclerViewAppliances.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerViewAppliances.setAdapter(applianceJsonAdapter);
-
+        restoreDataFromViewModel();
         btnAddAppliance.setOnClickListener(v -> {
+            saveDataToViewModel();
             NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_main);
             navController.navigate(R.id.action_roomDetailsFragment_to_applianceFragment);
         });
@@ -113,6 +115,7 @@ public class RoomDetailsFragment extends Fragment {
             @Override
             public void onFragmentResult(@NonNull String requestKey, @NonNull Bundle bundle) {
                 applianceJsonData = bundle.getString("appliance_data");
+                roomDetailsViewModel.setApplianceJsonData(applianceJsonData);
                 Log.d(TAG, "Received appliance data: " + applianceJsonData);
                 // Parse and update the RecyclerView.
                 if (applianceJsonData != null) {
@@ -135,7 +138,23 @@ public class RoomDetailsFragment extends Fragment {
 
         return view;
     }
+    private void restoreDataFromViewModel() {
+        inputRoomName.setText(roomDetailsViewModel.getRoomName());
+        inputRoomDesc.setText(roomDetailsViewModel.getRoomDesc());
+        inputLength.setText(roomDetailsViewModel.getLength());
+        inputBreadth.setText(roomDetailsViewModel.getBreadth());
+        inputNodeIds.setText(roomDetailsViewModel.getNodeIds());
 
+
+    }
+
+    private void saveDataToViewModel() {
+        roomDetailsViewModel.setRoomName(inputRoomName.getText().toString());
+        roomDetailsViewModel.setRoomDesc(inputRoomDesc.getText().toString());
+        roomDetailsViewModel.setLength(inputLength.getText().toString());
+        roomDetailsViewModel.setBreadth(inputBreadth.getText().toString());
+        roomDetailsViewModel.setNodeIds(inputNodeIds.getText().toString());
+    }
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);

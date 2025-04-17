@@ -118,6 +118,11 @@ public class ApplianceFragment extends Fragment {
 // private static final int TAG_MIN_VALUE = 1001;
 
     private void populateUI(JSONArray appliances) {
+        if (getContext() == null) {
+            Log.e("ApplianceFragment", "Context is null. Cannot populate UI.");
+            return;
+        }
+
         applianceContainer.removeAllViews();
 
         // Loop through each appliance and create UI card.
@@ -160,7 +165,16 @@ public class ApplianceFragment extends Fragment {
                 topRow.addView(mainSwitch);
                 topRow.addView(title);
                 applianceLayout.addView(topRow);
-
+                // Add a DigiSwitch ID EditText field.
+                TextView digiSwitchLabel = new TextView(getContext());
+                digiSwitchLabel.setText("DigiSwitch ID:");
+                digiSwitchLabel.setPadding(0, 20, 0, 10);
+                EditText digiSwitchInput = new EditText(getContext());
+                digiSwitchInput.setHint("Enter DigiSwitch ID");
+                digiSwitchInput.setInputType(InputType.TYPE_CLASS_TEXT);
+                digiSwitchInput.setTag("digiSwitchId"); // Tag for later retrieval.
+                applianceLayout.addView(digiSwitchLabel);
+                applianceLayout.addView(digiSwitchInput);
                 // Divider.
                 View divider = new View(getContext());
                 divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
@@ -401,6 +415,9 @@ public class ApplianceFragment extends Fragment {
                     // Create a copy of the original appliance JSON to update its prompts.
                     JSONObject applianceCopy = new JSONObject(appliance.toString());
                     JSONArray prompts = applianceCopy.getJSONArray("appliancePrompts");
+                    // Retrieve DigiSwitch ID.
+                    EditText digiSwitchInput = card.findViewWithTag("digiSwitchId");
+                    applianceCopy.put("digiSwitchId", digiSwitchInput.getText().toString().trim());
 
                     for (int j = 0; j < prompts.length(); j++) {
                         JSONObject prompt = prompts.getJSONObject(j);
@@ -503,6 +520,9 @@ public class ApplianceFragment extends Fragment {
                 JSONObject applianceObject = new JSONObject();
                 applianceObject.put("_id", originalAppliance.optString("_id", ""));
                 applianceObject.put("applianceName", originalAppliance.getString("applianceName"));
+                EditText digiSwitchInput = innerLayout.findViewWithTag("digiSwitchId");
+                String digiSwitchId = (digiSwitchInput != null) ? digiSwitchInput.getText().toString().trim() : "";
+                applianceObject.put("digiSwitchId", digiSwitchId);
 
                 JSONArray appliancePromptsArray = new JSONArray();
                 JSONArray prompts = originalAppliance.getJSONArray("appliancePrompts");
