@@ -10,7 +10,8 @@ public class RoomRecommendModel {
     private boolean hasNewRecommendation = false;
     // New field to store appliance JSON data.
     private String applianceData;
-
+    private boolean responseFound; // New property to track play/pause state
+    private String mapRoomUserId;
     // Full constructor including applianceData.
     public RoomRecommendModel(String roomId, String roomName, String roomDesc, int length, int breadth, String nodeIds, String applianceData) {
         this.roomId = roomId;
@@ -20,6 +21,7 @@ public class RoomRecommendModel {
         this.breadth = breadth;
         this.nodeIds = nodeIds;
         this.applianceData = applianceData;
+        this.responseFound = false;
     }
 
     // Constructor without nodeIds and applianceData.
@@ -85,7 +87,22 @@ public class RoomRecommendModel {
     public void setApplianceData(String applianceData) {
         this.applianceData = applianceData;
     }
+    // New getters and setters for responseFound
+    public boolean isResponseFound() {
+        return responseFound;
+    }
+    public String getMapRoomUserId() {
+        return mapRoomUserId;
+    }
 
+    // Setter for mapRoomUserId
+    public void setMapRoomUserId(String mapRoomUserId) {
+        this.mapRoomUserId = mapRoomUserId;
+    }
+
+    public void setResponseFound(boolean responseFound) {
+        this.responseFound = responseFound;
+    }
     @Override
     public String toString() {
         return "RoomModel{" +

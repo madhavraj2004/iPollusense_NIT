@@ -240,6 +240,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         if (item.getItemId() == R.id.nav_logout) {
             handleLogout();
+        } else if (item.getItemId() == R.id.nav_wifi) {
+            openWifiConfigureFragment(); // Open WiFi Configure Fragment
         } else {
             navController.navigate(item.getItemId());
         }
@@ -250,5 +252,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void openNotificationFragment() {
         Navigation.findNavController(this, R.id.nav_host_fragment_activity_main)
                 .navigate(R.id.navigation_notification);
+    }
+    private void openWifiConfigureFragment() {
+        // Navigate to WiFi Configure Fragment
+        Navigation.findNavController(this, R.id.nav_host_fragment_activity_main)
+                .navigate(R.id.nav_wifi);
     }
 }
