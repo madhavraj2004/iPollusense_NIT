@@ -21,9 +21,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.Spinner;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -50,7 +48,6 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,15 +69,11 @@ public class RecommendationFragment extends Fragment {
     private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
     private SharedResponseViewModel sharedViewModel;
     // Location and prompt sending variables
-    private HashMap<String, String> mapRoomUserToRoomId = new HashMap<>(); // Maps mapRoomUserId to roomId
-    private ProgressBar progressBar;
-    private TextView noDataTextView;
     private double userLat = 0.0;
     private double userLong = 0.0;
     private String mapRoomUserId = "";
     private String selectedModifier = "health";
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
-    private List<String> mapRoomUserIds = new ArrayList<>(); // Holds the MapRoomUser IDs
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -93,56 +86,30 @@ public class RecommendationFragment extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedResponseViewModel.class);
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        progressBar = view.findViewById(R.id.progressBar);
-        noDataTextView = view.findViewById(R.id.noDataTextView);
+
         // Use anonymous inner classes to provide the callbacks (replace lambda if issues occur)
-        fetchUserRooms(() -> {
-            Log.d(TAG, "User rooms fetched successfully. Proceeding to fetch room details.");
+        roomrecommendAdapter = new RoomRecommendAdapter(roomList,
+                (room, playButton, chatButton) -> handlePlayButtonClick(room, playButton, chatButton),
+                room -> openCustomPromptDialog(room),
+                position -> {
+                    RoomRecommendModel selectedRoom = roomList.get(position);
+                    Log.d(TAG, "Feedback Fragment Opened for Room: " + selectedRoom.getRoomName());
 
-            // Extract roomIds from the map and use them to fetch room details
-            List<String> roomIds = new ArrayList<>(mapRoomUserToRoomId.values());
-            fetchRoomDetails(roomIds);
+                    // Reset dot if shown
+                    if (selectedRoom.isHasNewRecommendation()) {
+                        selectedRoom.setHasNewRecommendation(false);
+                        roomrecommendAdapter.notifyItemChanged(position);
+                    }
 
-            // Check response buffer for all MapRoomUser IDs
-            checkResponseBufferForAllRooms(new ArrayList<>(mapRoomUserToRoomId.keySet()), () -> {
-                Log.d(TAG, "Response buffer check completed. Initializing the adapter.");
-
-                // Initialize and set the RoomRecommendAdapter
-                roomrecommendAdapter = new RoomRecommendAdapter(
-                        roomList,
-                        (room, playButton, chatButton) -> {
-                            // Handle play/pause logic when the button is clicked
-                            togglePlayPause(room, playButton, chatButton);
-                        },
-                        room -> {
-                            // Handle custom prompt dialog when the room is clicked
-                            openCustomPromptDialog(room);
-                        },
-                        position -> {
-                            // Handle feedback fragment navigation when a room is selected
-                            RoomRecommendModel selectedRoom = roomList.get(position);
-                            Log.d(TAG, "Feedback Fragment Opened for Room: " + selectedRoom.getRoomName());
-
-                            // Reset the new recommendation flag if present
-                            if (selectedRoom.isHasNewRecommendation()) {
-                                selectedRoom.setHasNewRecommendation(false);
-                                roomrecommendAdapter.notifyItemChanged(position);
-                            }
-
-                            // Navigate to the Feedback Fragment
-                            NavController navController = Navigation.findNavController(requireView());
-                            NavOptions navOptions = new NavOptions.Builder()
-                                    .setPopUpTo(R.id.navigation_recommend, false) // Keeps `navigation_recommend` in the back stack
-                                    .build();
-                            navController.navigate(R.id.action_navigation_recommend_to_feedbackFragment, null, navOptions);
-                        }
-                );
-
-                // Attach the adapter to the RecyclerView
-                recyclerView.setAdapter(roomrecommendAdapter);
-                Log.d(TAG, "Adapter initialized and set to RecyclerView.");
-            });
-        });
+                    // Navigation to Feedback Fragment
+                    // Navigation to Feedback Fragment
+                    NavController navController = Navigation.findNavController(requireView());
+                    NavOptions navOptions = new NavOptions.Builder()
+                            .setPopUpTo(R.id.navigation_recommend, false) // Keeps `navigation_recommend` in the back stack
+                            .build();
+                    navController.navigate(R.id.action_navigation_recommend_to_feedbackFragment, null, navOptions);
+                }
+        );
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
                 new OnBackPressedCallback(true) {
                     @Override
@@ -164,10 +131,10 @@ public class RecommendationFragment extends Fragment {
                     }
                 });
 
+        recyclerView.setAdapter(roomrecommendAdapter);
 
 
-
-
+        fetchUserRooms();
 
 
         return view;
@@ -247,25 +214,26 @@ public class RecommendationFragment extends Fragment {
     }
 
     /**
-     * Checks responseBuffer for all rooms and updates play/pause button state accordingly.
+     * New handler for play button clicks.
+     * When not selected:
+     *   - Set selected to true (so the selector shows pause),
+     *   - Make chat bubble visible,
+     *   - And send registration (ACGPT endpoint) with an empty custom prompt.
+     * When already selected, treat it as a pause action and remove responses.
      */
-
-
-
-    private void togglePlayPause(RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
+    private void handlePlayButtonClick(RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
         if (!btnPlayPause.isSelected()) {
-            // Set the play button to the selected (pause) state and reveal the chat bubble
+            // Set play button as selected (pause state) and reveal chat bubble.
             btnPlayPause.setSelected(true);
             btnChatBubble.setVisibility(View.VISIBLE);
-            Log.d(TAG, "Play action: Responses enabled for room " + room.getRoomId());
+
+
         } else {
-            // Set the play button to unselected (play) state, hide the chat bubble, and handle pause action
+            // Pause action: reset state, remove responses.
             btnPlayPause.setSelected(false);
             btnChatBubble.setVisibility(View.GONE);
-            Log.d(TAG, "Pause action: Remove responses for room " + room.getRoomId());
-
-            // TODO: Call backend to remove responses from "response" and recheck buffers
-//            removeResponsesAndRecheck(room);
+            Log.d(TAG, "Pause action: remove responses for room " + room.getRoomId());
+            // TODO: Call backend to remove responses from response and recheck buffers.
         }
     }
 
@@ -359,7 +327,6 @@ public class RecommendationFragment extends Fragment {
                                         sendInitialPrompt(customPrompt, onSuccess);
                                         return;
                                     }
-
                                 }
                                 Toast.makeText(requireContext(), "Room ID not found for user", Toast.LENGTH_SHORT).show();
                             }
@@ -525,13 +492,13 @@ public class RecommendationFragment extends Fragment {
     // ------------------------------------------------------------------------
     // Existing code for fetching user rooms and room details from your backend
     // ------------------------------------------------------------------------
-    private void fetchUserRooms(Runnable onComplete) {
+    private void fetchUserRooms() {
         String userId = userViewModel.getUserId().getValue();
         if (userId == null || userId.isEmpty()) {
             showToast("User ID not found");
             return;
         }
-        showLoading();
+
         executorService.execute(() -> {
             try {
                 JSONObject requestJson = new JSONObject();
@@ -556,45 +523,24 @@ public class RecommendationFragment extends Fragment {
                     String responseBody = response.body() != null ? response.body().string() : "";
                     Log.d(TAG, "User rooms mapping response: " + responseBody);
 
-                    mapRoomUserToRoomId.clear(); // Clear previous data
+                    List<String> roomIds = new ArrayList<>();
                     JSONObject jsonResponse = new JSONObject(responseBody);
                     JSONArray dataArray = jsonResponse.getJSONArray("data");
 
                     for (int i = 0; i < dataArray.length(); i++) {
-                        JSONObject roomData = dataArray.getJSONObject(i);
-                        String mapRoomUserId = roomData.getString("_id");
-                        String roomId = roomData.getString("roomId");
-                        mapRoomUserToRoomId.put(mapRoomUserId, roomId);
+                        roomIds.add(dataArray.getJSONObject(i).getString("roomId"));
                     }
 
-                    Log.d(TAG, "Fetched MapRoomUser to Room ID map: " + mapRoomUserToRoomId);
-
-                    requireActivity().runOnUiThread(onComplete);
+                    Log.d(TAG, "Fetched Room IDs: " + roomIds);
+                    fetchRoomDetails(roomIds);
                 }
-            } catch (Exception e) {
+            } catch (IOException | JSONException e) {
                 Log.e(TAG, "Error fetching user rooms", e);
                 showToast("Failed to fetch user rooms");
-                showNoData();
             }
         });
     }
-    private void showLoading() {
-        progressBar.setVisibility(View.VISIBLE);
-        recyclerView.setVisibility(View.GONE);
-        noDataTextView.setVisibility(View.GONE);
-    }
 
-    private void showRecyclerView() {
-        progressBar.setVisibility(View.GONE);
-        recyclerView.setVisibility(View.VISIBLE);
-        noDataTextView.setVisibility(View.GONE);
-    }
-
-    private void showNoData() {
-        progressBar.setVisibility(View.GONE);
-        recyclerView.setVisibility(View.GONE);
-        noDataTextView.setVisibility(View.VISIBLE);
-    }
     private void fetchRoomDetails(List<String> roomIds) {
         executorService.execute(() -> {
             try {
@@ -629,14 +575,9 @@ public class RecommendationFragment extends Fragment {
                     }
 
                     requireActivity().runOnUiThread(() -> {
-                        showRecyclerView();
                         roomList.clear();
                         roomList.addAll(matchedRooms);
-
-                        if (roomrecommendAdapter != null) {
-                            roomrecommendAdapter.notifyDataSetChanged();
-                        }
-
+                        roomrecommendAdapter.notifyDataSetChanged();
                         Log.d(TAG, "Updated UI with matched room details.");
                     });
                 }
@@ -645,105 +586,6 @@ public class RecommendationFragment extends Fragment {
                 showToast("Failed to fetch room details");
             }
         });
-    }
-
-    private void checkResponseBufferForAllRooms(List<String> mapRoomUserIds, Runnable onComplete) {
-        if (mapRoomUserIds == null || mapRoomUserIds.isEmpty()) {
-            Log.d(TAG, "No MapRoomUser IDs found. Skipping response buffer check.");
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-
-        int[] processedCount = {0};
-
-        for (String mapRoomUserId : mapRoomUserIds) {
-            if (mapRoomUserId == null) {
-                Log.e(TAG, "MapRoomUser ID is null. Skipping this ID.");
-                processedCount[0]++;
-                if (processedCount[0] == mapRoomUserIds.size() && onComplete != null) {
-                    onComplete.run();
-                }
-                continue;
-            }
-
-            try {
-                // Create JSON payload for the POST request
-                JSONObject json = new JSONObject();
-                json.put("mapRoomUserId", mapRoomUserId);
-
-                String url = "http://52.250.54.24:3500/api/responseBuffer/find";
-                RequestQueue queue = Volley.newRequestQueue(requireContext());
-
-                // Create a POST request
-                JsonObjectRequest request = new JsonObjectRequest(
-                        Request.Method.POST,
-                        url,
-                        json,
-                        response -> {
-                            try {
-                                // Check if the response contains the "mapRoomUserId" and matches the current mapRoomUserId
-                                boolean hasMatchingResponse = response.has("mapRoomUserId") && mapRoomUserId.equals(response.getString("mapRoomUserId"));
-
-                                // Update the UI based on the presence of a matching response
-                                requireActivity().runOnUiThread(() -> {
-                                    for (int i = 0; i < roomList.size(); i++) {
-                                        RoomRecommendModel room = roomList.get(i);
-                                        if (room != null && mapRoomUserId.equals(room.getMapRoomUserId())) {
-                                            if (hasMatchingResponse) {
-                                                room.setHasNewRecommendation(true); // Indicate a new recommendation
-                                                room.setResponseFound(true); // Show pause button
-                                                Log.d(TAG, "Pause button shown for MapRoomUser ID: " + mapRoomUserId);
-                                            } else {
-                                                room.setResponseFound(false); // Show play button
-                                                Log.d(TAG, "Play button shown for MapRoomUser ID: " + mapRoomUserId);
-                                            }
-                                            roomrecommendAdapter.notifyItemChanged(i);
-                                            break;
-                                        }
-                                    }
-                                });
-                            } catch (Exception e) {
-                                Log.e(TAG, "Error parsing response for MapRoomUser ID: " + mapRoomUserId, e);
-                            } finally {
-                                processedCount[0]++;
-                                if (processedCount[0] == mapRoomUserIds.size() && onComplete != null) {
-                                    onComplete.run();
-                                }
-                            }
-                        },
-                        error -> {
-                            Log.e(TAG, "Error checking responseBuffer for MapRoomUser ID: " + mapRoomUserId, error);
-                            processedCount[0]++;
-                            if (processedCount[0] == mapRoomUserIds.size() && onComplete != null) {
-                                onComplete.run();
-                            }
-                        }
-                );
-
-                // Add the request to the Volley queue
-                queue.add(request);
-            } catch (JSONException e) {
-                Log.e(TAG, "Error forming JSON for MapRoomUser ID: " + mapRoomUserId, e);
-                processedCount[0]++;
-                if (processedCount[0] == mapRoomUserIds.size() && onComplete != null) {
-                    onComplete.run();
-                }
-            }
-        }
-    }
-
-    private void handlePlayButtonClick(RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
-        if (room.isResponseFound()) {
-            // If a response is found, show the pause state and the chat bubble
-            btnPlayPause.setSelected(true);
-            btnChatBubble.setVisibility(View.VISIBLE);
-            Log.d(TAG, "Pause button shown for Room ID: " + room.getRoomId());
-        } else {
-            // If no response is found, show the play state and hide the chat bubble
-            btnPlayPause.setSelected(false);
-            btnChatBubble.setVisibility(View.GONE);
-            Log.d(TAG, "Play button shown for Room ID: " + room.getRoomId());
-        }
     }
 
     // Display toast on UI thread
