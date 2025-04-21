@@ -21,7 +21,9 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -68,6 +70,8 @@ public class RecommendationFragment extends Fragment {
     private static final String TAG = "RecommendationFragment";
     private static final String API_URL_ROOM_LIST = "http://52.250.54.24:3500/api/mapRoomUser/search";
     private SharedResponseViewModel sharedViewModel;
+    private ProgressBar progressBar;
+    private TextView noDataTextView;
     // Location and prompt sending variables
     private double userLat = 0.0;
     private double userLong = 0.0;
@@ -86,7 +90,8 @@ public class RecommendationFragment extends Fragment {
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedResponseViewModel.class);
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
-
+        progressBar = view.findViewById(R.id.progressBar);
+        noDataTextView = view.findViewById(R.id.noDataTextView);
         // Use anonymous inner classes to provide the callbacks (replace lambda if issues occur)
         roomrecommendAdapter = new RoomRecommendAdapter(roomList,
                 (room, playButton, chatButton) -> handlePlayButtonClick(room, playButton, chatButton),
@@ -139,7 +144,23 @@ public class RecommendationFragment extends Fragment {
 
         return view;
     }
+    private void showLoading() {
+        progressBar.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.GONE);
+        noDataTextView.setVisibility(View.GONE);
+    }
 
+    private void showRecyclerView() {
+        progressBar.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.VISIBLE);
+        noDataTextView.setVisibility(View.GONE);
+    }
+
+    private void showNoData() {
+        progressBar.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.GONE);
+        noDataTextView.setVisibility(View.VISIBLE);
+    }
     // Fetch location then run next step after fetching
     private void fetchLocation(Runnable onLocationFetched) {
         LocationManager locationManager = (LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
@@ -498,7 +519,7 @@ public class RecommendationFragment extends Fragment {
             showToast("User ID not found");
             return;
         }
-
+        showLoading();
         executorService.execute(() -> {
             try {
                 JSONObject requestJson = new JSONObject();
@@ -537,6 +558,7 @@ public class RecommendationFragment extends Fragment {
             } catch (IOException | JSONException e) {
                 Log.e(TAG, "Error fetching user rooms", e);
                 showToast("Failed to fetch user rooms");
+                showNoData();
             }
         });
     }
@@ -575,6 +597,7 @@ public class RecommendationFragment extends Fragment {
                     }
 
                     requireActivity().runOnUiThread(() -> {
+                        showRecyclerView();
                         roomList.clear();
                         roomList.addAll(matchedRooms);
                         roomrecommendAdapter.notifyDataSetChanged();
