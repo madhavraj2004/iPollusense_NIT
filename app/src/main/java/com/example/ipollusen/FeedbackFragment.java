@@ -4,6 +4,8 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -24,6 +27,11 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -40,18 +48,18 @@ import java.util.Map;
 
 public class FeedbackFragment extends Fragment {
 
-    private static final String ARG_MAP_ROOM_USER_ID = "map_room_user_id";
     private static final String TAG = "FeedbackFragment";
-
+    private RoomRecommendAdapter roomrecommendAdapter;
     private LinearLayout applianceStateContainer;
     private TextView rationaleText;
     private TextView otherSuggestionsText;
     private Button sendRecommendationButton;
-
+    private Handler handler;
     private String mapRoomUserId;
     private SharedResponseViewModel sharedViewModel;
     private JSONObject originalJson; // To hold the original JSON for feedback processing
-
+    private ProgressBar progressBar;
+    private TextView noDataTextView;
 
     public static FeedbackFragment newInstance(String mapRoomUserId) {
         FeedbackFragment fragment = new FeedbackFragment();
@@ -67,10 +75,38 @@ public class FeedbackFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        handler = new Handler(Looper.getMainLooper());
+        // Initialize SharedResponseViewModel first
+        try {
+            sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedResponseViewModel.class);
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing SharedResponseViewModel: " + e.getMessage());
+            navigateBack();
+            return;
+        }
+
+        // Get mapRoomUserId from arguments
         if (getArguments() != null) {
             mapRoomUserId = getArguments().getString("mapRoomUserId");
+            Log.d(TAG, "Received mapRoomUserId: " + mapRoomUserId);
+
+            if (mapRoomUserId == null || mapRoomUserId.isEmpty()) {
+                Log.e(TAG, "mapRoomUserId is null or empty");
+                navigateBack();
+                return;
+            }
+        } else {
+            Log.e(TAG, "No arguments received in FeedbackFragment");
+            navigateBack();
+            return;
         }
+
         sharedViewModel = new ViewModelProvider(requireActivity()).get(SharedResponseViewModel.class);
+
+        // Only start fetching if we have a valid mapRoomUserId
+        if (mapRoomUserId != null && !mapRoomUserId.isEmpty()) {
+            fetchPromptResponseInterval(mapRoomUserId);
+        }
     }
 
     @Nullable
@@ -81,6 +117,8 @@ public class FeedbackFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_feedback, container, false);
 
         // Initialize UI elements
+        progressBar = view.findViewById(R.id.progressBar);
+        noDataTextView = view.findViewById(R.id.noDataTextView);
         applianceStateContainer = view.findViewById(R.id.applianceStateContainer);
         rationaleText = view.findViewById(R.id.rationaleText);
         otherSuggestionsText = view.findViewById(R.id.otherSuggestionsText);
@@ -112,9 +150,29 @@ public class FeedbackFragment extends Fragment {
                         }
                     }
                 });
+        if (sharedViewModel != null && mapRoomUserId != null && !mapRoomUserId.isEmpty()) {
+            observeViewModel();
+            fetchPromptResponseInterval(mapRoomUserId);
+        } else {
+            showError("Error: Unable to load data");
+            navigateBack();
+        }
+
         return view;
     }
+    private void showLoading() {
+        progressBar.setVisibility(View.VISIBLE);
 
+        noDataTextView.setVisibility(View.GONE);
+    }
+
+
+
+    private void showNoData() {
+        progressBar.setVisibility(View.GONE);
+
+        noDataTextView.setVisibility(View.VISIBLE);
+    }
     private void logLongString(String tag, String message) {
         int maxLogSize = 1000;
         for (int i = 0; i <= message.length() / maxLogSize; i++) {
@@ -125,33 +183,56 @@ public class FeedbackFragment extends Fragment {
     }
 
     private void observeViewModel() {
-        sharedViewModel.getResponseMapLiveData().observe(getViewLifecycleOwner(), responseMap -> {
-            if (responseMap != null && responseMap.containsKey(mapRoomUserId)) {
-                try {
-                    String jsonString = responseMap.get(mapRoomUserId);
-                    logLongString(TAG, "JSON Response: " + jsonString);
-                    originalJson = new JSONObject(jsonString); // Save the original JSON for feedback construction
+        if (sharedViewModel == null) {
+            Log.e(TAG, "SharedResponseViewModel is null");
+            showError("Error: Unable to load data");
+            navigateBack();
+            return;
+        }
 
-                    // Check for 'room' data inside 'histItem'
-                    if (originalJson.has("histItem") && originalJson.getJSONObject("histItem").has("room")) {
-                        JSONObject roomObj = originalJson.getJSONObject("histItem").getJSONObject("room");
-                        logLongString(TAG, "Room data found: " + roomObj.toString());
-                        handleRoomData(originalJson, generateApplianceIdToNameMap(roomObj));
-                    } else {
-                        Log.e(TAG, "No 'room' key found in the 'histItem'.");
-                        showError("Room data is missing. Unable to display appliance details.");
+        showLoading();
+        try {
+            sharedViewModel.getResponseMapLiveData().observe(getViewLifecycleOwner(), responseMap -> {
+                if (responseMap != null && responseMap.containsKey(mapRoomUserId)) {
+                    try {
+                        String jsonString = responseMap.get(mapRoomUserId);
+                        logLongString(TAG, "JSON Response: " + jsonString);
+                        originalJson = new JSONObject(jsonString);
+
+                        if (originalJson.has("histItem") && originalJson.getJSONObject("histItem").has("room")) {
+                            JSONObject roomObj = originalJson.getJSONObject("histItem").getJSONObject("room");
+                            logLongString(TAG, "Room data found: " + roomObj.toString());
+                            handleRoomData(originalJson, generateApplianceIdToNameMap(roomObj));
+                        } else {
+                            Log.e(TAG, "No 'room' key found in the 'histItem'.");
+                            showError("Room data is missing. Unable to display appliance details.");
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "JSON parsing error: " + e.getMessage());
+                        showError("Failed to parse response. Please try again.");
                     }
-                } catch (JSONException e) {
-                    Log.e(TAG, "JSON parsing error: " + e.getMessage());
-                    showError("Failed to parse response. Please try again.");
+                } else {
+                    Log.e(TAG, "Response map is null or does not contain the required key: " + mapRoomUserId);
+                    showNoData();
+                    showError("No data available for this room.");
                 }
-            } else {
-                Log.e(TAG, "Response map is null or does not contain the required key: " + mapRoomUserId);
-                showError("No data available for this room.");
-            }
-        });
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up ViewModel observer: " + e.getMessage());
+            showError("Error: Unable to load data");
+            navigateBack();
+        }
     }
-
+    private void navigateBack() {
+        if (isAdded() && getView() != null) {
+            try {
+                NavController navController = Navigation.findNavController(requireView());
+                navController.popBackStack();
+            } catch (Exception e) {
+                Log.e(TAG, "Error navigating back: " + e.getMessage());
+            }
+        }
+    }
     private void handleRoomData(JSONObject jsonResponse, Map<String, String> applianceIdToNameMap) {
         try {
             JSONObject responseObj = jsonResponse.getJSONObject("response");
@@ -381,5 +462,89 @@ public class FeedbackFragment extends Fragment {
         Log.e(TAG, message);
         rationaleText.setText(message);
         otherSuggestionsText.setText("");
+    }
+    private void fetchPromptResponseInterval(String mapRoomUserId) {
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAdded()) {
+                    Log.w(TAG, "FeedbackFragment is not attached. Stopping polling.");
+                    return; // Exit if the Fragment is no longer attached
+                }
+
+                Log.d(TAG, "Polling started for mapRoomUserId: " + mapRoomUserId);
+
+                JSONObject json = new JSONObject();
+                try {
+                    json.put("mapRoomUserId", mapRoomUserId);
+                    Log.d(TAG, "Polling request body: " + json.toString());
+                } catch (JSONException e) {
+                    Log.e(TAG, "Failed to create polling JSON: " + e.getMessage());
+                }
+
+                String url = "http://52.250.54.24:3500/api/responseBuffer/find";
+
+                RequestQueue queue = Volley.newRequestQueue(requireContext());
+                JsonObjectRequest request = new JsonObjectRequest(
+                        Request.Method.POST,
+                        url,
+                        json,
+                        response -> {
+                            if (!isAdded()) {
+                                Log.w(TAG, "FeedbackFragment is not attached. Ignoring response.");
+                                return; // Exit if the Fragment is no longer attached
+                            }
+
+                            Log.d(TAG, "Polling response received: " + response.toString());
+                            String responseString = response.toString();
+
+                            if (response.has("_id")) {
+                                Log.d(TAG, "Response buffer found for mapRoomUserId: " + mapRoomUserId);
+                                handler.removeCallbacks(this); // Stop polling
+
+                                try {
+                                    sharedViewModel.addResponse(mapRoomUserId, responseString);
+
+                                    JSONObject responseObject = new JSONObject(responseString);
+                                    if (responseObject.has("histItem") && responseObject.getJSONObject("histItem").has("room")) {
+                                        JSONObject roomObj = responseObject.getJSONObject("histItem").getJSONObject("room");
+                                        Map<String, String> applianceIdToNameMap = generateApplianceIdToNameMap(roomObj);
+
+                                        requireActivity().runOnUiThread(() -> {
+                                            handleRoomData(responseObject, applianceIdToNameMap);
+                                        });
+                                    } else {
+                                        Log.e(TAG, "No 'room' data found in response. Retrying in 5 seconds...");
+                                        handler.postDelayed(this, 5000);
+                                    }
+                                } catch (JSONException e) {
+                                    Log.e(TAG, "Error parsing response JSON: " + e.getMessage());
+                                    handler.postDelayed(this, 5000);
+                                }
+                            } else {
+                                Log.d(TAG, "No response buffer found. Retrying in 5 seconds...");
+                                handler.postDelayed(this, 5000);
+                            }
+                        },
+                        error -> {
+                            Log.e(TAG, "Volley error: " + error.toString());
+                            handler.postDelayed(this, 5000);
+                        }
+                );
+                queue.add(request);
+            }
+        };
+
+        handler.post(runnable);
+    }
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+            Log.d(TAG, "Handler callbacks removed in onDestroy.");
+        }
     }
 }

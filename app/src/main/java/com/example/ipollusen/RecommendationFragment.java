@@ -162,7 +162,7 @@ public class RecommendationFragment extends Fragment {
         noDataTextView.setVisibility(View.VISIBLE);
     }
     // Fetch location then run next step after fetching
-    private void fetchLocation(Runnable onLocationFetched) {
+    private void fetchLocation(Runnable onLocationFetched) { 
         LocationManager locationManager = (LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
 
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -242,24 +242,105 @@ public class RecommendationFragment extends Fragment {
      *   - And send registration (ACGPT endpoint) with an empty custom prompt.
      * When already selected, treat it as a pause action and remove responses.
      */
+    // Update the handlePlayButtonClick method
     private void handlePlayButtonClick(RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
         if (!btnPlayPause.isSelected()) {
-            // Set play button as selected (pause state) and reveal chat bubble.
-            btnPlayPause.setSelected(true);
-            btnChatBubble.setVisibility(View.VISIBLE);
+            try {
+                String userId = userViewModel.getUserId().getValue();
+                if (userId == null || userId.isEmpty()) {
+                    Toast.makeText(requireContext(), "User ID not available", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
+                JSONObject requestJson = new JSONObject();
+                requestJson.put("userId", userId);
 
+                String url = "http://52.250.54.24:3500/api/mapRoomUser/search";
+                RequestQueue queue = Volley.newRequestQueue(requireContext());
+
+                JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, requestJson,
+                        response -> {
+                            try {
+                                JSONArray items = response.optJSONArray("data");
+                                if (items != null) {
+                                    for (int i = 0; i < items.length(); i++) {
+                                        JSONObject item = items.getJSONObject(i);
+                                        if (room.getRoomId().equals(item.optString("roomId"))) {
+                                            String mapRoomUserId = item.optString("_id");
+                                            Log.d(TAG, "Room Name: " + room.getRoomName() + ", MapRoomUserId: " + mapRoomUserId);
+
+                                            // Check response buffer before proceeding
+                                            checkResponseBuffer(mapRoomUserId, room, btnPlayPause, btnChatBubble);
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                                Log.e(TAG, "Error parsing mapRoomUser response", e);
+                            }
+                        },
+                        error -> {
+                            Log.e(TAG, "Volley error while fetching mapRoomUserId", error);
+                            Toast.makeText(requireContext(), "Failed to retrieve mapRoomUserId", Toast.LENGTH_SHORT).show();
+                        });
+
+                queue.add(request);
+            } catch (Exception e) {
+                Log.e(TAG, "Error forming mapRoomUser request", e);
+            }
         } else {
-            // Pause action: reset state, remove responses.
             btnPlayPause.setSelected(false);
             btnChatBubble.setVisibility(View.GONE);
             Log.d(TAG, "Pause action: remove responses for room " + room.getRoomId());
-            // TODO: Call backend to remove responses from response and recheck buffers.
         }
     }
 
+    // New method to check response buffer
+    private void checkResponseBuffer(String mapRoomUserId, RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
+        JSONObject json = new JSONObject();
+        try {
+            json.put("mapRoomUserId", mapRoomUserId);
+            String url = "http://52.250.54.24:3500/api/responseBuffer/find";
 
-    /**
+            RequestQueue queue = Volley.newRequestQueue(requireContext());
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    url,
+                    json,
+                    response -> {
+                        if (response.has("_id")) {
+                            // Response buffer exists, navigate to feedback fragment
+                            NavController navController = Navigation.findNavController(requireView());
+                            Bundle args = new Bundle();
+                            args.putString("mapRoomUserId", mapRoomUserId);
+                            NavOptions navOptions = new NavOptions.Builder()
+                                    .setPopUpTo(R.id.navigation_recommend, false)
+                                    .build();
+                            navController.navigate(R.id.action_navigation_recommend_to_feedbackFragment, args, navOptions);
+                        } else if (response.optString("message", "").equals("Response Buffer item not found")) {
+                            // No response in buffer, show play button and chat bubble
+                            requireActivity().runOnUiThread(() -> {
+                                btnPlayPause.setSelected(true);
+                                btnChatBubble.setVisibility(View.VISIBLE);
+                                Log.d(TAG, "No response in buffer, showing play button and chat bubble");
+                            });
+                        }
+                    },
+                    error -> {
+                        Log.e(TAG, "Volley error while checking response buffer", error);
+                        // On error, default to showing play button and chat bubble
+                        requireActivity().runOnUiThread(() -> {
+                            btnPlayPause.setSelected(true);
+                            btnChatBubble.setVisibility(View.VISIBLE);
+                        });
+                    }
+            );
+            queue.add(request);
+        } catch (JSONException e) {
+            Log.e(TAG, "Error creating JSON for response buffer check", e);
+        }
+    }    /**
      * New method to open a custom prompt dialog.
      * When the chat bubble is clicked, show a dialog to collect custom prompt and modifier.
      * On clicking GO, fetch location then call fetchMapRoomUserIdAndSendPrompt.
@@ -504,11 +585,7 @@ public class RecommendationFragment extends Fragment {
 
 
 
-    /**
-     * Fetch prompt response (if desired).
-     * Existing implementation.
-     */
-//
+
 
     // ------------------------------------------------------------------------
     // Existing code for fetching user rooms and room details from your backend
