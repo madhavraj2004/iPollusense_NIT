@@ -498,7 +498,7 @@ public class HomeFragment extends Fragment {
             }
 
             // Setup MQTT for the specified device
-           setupMqttDevice();
+           //setupMqttDevice();
             mqttDeviceLayout.setVisibility(View.GONE);
         });
 
@@ -959,90 +959,90 @@ public class HomeFragment extends Fragment {
 
 
 
-    private void setupMqttDevice() {
-        String clientId = UUID.randomUUID().toString();
+//    private void setupMqttDevice() {
+//        String clientId = UUID.randomUUID().toString();
+//
+//        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
+//
+//        mqttClient.setCallback(new MqttCallbackExtended() {
+//            @Override
+//            public void connectComplete(boolean reconnect, String serverURI) {
+//                Log.d("MQTT", "Connected. Reconnect: " + reconnect);
+//                if (reconnect) {
+//                    subscribeToDevice(MQTT_DEVICE);
+//                }
+//            }
+//
+//            @Override
+//            public void connectionLost(Throwable cause) {
+//                Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
+//                statusTextView.setText("Connection lost. Reconnecting...");
+//                handler.postDelayed(() -> setupMqttDevice(), 2000);
+//            }
 
-        mqttClient = new MqttAndroidClient(requireContext().getApplicationContext(), MQTT_BROKER_URL, clientId, Ack.AUTO_ACK);
-
-        mqttClient.setCallback(new MqttCallbackExtended() {
-            @Override
-            public void connectComplete(boolean reconnect, String serverURI) {
-                Log.d("MQTT", "Connected. Reconnect: " + reconnect);
-                if (reconnect) {
-                    subscribeToDevice(MQTT_DEVICE);
-                }
-            }
-
-            @Override
-            public void connectionLost(Throwable cause) {
-                Log.e("MQTT", "Connection lost: " + (cause != null ? cause.getMessage() : "Unknown error"));
-                statusTextView.setText("Connection lost. Reconnecting...");
-                handler.postDelayed(() -> setupMqttDevice(), 2000);
-            }
-
-            @Override
-            public void messageArrived(String topic, MqttMessage message) {
-                String receivedMessage = new String(message.getPayload());
-                Log.d("MQTT", "Message received: " + receivedMessage);
-                statusTextView.setText("Message received: " + receivedMessage);
-                updateUIWithData(jsonString);
-                updatePredictionChart(jsonString);
-                addDataToBuffer(jsonString);
-            }
-
-            @Override
-            public void deliveryComplete(IMqttDeliveryToken token) {
-                Log.d("MQTT", "Message delivery completed");
-            }
-        });
-
-        MqttConnectOptions options = new MqttConnectOptions();
-        options.setCleanSession(true);
-        options.setAutomaticReconnect(true);
-        options.setKeepAliveInterval(60); // Ensure keep-alive interval is set
-
-        try {
-            mqttClient.connect(options, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Connected to MQTT broker");
-                    statusTextView.setText("Connected to MQTT broker");
-                    subscribeToDevice(MQTT_DEVICE);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
-                    statusTextView.setText("Failed to connect: " + exception.getMessage());
-                }
-            });
-
-        } catch (Exception e) {
-            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
-            statusTextView.setText("Error setting up MQTT client.");
-        }
-    }
-
-    // Method to subscribe to a topic
-    private void subscribeToDevice(String MQTT_DEVICE) {
-        try {
-            mqttClient.subscribe(MQTT_DEVICE, 1, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
-                    statusTextView.setText("Subscribed to topic: " + MQTT_DEVICE);
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
-                    statusTextView.setText("Failed to subscribe to topic.");
-                }
-            });
-        } catch (Exception e) {
-            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
-        }
-    }
+//            @Override
+//            public void messageArrived(String topic, MqttMessage message) {
+//                String receivedMessage = new String(message.getPayload());
+//                Log.d("MQTT", "Message received: " + receivedMessage);
+//                statusTextView.setText("Message received: " + receivedMessage);
+//                updateUIWithData(jsonString);
+//                updatePredictionChart(jsonString);
+//                addDataToBuffer(jsonString);
+//            }
+//
+//            @Override
+//            public void deliveryComplete(IMqttDeliveryToken token) {
+//                Log.d("MQTT", "Message delivery completed");
+//            }
+//        });
+//
+//        MqttConnectOptions options = new MqttConnectOptions();
+//        options.setCleanSession(true);
+//        options.setAutomaticReconnect(true);
+//        options.setKeepAliveInterval(60); // Ensure keep-alive interval is set
+//
+//        try {
+//            mqttClient.connect(options, null, new IMqttActionListener() {
+//                @Override
+//                public void onSuccess(IMqttToken asyncActionToken) {
+//                    Log.d("MQTT", "Connected to MQTT broker");
+//                    statusTextView.setText("Connected to MQTT broker");
+//                    subscribeToDevice(MQTT_DEVICE);
+//                }
+//
+//                @Override
+//                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+//                    Log.e("MQTT", "Failed to connect: " + exception.getMessage());
+//                    statusTextView.setText("Failed to connect: " + exception.getMessage());
+//                }
+//            });
+//
+//        } catch (Exception e) {
+//            Log.e("MQTT", "Error setting up MQTT client: " + e.getMessage());
+//            statusTextView.setText("Error setting up MQTT client.");
+//        }
+//    }
+//
+//    // Method to subscribe to a topic
+//    private void subscribeToDevice(String MQTT_DEVICE) {
+//        try {
+//            mqttClient.subscribe(MQTT_DEVICE, 1, null, new IMqttActionListener() {
+//                @Override
+//                public void onSuccess(IMqttToken asyncActionToken) {
+//                    Log.d("MQTT", "Successfully subscribed to topic: " + MQTT_DEVICE);
+//                    statusTextView.setText("Subscribed to topic: " + MQTT_DEVICE);
+//                }
+//
+//                @Override
+//                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+//                    Log.e("MQTT", "Failed to subscribe to topic: " + MQTT_DEVICE + ", " + exception.getMessage());
+//                    statusTextView.setText("Failed to subscribe to topic.");
+//                }
+//            });
+//        } catch (Exception e) {
+//            Log.e("MQTT", "Error subscribing to topic: " + e.getMessage());
+//        }
+//    }
 
     // Setup the chart with smooth lines
     private void setupliveChart() {
