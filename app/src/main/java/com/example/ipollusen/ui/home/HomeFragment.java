@@ -43,6 +43,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.ipollusen.BluetoothDeviceAdapter;
+import com.example.ipollusen.HttpPollingService;
 import com.example.ipollusen.R;
 import com.example.ipollusen.UserViewModel;
 import com.example.ipollusen.databinding.FragmentHomeBinding;
@@ -129,7 +130,7 @@ import com.android.volley.RequestQueue;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements HttpPollingService.DataCallback{
 
     private Button mPickDateButton;
     private TextView mShowSelectedDateText;
@@ -140,7 +141,7 @@ public class HomeFragment extends Fragment {
     private static final int PERMISSION_REQUEST_CODE = 1;
     private static final int MAX_RETRIES = 5; // Set a maximum number of retries to prevent infinite attempts
     private static final long RETRY_INTERVAL_MS = 5000; // Initial retry interval (5 seconds)
-    private long retryInterval = RETRY_INTERVAL_MS; // Dynamic retry interval for backoff
+
     private static final String MQTT_BROKER_URL = "tcp://nitdgp3.a.pinggy.link:17224";
     private static final String HTTP_ENDPOINT = "https://nitdgp2.a.pinggy.link/mqtt-post";
     private static final String CHARACTERISTIC_UUID = "0000fef4-0000-1000-8000-00805f9b34fb";
@@ -156,7 +157,11 @@ public class HomeFragment extends Fragment {
 
     private Map<String, List<Entry>> currentData = new HashMap<>();
     private boolean isHistoricalMode = false;
-
+    private static final int MAX_RETRY_ATTEMPTS = 5;
+    private static final long INITIAL_RETRY_INTERVAL = 1000; // 1 second
+    private static final long MAX_RETRY_INTERVAL = 32000; // 32 seconds
+    private int retryCount = 0;
+    private long retryInterval = INITIAL_RETRY_INTERVAL;
     private UserViewModel userViewModel;
     private RequestQueue requestQueue;
     private static final long BUFFER_TIME_LIMIT = 20 * 60 * 1000; // 20 minutes in milliseconds
@@ -252,6 +257,8 @@ public class HomeFragment extends Fragment {
     private static final String API_URL = "http://52.250.54.24:3500/api/node/filter";
     private ArrayList<Entry> tempData, humData, pressData;
     private ArrayList<Entry> pm1Data, pm2Data, pm10Data, coData, vocData, co2Data;
+    private HttpPollingService httpPollingService;
+
 
 
     private ArrayList<Entry> dataEntries = new ArrayList<>();
@@ -279,7 +286,8 @@ public class HomeFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
 
-
+        httpPollingService = new HttpPollingService(requireContext(), statusTextView, this);
+        httpPollingService.setNodeValue(MQTT_DEVICE);
 
         deviceSpinner = view.findViewById(R.id.deviceDropdown);
         deviceDropdown = view.findViewById(R.id.deviceDropdown);
@@ -487,19 +495,42 @@ public class HomeFragment extends Fragment {
 
         okButton = view.findViewById(R.id.okButton);
         okButton.setOnClickListener(v -> {
-            // Ensure the topic has the 'data/' prefix and takes only the device ID from deviceIdInput
+            // Get the device ID from input
             String deviceId = deviceIdInput.getText().toString().trim();
-            if (!deviceId.isEmpty()) {
-                MQTT_DEVICE = "data/" + deviceId;
-            } else {
-                Log.e("MQTT", "Device ID is empty. Please enter a valid device ID.");
-                Toast.makeText(requireContext(), "Please enter a valid device ID", Toast.LENGTH_SHORT).show();
-                return; // Exit if device ID is not provided
-            }
 
-            // Setup MQTT for the specified device
-           //setupMqttDevice();
-            mqttDeviceLayout.setVisibility(View.GONE);
+            if (!deviceId.isEmpty()) {
+                try {
+                    // Validate that deviceId is a number
+                    Integer.parseInt(deviceId);
+
+                    // Stop any existing polling
+                    if (httpPollingService != null) {
+                        httpPollingService.stopPolling();
+                    }
+
+                    // Set the new node value and start polling
+                    httpPollingService.setNodeValue(deviceId);
+                    httpPollingService.startPolling();
+
+                    // Hide the input layout
+                    mqttDeviceLayout.setVisibility(View.GONE);
+
+                    // Show success message
+                    Toast.makeText(requireContext(), "Started monitoring device: " + deviceId, Toast.LENGTH_SHORT).show();
+
+                    // Update status
+                    if (statusTextView != null) {
+                        statusTextView.setText("Monitoring device: " + deviceId);
+                    }
+
+                } catch (NumberFormatException e) {
+                    Log.e("HttpPolling", "Invalid device ID format: " + deviceId);
+                    Toast.makeText(requireContext(), "Please enter a valid numeric device ID", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Log.e("HttpPolling", "Device ID is empty. Please enter a valid device ID.");
+                Toast.makeText(requireContext(), "Please enter a valid device ID", Toast.LENGTH_SHORT).show();
+            }
         });
 
         //exportButton.setOnClickListener(v -> exportDataToCSV());
@@ -957,6 +988,22 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    public void onDataReceived(String jsonData) {
+        try {
+            // Update your UI with the received data
+            updateUIWithData(jsonData);
+            updatePredictionChart(jsonData);
+            addDataToBuffer(jsonData);
+        } catch (Exception e) {
+            Log.e("DataProcessing", "Error processing data: " + e.getMessage());
+        }
+    }
+
+
+    public void onError(String error) {
+        Log.e("HttpPolling", "Error: " + error);
+        // Handle error as needed
+    }
 
 
 //    private void setupMqttDevice() {
@@ -1899,27 +1946,33 @@ public class HomeFragment extends Fragment {
         Disposable readDisposable = connection.readCharacteristic(UUID.fromString(CHARACTERISTIC_UUID))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(characteristicValue -> {
-                    Log.d("BLE", "Characteristic read successfully. Value length: " + (characteristicValue != null ? characteristicValue.length : 0));
+                    Log.d("BLE", "Characteristic read successfully. Value length: " +
+                            (characteristicValue != null ? characteristicValue.length : 0));
                     bluetoothRecyclerView.setVisibility(View.GONE);
+
                     if (characteristicValue == null || characteristicValue.length == 0) {
                         Log.w("BLE", "Received characteristic value is null or empty.");
                         statusTextView.setText("Error: Empty data received.");
                         return;
                     }
 
-                    // Convert the characteristic value to a JSON string
-                    jsonString = new String(characteristicValue);
+                    // Convert and clean the characteristic value
+                    jsonString = new String(characteristicValue, StandardCharsets.UTF_8);
                     Log.d("BLE", "Raw JSON string: " + jsonString);
 
-                    updateUIWithData(jsonString);
-                    updatePredictionChart(jsonString);
-                    addDataToBuffer(jsonString);
+                    // Clean the JSON string
+                    jsonString = cleanJsonString(jsonString);
 
                     try {
-                        jsonObject = new JSONObject(jsonString);
-                        Log.d("BLE", "JSON object parsed successfully.");
+                        // Validate JSON structure before parsing
+                        JSONObject testParse = new JSONObject(jsonString);
 
-                        int deviceId = jsonObject.getInt("device_id");
+                        // If parsing successful, update UI and process data
+                        updateUIWithData(jsonString);
+                        updatePredictionChart(jsonString);
+                        addDataToBuffer(jsonString);
+
+                        int deviceId = testParse.getInt("device_id");
                         Log.d("BLE", "Extracted device_id: " + deviceId);
 
                         MQTT_TOPIC = "data/" + deviceId;
@@ -1928,15 +1981,99 @@ public class HomeFragment extends Fragment {
                         setupHttpPostClient();
 
                     } catch (JSONException e) {
-                        Log.e("JSON_ERROR", "Error parsing JSON string or extracting deviceId: " + e.getMessage());
-                        statusTextView.setText("Error parsing data.");
+                        Log.e("JSON_ERROR", "Error parsing JSON string: " + e.getMessage());
+                        Log.e("JSON_ERROR", "Problematic JSON string: " + jsonString);
+                        statusTextView.setText("Error parsing data. Check logs for details.");
+                        // Don't retry connection here as it's a data format issue, not a connection issue
                     }
                 }, throwable -> {
                     Log.e("BLE", "Read failed: " + throwable.toString());
                     statusTextView.setText("Read failed.");
+                    handleConnectionRetry();
                 });
 
         disposables.add(readDisposable);
+    }
+    private void disconnectFromDevice() {
+        try {
+            // Stop any ongoing scans first
+            disposables.clear(); // This will dispose of all scan operations
+
+            // Stop the update task if it's running
+            if (handler != null) {
+                handler.removeCallbacksAndMessages(null);
+            }
+
+            // Check if we have an active connection
+            if (connection != null) {
+                Log.d("BLE", "Disconnecting from device...");
+
+                // If we have a connectionDisposable, dispose it
+                if (connectionDisposable != null && !connectionDisposable.isDisposed()) {
+                    connectionDisposable.dispose();
+                    connectionDisposable = null;
+                }
+
+                // Set connection to null
+                connection = null;
+
+                // Update UI to show disconnected state
+                if (statusTextView != null) {
+                    statusTextView.setText("Disconnected from device");
+                }
+
+                // Reset retry parameters
+                retryInterval = RETRY_INTERVAL_MS;
+
+                // Show the bluetooth recycler view again for new connections
+                if (bluetoothRecyclerView != null) {
+                    bluetoothRecyclerView.setVisibility(View.VISIBLE);
+                }
+
+                // Optional: Clear the selected device
+                selectedDevice = null;
+
+                Log.d("BLE", "Successfully disconnected from device");
+            } else {
+                Log.d("BLE", "No active connection to disconnect");
+            }
+
+        } catch (Exception e) {
+            Log.e("BLE", "Error during disconnection: " + e.getMessage());
+            if (statusTextView != null) {
+                statusTextView.setText("Error during disconnection");
+            }
+        } finally {
+            // Ensure all resources are cleaned up
+            if (disposables != null && !disposables.isDisposed()) {
+                disposables.clear();
+            }
+        }
+    }
+    private String cleanJsonString(String rawJson) {
+        // Remove any line breaks and extra whitespace
+        String cleaned = rawJson.trim().replaceAll("\\s+", " ");
+        // Remove any null characters that might come from BLE transmission
+        cleaned = cleaned.replace("\0", "");
+        Log.d("BLE", "Cleaned JSON string: " + cleaned);
+        return cleaned;
+    }
+    private void handleConnectionRetry() {
+        if (retryCount < MAX_RETRY_ATTEMPTS) {
+            retryCount++;
+            Log.d("BLE", "Retrying connection in " + retryInterval + "ms (Attempt " + retryCount + "/" + MAX_RETRY_ATTEMPTS + ")");
+            handler.postDelayed(() -> {
+                Log.d("BLE", "Retrying connection to device...");
+                connectToDevice();
+            }, retryInterval);
+            retryInterval = Math.min(retryInterval * 2, MAX_RETRY_INTERVAL); // Double the interval with a cap
+        } else {
+            Log.e("BLE", "Max retries reached. Unable to connect to device.");
+            statusTextView.setText("Max retry attempts reached. Unable to connect.");
+            // Reset retry counters for next connection attempt
+            retryCount = 0;
+            retryInterval = INITIAL_RETRY_INTERVAL;
+        }
     }
 
 
@@ -2249,13 +2386,14 @@ public class HomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        httpPollingService.startPolling();
 
 
     }
     @Override
     public void onPause() {
         super.onPause();
-
+        httpPollingService.stopPolling();
 
     }
     private void requestPermissionsIfNecessary(String[] permissions) {
@@ -2270,45 +2408,48 @@ public class HomeFragment extends Fragment {
 
 
 
-    public static class CSVParser {
-        public static List<GeoPoint> parseSensorData(String filePath) {
-            List<GeoPoint> coordinates = new ArrayList<>();
-
-            try (BufferedReader reader = new BufferedReader(new FileReader(new File(filePath)))) {
-                String line;
-                // Skip header if present
-                boolean isFirstLine = true;
-
-                while ((line = reader.readLine()) != null) {
-                    if (isFirstLine) {
-                        isFirstLine = false;
-                        continue; // Skip header
-                    }
-
-                    String[] parts = line.split(",");
-                    if (parts.length >= 2) {
-                        try {
-                            double latitude = Double.parseDouble(parts[0].trim());
-                            double longitude = Double.parseDouble(parts[1].trim());
-                            coordinates.add(new GeoPoint(latitude, longitude));
-                        } catch (NumberFormatException e) {
-                            System.err.println("Invalid latitude/longitude format: " + line);
-                        }
-                    } else {
-                        System.err.println("Invalid line format: " + line);
-                    }
-                }
-            } catch (IOException e) {
-                System.err.println("Error reading CSV file: " + e.getMessage());
-            }
-
-            return coordinates;
-        }
-    }
+//    public static class CSVParser {
+//        public static List<GeoPoint> parseSensorData(String filePath) {
+//            List<GeoPoint> coordinates = new ArrayList<>();
+//
+//            try (BufferedReader reader = new BufferedReader(new FileReader(new File(filePath)))) {
+//                String line;
+//                // Skip header if present
+//                boolean isFirstLine = true;
+//
+//                while ((line = reader.readLine()) != null) {
+//                    if (isFirstLine) {
+//                        isFirstLine = false;
+//                        continue; // Skip header
+//                    }
+//
+//                    String[] parts = line.split(",");
+//                    if (parts.length >= 2) {
+//                        try {
+//                            double latitude = Double.parseDouble(parts[0].trim());
+//                            double longitude = Double.parseDouble(parts[1].trim());
+//                            coordinates.add(new GeoPoint(latitude, longitude));
+//                        } catch (NumberFormatException e) {
+//                            System.err.println("Invalid latitude/longitude format: " + line);
+//                        }
+//                    } else {
+//                        System.err.println("Invalid line format: " + line);
+//                    }
+//                }
+//            } catch (IOException e) {
+//                System.err.println("Error reading CSV file: " + e.getMessage());
+//            }
+//
+//            return coordinates;
+//        }
+//    }
 
 
     @Override
     public void onDestroyView() {
+        if (httpPollingService != null) {
+            httpPollingService.stopPolling();
+        }
         super.onDestroyView();
         handler.removeCallbacks(updateTask);
         if (scanDisposable != null && !scanDisposable.isDisposed()) {
