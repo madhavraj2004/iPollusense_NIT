@@ -50,7 +50,9 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -60,7 +62,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class RecommendationFragment extends Fragment {
-
+    private Map<String, String> roomToMapRoomUserIdMap = new HashMap<>();
     private RecyclerView recyclerView;
     private RoomRecommendAdapter roomrecommendAdapter;
     private List<RoomRecommendModel> roomList;
@@ -98,7 +100,13 @@ public class RecommendationFragment extends Fragment {
                 room -> openCustomPromptDialog(room),
                 position -> {
                     RoomRecommendModel selectedRoom = roomList.get(position);
-                    Log.d(TAG, "Feedback Fragment Opened for Room: " + selectedRoom.getRoomName());
+                    String mapRoomUserId = roomToMapRoomUserIdMap.get(selectedRoom.getRoomId());
+
+                    if (mapRoomUserId == null) {
+                        Log.e(TAG, "Error: MapRoomUserId not found for room: " + selectedRoom.getRoomName());
+                        showToast("Error: Room mapping not found");
+                        return;
+                    }
 
                     // Reset dot if shown
                     if (selectedRoom.isHasNewRecommendation()) {
@@ -106,13 +114,21 @@ public class RecommendationFragment extends Fragment {
                         roomrecommendAdapter.notifyItemChanged(position);
                     }
 
-                    // Navigation to Feedback Fragment
-                    // Navigation to Feedback Fragment
+                    // Create bundle with mapRoomUserId
+                    Bundle args = new Bundle();
+                    args.putString("mapRoomUserId", mapRoomUserId);
+
+                    // Navigate to Feedback Fragment with mapRoomUserId
                     NavController navController = Navigation.findNavController(requireView());
                     NavOptions navOptions = new NavOptions.Builder()
-                            .setPopUpTo(R.id.navigation_recommend, false) // Keeps `navigation_recommend` in the back stack
+                            .setPopUpTo(R.id.navigation_recommend, false)
                             .build();
-                    navController.navigate(R.id.action_navigation_recommend_to_feedbackFragment, null, navOptions);
+
+                    navController.navigate(
+                            R.id.action_navigation_recommend_to_feedbackFragment,
+                            args,
+                            navOptions
+                    );
                 }
         );
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
@@ -243,56 +259,204 @@ public class RecommendationFragment extends Fragment {
      * When already selected, treat it as a pause action and remove responses.
      */
     // Update the handlePlayButtonClick method
-    private void handlePlayButtonClick(RoomRecommendModel room, ImageButton btnPlayPause, ImageButton btnChatBubble) {
-        if (!btnPlayPause.isSelected()) {
+    private void handlePlayButtonClick(RoomRecommendModel room, ImageButton playButton, ImageButton chatButton) {
+        String mapRoomUserId = roomToMapRoomUserIdMap.get(room.getRoomId());
+        if (mapRoomUserId == null) {
+            Log.e(TAG, "Play Button Click Error: MapRoomUserId not found for roomId: " + room.getRoomId());
+            showToast("Error: Room mapping not found");
+            return;
+        }
+
+        Log.d(TAG, String.format("Play Button Clicked - Room: %s, RoomId: %s, MapRoomUserId: %s, Current State: %s, Time: %s, User: %s",
+                room.getRoomName(), room.getRoomId(), mapRoomUserId,
+                playButton.isSelected() ? "Selected" : "Not Selected",
+                "2025-04-25 11:38:51", "madhavraj2004"));
+
+        if (!playButton.isSelected()) {
+            // Handle Play Button Click
+            Log.d(TAG, "Checking response buffer for room: " + room.getRoomName());
+            JSONObject json = new JSONObject();
             try {
-                String userId = userViewModel.getUserId().getValue();
-                if (userId == null || userId.isEmpty()) {
-                    Toast.makeText(requireContext(), "User ID not available", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                json.put("mapRoomUserId", mapRoomUserId);
+                Log.d(TAG, "Response Buffer Check Request - MapRoomUserId: " + mapRoomUserId);
 
-                JSONObject requestJson = new JSONObject();
-                requestJson.put("userId", userId);
-
-                String url = "http://52.250.54.24:3500/api/mapRoomUser/search";
                 RequestQueue queue = Volley.newRequestQueue(requireContext());
-
-                JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, requestJson,
+                JsonObjectRequest request = new JsonObjectRequest(
+                        Request.Method.POST,
+                        "http://52.250.54.24:3500/api/responseBuffer/find",
+                        json,
                         response -> {
-                            try {
-                                JSONArray items = response.optJSONArray("data");
-                                if (items != null) {
-                                    for (int i = 0; i < items.length(); i++) {
-                                        JSONObject item = items.getJSONObject(i);
-                                        if (room.getRoomId().equals(item.optString("roomId"))) {
-                                            String mapRoomUserId = item.optString("_id");
-                                            Log.d(TAG, "Room Name: " + room.getRoomName() + ", MapRoomUserId: " + mapRoomUserId);
+                            if (response.has("_id")) {
+                                String responseId = response.optString("_id");
+                                Log.d(TAG, String.format("Response Buffer Found - Room: %s, ResponseId: %s",
+                                        room.getRoomName(), responseId));
 
-                                            // Check response buffer before proceeding
-                                            checkResponseBuffer(mapRoomUserId, room, btnPlayPause, btnChatBubble);
-                                            break;
-                                        }
+                                playButton.setSelected(true);
+                                chatButton.setVisibility(View.VISIBLE);
+                                room.setHasExistingResponse(true);
+                                Log.d(TAG, "UI Updated: Play button selected, Chat bubble shown");
+
+                            } else if (response.optString("message", "").equals("Response Buffer item not found")) {
+                                Log.d(TAG, "No Response Buffer found, preparing to send default prompt");
+
+                                fetchLocation(() -> {
+                                    try {
+                                        JSONObject promptJson = new JSONObject();
+                                        promptJson.put("lat", userLat);
+                                        promptJson.put("long", userLong);
+                                        promptJson.put("mapRoomUserId", mapRoomUserId);
+                                        promptJson.put("modifier", "balanced");
+                                        promptJson.put("customprompt", " ");
+
+                                        Log.d(TAG, String.format("Sending Default Prompt - Room: %s\nPrompt Data: %s",
+                                                room.getRoomName(), promptJson.toString()));
+
+                                        JsonObjectRequest promptRequest = new JsonObjectRequest(
+                                                Request.Method.POST,
+                                                "http://nitdgp2.a.pinggy.link/acgpt",
+                                                promptJson,
+                                                promptResponse -> {
+                                                    Log.d(TAG, String.format("Default Prompt Sent Successfully - Room: %s\nResponse: %s",
+                                                            room.getRoomName(), promptResponse.toString()));
+
+                                                    requireActivity().runOnUiThread(() -> {
+                                                        playButton.setSelected(true);
+                                                        chatButton.setVisibility(View.VISIBLE);
+                                                        room.setHasExistingResponse(true);
+                                                        Log.d(TAG, "UI Updated after prompt send: Play button selected, Chat bubble shown");
+                                                    });
+
+                                                    Log.d(TAG, "Starting response polling for room: " + room.getRoomName());
+                                                    fetchPromptResponseInterval(mapRoomUserId);
+                                                },
+                                                error -> {
+                                                    Log.e(TAG, String.format("Error Sending Default Prompt - Room: %s\nError: %s",
+                                                            room.getRoomName(), error.toString()));
+
+                                                    requireActivity().runOnUiThread(() -> {
+                                                        playButton.setSelected(false);
+                                                        chatButton.setVisibility(View.GONE);
+                                                        showToast("Failed to send prompt");
+                                                        Log.d(TAG, "UI Reset due to prompt send error");
+                                                    });
+                                                }
+                                        );
+
+                                        promptRequest.setRetryPolicy(new DefaultRetryPolicy(
+                                                20000,
+                                                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                                                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+                                        ));
+
+                                        queue.add(promptRequest);
+
+                                    } catch (JSONException e) {
+                                        Log.e(TAG, String.format("JSON Creation Error - Room: %s\nError: %s",
+                                                room.getRoomName(), e.getMessage()));
+                                        showToast("Error creating prompt");
                                     }
-                                }
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                                Log.e(TAG, "Error parsing mapRoomUser response", e);
+                                });
                             }
                         },
                         error -> {
-                            Log.e(TAG, "Volley error while fetching mapRoomUserId", error);
-                            Toast.makeText(requireContext(), "Failed to retrieve mapRoomUserId", Toast.LENGTH_SHORT).show();
-                        });
-
+                            Log.e(TAG, String.format("Response Buffer Check Error - Room: %s\nError: %s",
+                                    room.getRoomName(), error.toString()));
+                            showToast("Error checking response buffer");
+                        }
+                );
                 queue.add(request);
-            } catch (Exception e) {
-                Log.e(TAG, "Error forming mapRoomUser request", e);
+            } catch (JSONException e) {
+                Log.e(TAG, String.format("JSON Creation Error for Buffer Check - Room: %s\nError: %s",
+                        room.getRoomName(), e.getMessage()));
+                showToast("Error checking response buffer");
             }
         } else {
-            btnPlayPause.setSelected(false);
-            btnChatBubble.setVisibility(View.GONE);
-            Log.d(TAG, "Pause action: remove responses for room " + room.getRoomId());
+            // Handle Pause Button Click
+            Log.d(TAG, String.format("Pause Button Clicked - Room: %s, Starting pause process", room.getRoomName()));
+
+            JSONObject json = new JSONObject();
+            try {
+                json.put("mapRoomUserId", mapRoomUserId);
+                Log.d(TAG, "Checking response buffer to get responseID - MapRoomUserId: " + mapRoomUserId);
+
+                RequestQueue queue = Volley.newRequestQueue(requireContext());
+                JsonObjectRequest responseBufferRequest = new JsonObjectRequest(
+                        Request.Method.POST,
+                        "http://52.250.54.24:3500/api/responseBuffer/find",
+                        json,
+                        response -> {
+                            try {
+                                if (response.has("_id")) {
+                                    String responseId = response.getString("_id");
+                                    Log.d(TAG, String.format("Response Buffer Found - ResponseID: %s", responseId));
+
+                                    JSONObject recheckJson = new JSONObject();
+                                    recheckJson.put("responseID", responseId);
+                                    Log.d(TAG, "Finding recheck buffer with ResponseID: " + responseId);
+
+                                    JsonObjectRequest recheckFindRequest = new JsonObjectRequest(
+                                            Request.Method.POST,
+                                            "http://52.250.54.24:3500/api/recheckBuffer/find",
+                                            recheckJson,
+                                            recheckResponse -> {
+                                                try {
+                                                    if (recheckResponse.has("_id")) {
+                                                        String recheckId = recheckResponse.getString("_id");
+                                                        Log.d(TAG, String.format("Recheck Buffer Found - RecheckID: %s", recheckId));
+
+                                                        JSONObject deleteJson = new JSONObject();
+                                                        deleteJson.put("_id", recheckId);
+                                                        Log.d(TAG, "Deleting recheck buffer with ID: " + recheckId);
+
+                                                        JsonObjectRequest deleteRequest = new JsonObjectRequest(
+                                                                Request.Method.POST,
+                                                                "http://52.250.54.24:3500/api/recheckBuffer/delete",
+                                                                deleteJson,
+                                                                deleteResponse -> {
+                                                                    Log.d(TAG, String.format("Recheck Buffer Deleted Successfully - Room: %s",
+                                                                            room.getRoomName()));
+
+                                                                    requireActivity().runOnUiThread(() -> {
+                                                                        playButton.setSelected(false);
+                                                                        chatButton.setVisibility(View.GONE);
+                                                                        room.setHasExistingResponse(false);
+                                                                        Log.d(TAG, "UI Updated: Play button unselected, Chat bubble hidden");
+                                                                    });
+                                                                },
+                                                                error -> Log.e(TAG, String.format("Error Deleting Recheck Buffer - Room: %s\nError: %s",
+                                                                        room.getRoomName(), error.toString()))
+                                                        );
+                                                        queue.add(deleteRequest);
+                                                    } else {
+                                                        Log.d(TAG, "No recheck buffer found, proceeding with UI update");
+                                                        requireActivity().runOnUiThread(() -> {
+                                                            playButton.setSelected(false);
+                                                            chatButton.setVisibility(View.GONE);
+                                                            room.setHasExistingResponse(false);
+                                                        });
+                                                    }
+                                                } catch (JSONException e) {
+                                                    Log.e(TAG, "Error processing recheck buffer deletion", e);
+                                                }
+                                            },
+                                            error -> Log.e(TAG, String.format("Error Finding Recheck Buffer - Room: %s\nError: %s",
+                                                    room.getRoomName(), error.toString()))
+                                    );
+                                    queue.add(recheckFindRequest);
+                                }
+                            } catch (JSONException e) {
+                                Log.e(TAG, "Error processing response buffer", e);
+                            }
+                        },
+                        error -> Log.e(TAG, String.format("Error Finding Response Buffer - Room: %s\nError: %s",
+                                room.getRoomName(), error.toString()))
+                );
+                queue.add(responseBufferRequest);
+
+            } catch (JSONException e) {
+                Log.e(TAG, String.format("JSON Creation Error - Room: %s\nError: %s",
+                        room.getRoomName(), e.getMessage()));
+            }
         }
     }
 
@@ -507,84 +671,61 @@ public class RecommendationFragment extends Fragment {
         }
     }
 
+    // Update fetchPromptResponseInterval to not navigate to feedback fragment
     private void fetchPromptResponseInterval(String mapRoomUserId) {
         Handler handler = new Handler(Looper.getMainLooper());
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "Polling started for mapRoomUserId: " + mapRoomUserId);
-
                 JSONObject json = new JSONObject();
                 try {
                     json.put("mapRoomUserId", mapRoomUserId);
-                    Log.d(TAG, "Polling request body: " + json.toString());
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
 
-                String url = "http://52.250.54.24:3500/api/responseBuffer/find";
+                    RequestQueue queue = Volley.newRequestQueue(requireContext());
+                    JsonObjectRequest request = new JsonObjectRequest(
+                            Request.Method.POST,
+                            "http://52.250.54.24:3500/api/responseBuffer/find",
+                            json,
+                            response -> {
+                                if (response.has("_id")) {
+                                    Log.d(TAG, "Response buffer found for mapRoomUserId: " + mapRoomUserId);
+                                    handler.removeCallbacks(this);  // Stop polling
 
-                RequestQueue queue = Volley.newRequestQueue(requireContext());
-                JsonObjectRequest request = new JsonObjectRequest(
-                        Request.Method.POST,
-                        url,
-                        json,
-                        response -> {
-                            Log.d(TAG, "Polling response received: " + response.toString());
-                            String responseString = response.toString();  // Now declared here properly
-                            Log.d(TAG, "Polling Response JSON String: " + responseString);
+                                    // Save response using the shared ViewModel
+                                    sharedViewModel.addResponse(mapRoomUserId, response.toString());
 
-                            if (response.has("_id")) {
-                                Log.d(TAG, "Response buffer found for mapRoomUserId: " + mapRoomUserId);
-                                handler.removeCallbacks(this);  // Stop polling
-
-                                // Save response using the shared ViewModel
-                                sharedViewModel.addResponse(mapRoomUserId, responseString);
-
-                                // Update UI for room list if needed
-                                if (isAdded() && getActivity() != null) {
-                                    requireActivity().runOnUiThread(() -> {
-                                        // Your room list update code goes here
-                                        for (int i = 0; i < roomList.size(); i++) {
-                                            if (roomList.get(i).getRoomId().equals(mapRoomUserId)) {
-                                                roomList.get(i).setHasNewRecommendation(true);
-                                                roomrecommendAdapter.notifyItemChanged(i);
-                                                Log.d(TAG, "newRecDot shown at position: " + i);
-                                                break;
+                                    // Update UI to show new recommendation dot
+                                    if (isAdded() && getActivity() != null) {
+                                        requireActivity().runOnUiThread(() -> {
+                                            for (int i = 0; i < roomList.size(); i++) {
+                                                if (roomList.get(i).getRoomId().equals(mapRoomUserId)) {
+                                                    roomList.get(i).setHasNewRecommendation(true);
+                                                    roomrecommendAdapter.notifyItemChanged(i);
+                                                    break;
+                                                }
                                             }
-                                        }
-                                        // Optionally navigate to FeedbackFragment
-
-
-                                        NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_main);
-                                        Bundle args = new Bundle();
-                                        args.putString("mapRoomUserId", mapRoomUserId); // Pass arguments if needed
-
-                                        navController.navigate(R.id.action_navigation_recommend_to_feedbackFragment, args);
-
-                                    });
+                                        });
+                                    }
+                                } else {
+                                    Log.d(TAG, "No response buffer found. Retrying in 5 seconds...");
+                                    handler.postDelayed(this, 5000);
                                 }
-                            } else {
-                                Log.d(TAG, "No response buffer found. Retrying in 5 seconds...");
+                            },
+                            error -> {
+                                Log.e(TAG, "Error checking response buffer", error);
                                 handler.postDelayed(this, 5000);
                             }
-                        },
-                        error -> {
-                            Log.e(TAG, "Volley error: " + error.toString());
-                            handler.postDelayed(this, 5000);
-                        }
-                );
-                queue.add(request);
+                    );
+                    queue.add(request);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error creating JSON for response buffer check", e);
+                }
             }
         };
 
         handler.post(runnable);
     }
-
-
-
-
 
 
     // ------------------------------------------------------------------------
@@ -679,6 +820,9 @@ public class RecommendationFragment extends Fragment {
                         roomList.addAll(matchedRooms);
                         roomrecommendAdapter.notifyDataSetChanged();
                         Log.d(TAG, "Updated UI with matched room details.");
+
+                        // Call the mapping function after UI is updated
+                        fetchMapRoomUserIdsAndCreateMapping();
                     });
                 }
             } catch (IOException | JSONException e) {
@@ -687,7 +831,62 @@ public class RecommendationFragment extends Fragment {
             }
         });
     }
+    private void fetchMapRoomUserIdsAndCreateMapping() {
+        String userId = userViewModel.getUserId().getValue();
+        if (userId == null || userId.isEmpty()) {
+            Log.e(TAG, "User ID not available for mapping");
+            return;
+        }
 
+        try {
+            JSONObject requestJson = new JSONObject();
+            requestJson.put("userId", userId);
+
+            RequestQueue queue = Volley.newRequestQueue(requireContext());
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    "http://52.250.54.24:3500/api/mapRoomUser/search",
+                    requestJson,
+                    response -> {
+                        try {
+                            JSONArray items = response.optJSONArray("data");
+                            if (items != null) {
+                                for (int i = 0; i < roomList.size(); i++) {
+                                    RoomRecommendModel room = roomList.get(i);
+                                    String roomId = room.getRoomId();
+
+                                    // Find matching mapRoomUserId for this room
+                                    for (int j = 0; j < items.length(); j++) {
+                                        JSONObject item = items.getJSONObject(j);
+                                        if (roomId.equals(item.optString("roomId"))) {
+                                            String mapRoomUserId = item.optString("_id");
+                                            roomToMapRoomUserIdMap.put(roomId, mapRoomUserId);
+                                            Log.d(TAG, String.format("Room Mapping - Position: %d, Room Name: %s, RoomId: %s, MapRoomUserId: %s",
+                                                    i, room.getRoomName(), roomId, mapRoomUserId));
+                                            break;
+                                        }
+                                    }
+                                }
+                                Log.d(TAG, "Complete Room to MapRoomUserId mapping: " + roomToMapRoomUserIdMap.toString());
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing mapRoomUser response", e);
+                        }
+                    },
+                    error -> Log.e(TAG, "Error fetching mapRoomUserIds", error)
+            );
+
+            request.setRetryPolicy(new DefaultRetryPolicy(
+                    20000,
+                    DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+            ));
+
+            queue.add(request);
+        } catch (JSONException e) {
+            Log.e(TAG, "Error creating request JSON for mapRoomUser", e);
+        }
+    }
     // Display toast on UI thread
     private void showToast(String message) {
         new Handler(Looper.getMainLooper()).post(() ->

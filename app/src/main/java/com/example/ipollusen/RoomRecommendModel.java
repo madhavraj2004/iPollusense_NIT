@@ -94,7 +94,15 @@ public class RoomRecommendModel {
     public String getMapRoomUserId() {
         return mapRoomUserId;
     }
+    private boolean hasExistingResponse;
 
+    public boolean hasExistingResponse() {
+        return hasExistingResponse;
+    }
+
+    public void setHasExistingResponse(boolean hasExistingResponse) {
+        this.hasExistingResponse = hasExistingResponse;
+    }
     // Setter for mapRoomUserId
     public void setMapRoomUserId(String mapRoomUserId) {
         this.mapRoomUserId = mapRoomUserId;

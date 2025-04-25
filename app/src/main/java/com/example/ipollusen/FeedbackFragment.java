@@ -213,12 +213,13 @@ public class FeedbackFragment extends Fragment {
                     }
                 } else {
                     Log.e(TAG, "Response map is null or does not contain the required key: " + mapRoomUserId);
-                    showNoData();
+
                     showError("No data available for this room.");
                 }
             });
         } catch (Exception e) {
             Log.e(TAG, "Error setting up ViewModel observer: " + e.getMessage());
+            showNoData();
             showError("Error: Unable to load data");
             navigateBack();
         }
