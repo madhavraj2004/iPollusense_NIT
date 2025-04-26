@@ -67,6 +67,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
     // Networking
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private final OkHttpClient client = new OkHttpClient();
+    private List<String> roomPositionToIdMap = new ArrayList<>();
 
     public RoomsFragment() {}
 
@@ -162,6 +163,7 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         });
     }
 
+
     private void fetchRoomDetails(List<String> roomIds) {
         executor.execute(() -> {
             try {
@@ -186,6 +188,8 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                     }
 
                     List<RoomModel> matchedRooms = new ArrayList<>();
+                    List<String> newRoomPositionToIdMap = new ArrayList<>();  // Create new mapping list
+
                     for (int i = 0; i < roomsArray.length(); i++) {
                         JSONObject roomJson = roomsArray.getJSONObject(i);
                         String roomId = roomJson.getString("_id");
@@ -197,6 +201,10 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                             int breadth = roomJson.getInt("breadth");
 
                             matchedRooms.add(new RoomModel(roomId, roomName, roomDesc, length, breadth));
+                            newRoomPositionToIdMap.add(roomId);  // Add room ID to mapping list
+
+                            Log.d("RoomsFragment", "Added room to mapping - Position: " +
+                                    (newRoomPositionToIdMap.size() - 1) + ", ID: " + roomId);
                         }
                     }
 
@@ -208,7 +216,15 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
                             showRecyclerView();
                             roomList.clear();
                             roomList.addAll(matchedRooms);
+
+                            // Update the position to ID mapping
+                            roomPositionToIdMap.clear();
+                            roomPositionToIdMap.addAll(newRoomPositionToIdMap);
+
                             roomAdapter.notifyDataSetChanged();
+
+                            Log.d("RoomsFragment", "Updated room mapping with " +
+                                    roomPositionToIdMap.size() + " rooms");
                         }
                     });
                 } else {
@@ -222,6 +238,13 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         });
     }
 
+    // Add a helper method to get room ID by position
+    public String getRoomIdByPosition(int position) {
+        if (position >= 0 && position < roomPositionToIdMap.size()) {
+            return roomPositionToIdMap.get(position);
+        }
+        return null;
+    }
     private void showLoading() {
         progressBar.setVisibility(View.VISIBLE);
         recyclerViewRooms.setVisibility(View.GONE);
@@ -243,21 +266,46 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
 
     @Override
     public void onRoomClick(int position) {
-        // Handle click event from the list view adapter
         RoomModel selectedRoom = roomList.get(position);
-        Log.d("RoomsFragment", "Room clicked: " + selectedRoom.getRoomName());
+        String roomId = getRoomIdByPosition(position);
 
-        Bundle bundle = new Bundle();
-        bundle.putString("roomName", selectedRoom.getRoomName());
-        Navigation.findNavController(getView())
-                .navigate(R.id.action_roomsFragment_to_roomDetailsFragment, bundle);
+        Log.d("RoomsFragment", "Room clicked - Position: " + position +
+                ", ID: " + roomId + ", Name: " + selectedRoom.getRoomName());
+
+        if (roomId != null) {
+            Bundle bundle = new Bundle();
+            bundle.putString("roomId", roomId);
+            bundle.putString("roomName", selectedRoom.getRoomName());
+            bundle.putBoolean("isEditing", false);
+
+            Navigation.findNavController(getView())
+                    .navigate(R.id.action_roomsFragment_to_roomDetailsFragment, bundle);
+        } else {
+            Log.e("RoomsFragment", "Invalid room position: " + position);
+            showToast("Error accessing room details");
+        }
     }
-
-
 
     @Override
     public void onEditRoom(int position) {
-        showEditRoomDialog(position);
+        RoomModel selectedRoom = roomList.get(position);
+        String roomId = getRoomIdByPosition(position);
+
+        Log.d("RoomsFragment", "Edit room - Position: " + position +
+                ", ID: " + roomId + ", Name: " + selectedRoom.getRoomName());
+
+        if (roomId != null) {
+            Bundle bundle = new Bundle();
+            bundle.putString("roomId", roomId);
+            bundle.putString("roomName", selectedRoom.getRoomName());
+            bundle.putBoolean("isEditing", true);
+
+            Navigation.findNavController(getView())
+                    .navigate(R.id.action_roomsFragment_to_roomDetailsFragment, bundle);
+        } else {
+            Log.e("RoomsFragment", "Invalid room position for edit: " + position);
+            showToast("Error accessing room details");
+        }
     }
 
     @Override
@@ -285,27 +333,6 @@ public class RoomsFragment extends Fragment implements RoomAdapter.OnRoomClickLi
         }
     }
 
-
-    private void showEditRoomDialog(int position) {
-        RoomModel room = roomList.get(position);
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Edit Room");
-
-
-        // Also update the corresponding card model
-//        for (int i = 0; i < roomCardList.size(); i++) {
-//            if (roomCardList.get(i).getRoomId().equals(room.getRoomId())) {
-//                roomCardList.get(i).setRoomName(room.getRoomName());
-//                roomCardList.get(i).setRoomDesc(room.getRoomDesc());
-//                roomCardAdapter.notifyItemChanged(i);
-//                break;
-//            }
-//        }
-
-        Log.d("RoomsFragment", "Room updated: " + room.getRoomName());
-        showToast("Room Updated");
-    }
 
 
 
