@@ -73,6 +73,8 @@
     <string name="add" />
     <string name="rooms" />
     <string name="menu_appliance" />
+    <string name="welcome_to_ipollusense">Welcome to iPolluSense</string>
+    <string name="splash_image_desc" />
 
     <string-array name="device_options">
         <item>Select a device</item>

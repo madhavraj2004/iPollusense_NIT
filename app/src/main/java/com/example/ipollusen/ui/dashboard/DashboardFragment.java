@@ -1,9 +1,11 @@
 package com.example.ipollusen.ui.dashboard;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -56,9 +58,41 @@ public class DashboardFragment extends Fragment {
             webView.setVisibility(View.VISIBLE);
             WebSettings webSettings = webView.getSettings();
             webSettings.setJavaScriptEnabled(true);
+            webSettings.setDomStorageEnabled(true); // Enable DOM storage for better compatibility
+            webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+
             webView.setWebViewClient(new WebViewClient());
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
+                    showAlertDialog("Alert", message, result);
+                    return true; // Handled
+                }
+
+                @Override
+                public boolean onJsConfirm(WebView view, String url, String message, android.webkit.JsResult result) {
+                    showAlertDialog("Confirmation", message, result);
+                    return true; // Handled
+                }
+
+                @Override
+                public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, android.webkit.JsPromptResult result) {
+                    showAlertDialog("Prompt", message, result);
+                    return true; // Handled
+                }
+            });
+
             webView.loadUrl(url);
         }
+    }
+
+    private void showAlertDialog(String title, String message, android.webkit.JsResult result) {
+        new AlertDialog.Builder(getContext())
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> result.confirm())
+                .setOnDismissListener(dialog -> result.confirm())
+                .show();
     }
 
     @Override

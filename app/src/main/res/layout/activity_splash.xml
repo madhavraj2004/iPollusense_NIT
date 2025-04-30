@@ -1,4 +1,5 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -8,22 +9,24 @@
         android:id="@+id/splash_image"
         android:layout_width="125dp"
         android:layout_height="125dp"
-        android:layout_centerInParent="true"
+        android:contentDescription="@string/splash_image_desc"
         android:src="@drawable/splash_image"
-        android:background="@color/light_green_background"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/splash_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full.Circular" />
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/splash_text"
-        android:layout_width="264dp"
-        android:layout_height="40dp"
-        android:layout_below="@id/splash_image"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginStart="80dp"
-        android:layout_marginTop="76dp"
-        android:layout_marginEnd="67dp"
-        android:text="Welcome to iPolluSense"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/welcome_to_ipollusense"
         android:textColor="@color/md_theme_light_onBackground"
-        android:textSize="22dp" />
-</RelativeLayout>
+        android:textSize="22sp"
+        app:layout_constraintTop_toBottomOf="@id/splash_image"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginTop="16dp"/>
+</androidx.constraintlayout.widget.ConstraintLayout>
