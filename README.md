@@ -1,6 +1,6 @@
 # iPollusense_NIT
 
-iPollusense_NIT is an Android application that acts as a companion app for the iPollusense device—an air quality monitoring hardware. The app connects to the device via Bluetooth Low Energy (BLE) and provides real-time monitoring, visualization, and analysis of several key environmental parameters. It is designed to help users track air quality data, receive alerts, and export historical records for further analysis or reporting.
+iPollusense_NIT is an Android application that acts as a companion app for the iPollusense device—an air quality monitoring hardware. The app connects to the device via Bluetooth Low Energy (BLE) and provides real-time monitoring, visualization, and analysis of several key environmental parameters. It is designed to help users track air quality data, receive alerts, and export historical records for further analysis or reporting..
 
 ## Features
 
