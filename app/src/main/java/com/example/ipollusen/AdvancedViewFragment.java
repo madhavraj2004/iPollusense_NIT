@@ -1,6 +1,8 @@
-package com.example.ipollusen;
+package com.example.ipollusen;  //Declares the package name (namespace) for this file.//
 
-import android.os.Bundle;
+
+import android.os.Bundle;     //Imports necessary Android classes for UI, logging, fragments, and ViewModel.//
+//(Button, EditText, TextView are imported but not used in this file.)//
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,8 +26,10 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import info.mqtt.android.service.MqttAndroidClient;
+//Imports MQTT client classes, which are used for MQTT protocol communication (not used yet in this code).//
 
-public class AdvancedViewFragment extends Fragment {
+public class AdvancedViewFragment extends Fragment {   // Defines a class AdvancedViewFragment that extends Android's Fragment (a reusable UI component).
+
 
 
 
@@ -39,7 +43,8 @@ public class AdvancedViewFragment extends Fragment {
 
         return view;
     }
-
+// Overrides the onCreateView method, which is called when this fragment's UI is created.//
+    //Inflates (creates) the UI from fragment_advanced_view.xml and returns it.//
 
     @Override
     public void onDestroy() {
@@ -48,3 +53,4 @@ public class AdvancedViewFragment extends Fragment {
     }
 
 }
+//Overrides onDestroy, which is called when the fragment is destroyed. (No additional logic is added.)//
