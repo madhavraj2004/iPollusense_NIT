@@ -56,6 +56,26 @@ public class RegisterActivity extends AppCompatActivity {
         // Setup Gender Dropdown
         setupGenderDropdown();
 
+        // ✅ Toggle password visibility
+        binding.checkboxShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                binding.editTextPassword.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            } else {
+                binding.editTextPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            }
+            binding.editTextPassword.setSelection(binding.editTextPassword.getText().length());
+        });
+
+        // ✅ Toggle confirm password visibility
+        binding.checkboxShowConfirmPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                binding.editTextConfirmPassword.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            } else {
+                binding.editTextConfirmPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            }
+            binding.editTextConfirmPassword.setSelection(binding.editTextConfirmPassword.getText().length());
+        });
+
         // Set Click Listeners
         binding.buttonRegister.setOnClickListener(v -> registerUser());
         binding.buttonLogin.setOnClickListener(v -> startActivity(new Intent(RegisterActivity.this, LoginActivity.class)));
@@ -72,6 +92,7 @@ public class RegisterActivity extends AppCompatActivity {
         String name = binding.editTextName.getText().toString().trim();
         String email = binding.editTextEmail.getText().toString().trim();
         String password = binding.editTextPassword.getText().toString().trim();
+        String confirmPassword = binding.editTextConfirmPassword.getText().toString().trim();
         String ageStr = binding.editTextAge.getText().toString().trim();
         String gender = binding.spinnerGender.getSelectedItem().toString();
         String ethnicity = binding.editTextEthnicity.getText().toString().trim();
@@ -83,12 +104,17 @@ public class RegisterActivity extends AppCompatActivity {
 
         // Validate Required Fields
         if (TextUtils.isEmpty(name) || TextUtils.isEmpty(email) || TextUtils.isEmpty(password) ||
-                TextUtils.isEmpty(ageStr) || TextUtils.isEmpty(ethnicity)) {
+                TextUtils.isEmpty(confirmPassword) || TextUtils.isEmpty(ageStr) || TextUtils.isEmpty(ethnicity)) {
             Toast.makeText(this, "All fields except 'Other Info' are required!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (gender.equals("Gender")) { // Prevent default value from being sent
+        if (!password.equals(confirmPassword)) {
+            Toast.makeText(this, "Passwords do not match!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (gender.equals("Gender")) {
             Toast.makeText(this, "Please select a valid gender", Toast.LENGTH_SHORT).show();
             return;
         }

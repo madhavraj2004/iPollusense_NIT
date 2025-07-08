@@ -5,7 +5,10 @@ import static android.content.ContentValues.TAG;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -26,6 +29,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
@@ -247,6 +252,8 @@ public class HomeFragment extends Fragment {
     private ArrayList<Entry> pm1Data, pm2Data, pm10Data, coData, vocData, co2Data;
 
 
+
+
     private ArrayList<Entry> dataEntries = new ArrayList<>();
     private final int maxDataPoints = 100;
     private String message;
@@ -263,6 +270,15 @@ public class HomeFragment extends Fragment {
 
 
     private LocationManager locationManager;
+    private ActivityResultLauncher<String> requestBluetoothPermissionLauncher;
+    private ActivityResultLauncher<Intent> enableBluetoothLauncher;
+
+
+
+
+
+
+
 
 
     @Nullable
@@ -270,6 +286,40 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+
+// Initialize Bluetooth enable launcher
+
+        enableBluetoothLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        // Bluetooth is now enabled, proceed to scan or show UI
+                        addDeviceLayout.setVisibility(View.GONE);
+                        bluetoothDeviceLayout.setVisibility(View.VISIBLE);
+                        startScan();
+                    }
+                });
+
+        requestBluetoothPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        // Automatically try to enable Bluetooth after permission is granted
+                        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
+                            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                            enableBluetoothLauncher.launch(enableBtIntent); // this shows the system dialog
+                        } else {
+                            // Already enabled
+                            addDeviceLayout.setVisibility(View.GONE);
+                            bluetoothDeviceLayout.setVisibility(View.VISIBLE);
+                            startScan();
+                        }
+                    } else {
+                        // User denied permission
+                        Toast.makeText(requireContext(), "Permission denied. Cannot enable Bluetooth.", Toast.LENGTH_SHORT).show();
+                    }
+                });
 
 
 
@@ -285,6 +335,8 @@ public class HomeFragment extends Fragment {
         CheckBox liveCheckboxPM1 = view.findViewById(R.id.LivecheckboxPM1);
         CheckBox liveCheckboxPM2_5 = view.findViewById(R.id.LivecheckboxPM2_5);
         CheckBox liveCheckboxPM10 = view.findViewById(R.id.LivecheckboxPM10);
+
+
 
         liveCheckboxTemperature.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
         liveCheckboxHumidity.setOnCheckedChangeListener((buttonView, isChecked) -> updateUIWithData(jsonString));
@@ -907,10 +959,28 @@ public class HomeFragment extends Fragment {
 
     private void setupButtonListeners() {
         bluetoothOption.setOnClickListener(v -> {
-            addDeviceLayout.setVisibility(View.GONE);
-            bluetoothDeviceLayout.setVisibility(View.VISIBLE);
-            startScan();
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                // Ask for Bluetooth permission
+                requestBluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT);
+
+            } else {
+                // Permission already granted, enable Bluetooth directly
+                BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
+                    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    enableBluetoothLauncher.launch(enableBtIntent);
+                } else {
+                    addDeviceLayout.setVisibility(View.GONE);
+                    bluetoothDeviceLayout.setVisibility(View.VISIBLE);
+                    startScan();
+                }
+            }
         });
+
+
+
 
         mqttOption.setOnClickListener(v -> {
             addDeviceLayout.setVisibility(View.GONE);
@@ -1705,14 +1775,22 @@ public class HomeFragment extends Fragment {
             }, PERMISSION_REQUEST_CODE);
         }
     }
+    // Handle the result in your Activity:
+
+
+
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 1) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(requireContext(), "Permission Granted", Toast.LENGTH_SHORT).show();
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 102) {
+            if (resultCode == Activity.RESULT_OK) {
+                // Bluetooth enabled, continue as normal
+                addDeviceLayout.setVisibility(View.GONE);
+                bluetoothDeviceLayout.setVisibility(View.VISIBLE);
+                startScan();
             } else {
-                Toast.makeText(requireContext(), "Permission Denied", Toast.LENGTH_SHORT).show();
+                // Bluetooth not enabled
+                Toast.makeText(requireContext(), "Bluetooth must be enabled to use this feature", Toast.LENGTH_SHORT).show();
             }
         }
     }

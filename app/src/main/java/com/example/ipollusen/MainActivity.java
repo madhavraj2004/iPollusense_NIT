@@ -12,10 +12,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -32,30 +30,11 @@ import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.messaging.FirebaseMessaging;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private static final String CHANNEL_ID = "sensor_notification_channel";
@@ -63,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private DrawerLayout drawerLayout;
     private AppBarConfiguration appBarConfiguration;
     private UserViewModel userViewModel;
+    private NavController navController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,22 +61,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             redirectToLoginActivity();
             return;
         }
-        // Find Navigation View
-        NavigationView navigationView = findViewById(R.id.nav_view);
-
-// Access header view of Navigation Drawer
-        View headerView = navigationView.getHeaderView(0);
-
-// Now find your backArrowButton from nav_header_main.xml
-        ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
-
-// Handle click to go back
-//        backArrowButton.setOnClickListener(v -> {
-//            onBackPressed(); // or NavController navigateUp()
-//        });
-
-
-
 
         // Set up Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -108,22 +72,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         ImageButton notificationButton = findViewById(R.id.notification_button);
         notificationButton.setOnClickListener(v -> openNotificationFragment());
 
-        // Set up navigation
+        // Set up navigation and navController
         setupNavigation();
 
-        // Create notification channel
+        // Set up back arrow in nav drawer header after navigation is ready
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        View headerView = navigationView.getHeaderView(0);
+        ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
+
+        // Ensure the button is clickable and visible
+        backArrowButton.setVisibility(View.VISIBLE);
+        backArrowButton.setEnabled(true);
+        backArrowButton.setClickable(true);
+
+        // BOTH behaviors: Go to home if not already there, and always close the drawer
+        backArrowButton.setOnClickListener(v -> {
+            if (navController != null &&
+                    navController.getCurrentDestination() != null &&
+                    navController.getCurrentDestination().getId() != R.id.navigation_home) {
+                navController.popBackStack(R.id.navigation_home, false);
+            }
+            drawerLayout.closeDrawer(GravityCompat.START);
+        });
+
+        // Notification channel and permissions
         createNotificationChannel();
-
-        // Request notification permission (Android 13+)
         requestNotificationPermission();
-
-        // Fetch FCM Token
-
-
-        // Handle battery optimization issues
         disableBatteryOptimizations();
     }
-
 
     private void setupNavigation() {
         drawerLayout = findViewById(R.id.drawer_layout);
@@ -132,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment_activity_main);
-        NavController navController = navHostFragment.getNavController();
+        navController = navHostFragment.getNavController();
 
         appBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_map)
@@ -144,21 +120,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_nav_view);
         NavigationUI.setupWithNavController(bottomNavigationView, navController);
-        View headerView = navigationView.getHeaderView(0);
-
-        // Find backArrowButton in the header
-        ImageButton backArrowButton = headerView.findViewById(R.id.backArrowButton);
-
-        // Handle backArrowButton click to navigate back
-        backArrowButton.setOnClickListener(v -> {
-            if (!navController.popBackStack()) {
-                // If no fragments to pop, navigate to the home fragment or close the app
-                finish();
-            }
-        });
     }
 
-    // ✅ Step 1: Request Notification Permission (Android 13+)
+    // Request Notification Permission (Android 13+)
     private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -168,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    // ✅ Step 2: Create Notification Channel
+    // Create Notification Channel
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -183,9 +147,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-
-
-    // ✅ Step 4: Disable Battery Optimizations (Android 14+)
+    // Disable Battery Optimizations (Android 6+)
     private void disableBatteryOptimizations() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -245,7 +207,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (item.getItemId() == R.id.nav_logout) {
             handleLogout();
         } else if (item.getItemId() == R.id.nav_wifi) {
-            openWifiConfigureFragment(); // Open WiFi Configure Fragment
+            openWifiConfigureFragment();
         } else {
             navController.navigate(item.getItemId());
         }
@@ -258,7 +220,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 .navigate(R.id.navigation_notification);
     }
     private void openWifiConfigureFragment() {
-        // Navigate to WiFi Configure Fragment
         Navigation.findNavController(this, R.id.nav_host_fragment_activity_main)
                 .navigate(R.id.nav_wifi);
     }
