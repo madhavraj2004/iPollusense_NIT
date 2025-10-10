@@ -1,6 +1,6 @@
 <resources>
     <!-- App Name -->
-    <string name="app_name">iPolluSense</string>
+    <string name="app_name">iAirGuard</string>
 
     <!-- Navigation Drawer -->
     <string name="navigation_drawer_open">Open navigation drawer</string>

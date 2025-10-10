@@ -40,6 +40,14 @@
             android:title="Logout"
             android:textColor="@color/black"
             android:textSize="18sp" />
+        <item
+            android:id="@+id/nav_power"
+            android:icon="@drawable/ic_power"
+            android:title="Power"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+
+
     </group>
 
 

@@ -208,6 +208,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             handleLogout();
         } else if (item.getItemId() == R.id.nav_wifi) {
             openWifiConfigureFragment();
+        } else if (item.getItemId() == R.id.nav_power) {
+            navController.navigate(R.id.nav_power); // <-- navigate to PowerFragment
         } else {
             navController.navigate(item.getItemId());
         }
