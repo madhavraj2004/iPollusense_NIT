@@ -1,33 +1,33 @@
 {
   "project_info": {
-    "project_number": "501252633908",
-    "project_id": "ipollusen",
-    "storage_bucket": "ipollusen.firebasestorage.app"
+    "project_number": "384297546215",
+    "project_id": "ipollusense-2c86a",
+    "storage_bucket": "ipollusense-2c86a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:501252633908:android:2d71e7eb021c71e121e161",
+        "mobilesdk_app_id": "1:384297546215:android:eba4626f6e02ca9e834d42",
         "android_client_info": {
           "package_name": "com.example.ipollusen"
         }
       },
       "oauth_client": [
         {
-          "client_id": "501252633908-g6anbhqk259rhv3qh4r8i9phqgvm396i.apps.googleusercontent.com",
+          "client_id": "384297546215-m41aqpi35nagdt3cv45nhp5jg0b72ir6.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyAHvxs1EKkxo0KLFzBCADyzivlkSXC1W5k"
+          "current_key": "AIzaSyBS6XdqSRNZhwwa-9NCU9NfqMf8G6Ygfs4"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "501252633908-g6anbhqk259rhv3qh4r8i9phqgvm396i.apps.googleusercontent.com",
+              "client_id": "384297546215-m41aqpi35nagdt3cv45nhp5jg0b72ir6.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
